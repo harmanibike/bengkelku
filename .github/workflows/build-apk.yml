@@ -12,59 +12,148 @@ permissions:
 
 jobs:
   build:
-    name: Build Android APK
+    name: Build Signed Android APK
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Mengambil kode dari repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Menyiapkan Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # 3. Menyiapkan Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      # 4. Membuat platform Android jika belum tersedia
       - name: Generate Android platform if missing
         run: |
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name bengkelku_pos .
           fi
 
-      # 5. Mengunduh dependensi
       - name: Install dependencies
         run: flutter pub get
 
-      # 6. Merapikan format kode secara otomatis
       - name: Format Dart code
         run: dart format lib
 
-      # 7. Memeriksa kesalahan kode
       - name: Analyze project
         run: flutter analyze
 
-      # 8. Menjalankan pengujian
       - name: Run tests
         run: flutter test
 
-      # 9. Membuat APK release
-      - name: Build APK
+      - name: Prepare permanent signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -e
+
+          if [ -z "$KEYSTORE_BASE64" ] || \
+             [ -z "$KEYSTORE_PASSWORD" ] || \
+             [ -z "$KEY_PASSWORD" ]; then
+            echo "Signing secrets belum lengkap."
+            exit 1
+          fi
+
+          echo "$KEYSTORE_BASE64" | base64 --decode \
+            > android/app/bengkelku-release.jks
+
+          chmod 600 android/app/bengkelku-release.jks
+
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=bengkelku
+          storeFile=bengkelku-release.jks
+          EOF
+
+          chmod 600 android/key.properties
+
+      - name: Configure Android release signing
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/build.gradle.kts")
+          source = path.read_text()
+
+          imports = (
+              "import java.io.FileInputStream\n"
+              "import java.util.Properties\n\n"
+          )
+
+          if "import java.util.Properties" not in source:
+              source = imports + source
+
+          loader = """
+          val keystoreProperties = Properties()
+          val keystorePropertiesFile = rootProject.file("key.properties")
+          keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+
+          """
+
+          if "val keystoreProperties = Properties()" not in source:
+              source = source.replace("android {", loader + "android {", 1)
+
+          signing = """
+              signingConfigs {
+                  create("release") {
+                      keyAlias = keystoreProperties["keyAlias"] as String
+                      keyPassword = keystoreProperties["keyPassword"] as String
+                      storeFile = file(keystoreProperties["storeFile"] as String)
+                      storePassword = keystoreProperties["storePassword"] as String
+                  }
+              }
+
+          """
+
+          if 'create("release")' not in source:
+              source = re.sub(
+                  r"(?m)^    buildTypes \\{",
+                  signing + "    buildTypes {",
+                  source,
+                  count=1
+              )
+
+          old = 'signingConfig = signingConfigs.getByName("debug")'
+          new = 'signingConfig = signingConfigs.getByName("release")'
+
+          if old in source:
+              source = source.replace(old, new, 1)
+          elif new not in source:
+              raise SystemExit("Konfigurasi release signing tidak ditemukan.")
+
+          path.write_text(source)
+          print("Release signing berhasil dikonfigurasi.")
+          PY
+
+      - name: Build signed APK
         run: flutter build apk --release
 
-      # 10. Menyimpan hasil APK
-      - name: Upload APK
+      - name: Verify APK signature
+        run: |
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          jarsigner -verify -verbose -certs "$APK"
+
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: bengkelku-pos-apk
+          name: bengkelku-pos-signed-apk
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 14
+
+      - name: Remove temporary signing files
+        if: always()
+        run: |
+          rm -f android/app/bengkelku-release.jks
+          rm -f android/key.properties
