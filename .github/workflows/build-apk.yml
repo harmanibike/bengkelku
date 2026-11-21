@@ -64,7 +64,7 @@ jobs:
             exit 1
           fi
 
-          echo "$KEYSTORE_BASE64" | base64 --decode \
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode \
             > android/app/bengkelku-release.jks
 
           chmod 600 android/app/bengkelku-release.jks
@@ -82,7 +82,6 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
 
           path = Path("android/app/build.gradle.kts")
           source = path.read_text()
@@ -103,7 +102,14 @@ jobs:
           """
 
           if "val keystoreProperties = Properties()" not in source:
-              source = source.replace("android {", loader + "android {", 1)
+              if "android {" not in source:
+                  raise SystemExit("Blok android tidak ditemukan.")
+
+              source = source.replace(
+                  "android {",
+                  loader + "android {",
+                  1
+              )
 
           signing = """
               signingConfigs {
@@ -118,11 +124,13 @@ jobs:
           """
 
           if 'create("release")' not in source:
-              source = re.sub(
-                  r"(?m)^    buildTypes \\{",
+              if "    buildTypes {" not in source:
+                  raise SystemExit("Blok buildTypes tidak ditemukan.")
+
+              source = source.replace(
+                  "    buildTypes {",
                   signing + "    buildTypes {",
-                  source,
-                  count=1
+                  1
               )
 
           old = 'signingConfig = signingConfigs.getByName("debug")'
@@ -131,7 +139,7 @@ jobs:
           if old in source:
               source = source.replace(old, new, 1)
           elif new not in source:
-              raise SystemExit("Konfigurasi release signing tidak ditemukan.")
+              raise SystemExit("Konfigurasi release tidak ditemukan.")
 
           path.write_text(source)
           print("Release signing berhasil dikonfigurasi.")
@@ -145,11 +153,16 @@ jobs:
           APK="build/app/outputs/flutter-apk/app-release.apk"
           jarsigner -verify -verbose -certs "$APK"
 
+      - name: Rename APK
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/BengkelKu-POS.apk
+
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: bengkelku-pos-signed-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: BengkelKu-POS
+          path: build/app/outputs/flutter-apk/BengkelKu-POS.apk
           retention-days: 14
 
       - name: Remove temporary signing files
