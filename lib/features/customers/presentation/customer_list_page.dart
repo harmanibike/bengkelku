@@ -1,0 +1,439 @@
+
+import 'package:material_ui/material_ui.dart';
+
+import '../data/customer_repository.dart';
+
+class CustomerListPage extends StatefulWidget {
+  const CustomerListPage({super.key});
+
+  @override
+  State<CustomerListPage> createState() => _CustomerListPageState();
+}
+
+class _CustomerListPageState extends State<CustomerListPage> {
+  final CustomerRepository _repository = CustomerRepository();
+  final TextEditingController _searchController = TextEditingController();
+
+  late Future<List<Map<String, Object?>>> _customersFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomers();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _loadCustomers() {
+    _customersFuture = _repository.getCustomers(
+      keyword: _searchController.text,
+    );
+  }
+
+  void _refresh() {
+    setState(_loadCustomers);
+  }
+
+  Future<void> _showCustomerForm({
+    Map<String, Object?>? customer,
+  }) async {
+    final isEditing = customer != null;
+
+    final nameController = TextEditingController(
+      text: customer?['name']?.toString() ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: customer?['phone']?.toString() ?? '',
+    );
+    final addressController = TextEditingController(
+      text: customer?['address']?.toString() ?? '',
+    );
+    final emailController = TextEditingController(
+      text: customer?['email']?.toString() ?? '',
+    );
+    final notesController = TextEditingController(
+      text: customer?['notes']?.toString() ?? '',
+    );
+
+    final formKey = GlobalKey<FormState>();
+
+    try {
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(
+              isEditing ? 'Edit Pelanggan' : 'Tambah Pelanggan',
+            ),
+            content: SizedBox(
+              width: 400,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama pelanggan *',
+                          prefixIcon: Icon(Icons.person_outline),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Nama pelanggan wajib diisi';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Nomor telepon',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: addressController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Alamat',
+                          prefixIcon: Icon(Icons.location_on_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.email_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: notesController,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'Catatan',
+                          prefixIcon: Icon(Icons.notes),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+              FilledButton.icon(
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    Navigator.pop(dialogContext, true);
+                  }
+                },
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Simpan'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (saved != true || !mounted) return;
+
+      if (isEditing) {
+        await _repository.updateCustomer(
+          id: customer['id'] as int,
+          name: nameController.text,
+          phone: phoneController.text,
+          address: addressController.text,
+          email: emailController.text,
+          notes: notesController.text,
+        );
+      } else {
+        await _repository.addCustomer(
+          name: nameController.text,
+          phone: phoneController.text,
+          address: addressController.text,
+          email: emailController.text,
+          notes: notesController.text,
+        );
+      }
+
+      if (!mounted) return;
+
+      _refresh();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEditing
+                ? 'Data pelanggan berhasil diperbarui'
+                : 'Pelanggan berhasil ditambahkan',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan data: $error')),
+      );
+    } finally {
+      nameController.dispose();
+      phoneController.dispose();
+      addressController.dispose();
+      emailController.dispose();
+      notesController.dispose();
+    }
+  }
+
+  Future<void> _deleteCustomer(
+    Map<String, Object?> customer,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Hapus Pelanggan?'),
+          content: Text(
+            'Hapus data ${customer['name']}? '
+            'Tindakan ini tidak dapat dibatalkan.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              child: const Text('Hapus'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _repository.deleteCustomer(customer['id'] as int);
+
+      if (!mounted) return;
+
+      _refresh();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Data pelanggan berhasil dihapus'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menghapus data: $error')),
+      );
+    }
+  }
+
+  Widget _buildCustomerCard(Map<String, Object?> customer) {
+    final name = customer['name']?.toString() ?? 'Tanpa nama';
+    final phone = customer['phone']?.toString() ?? '';
+    final address = customer['address']?.toString() ?? '';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 8,
+        ),
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          child: Icon(
+            Icons.person,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        title: Text(
+          name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (phone.isNotEmpty)
+                Text(
+                  phone,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              if (address.isNotEmpty)
+                Text(
+                  address,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+            ],
+          ),
+        ),
+        trailing: PopupMenuButton<String>(
+          onSelected: (value) {
+            if (value == 'edit') {
+              _showCustomerForm(customer: customer);
+            } else if (value == 'delete') {
+              _deleteCustomer(customer);
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit_outlined),
+                  SizedBox(width: 10),
+                  Text('Edit'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text('Hapus'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Data Pelanggan'),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => _refresh(),
+              decoration: InputDecoration(
+                hintText: 'Cari nama atau nomor telepon...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    _refresh();
+                  },
+                  icon: const Icon(Icons.close),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Map<String, Object?>>>(
+              future: _customersFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Gagal memuat pelanggan:\n${snapshot.error}',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }
+
+                final customers = snapshot.data ?? [];
+
+                if (customers.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.people_outline,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Belum ada data pelanggan',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            'Tekan tombol tambah untuk memasukkan pelanggan.',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                  itemCount: customers.length,
+                  itemBuilder: (context, index) {
+                    return _buildCustomerCard(customers[index]);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showCustomerForm(),
+        icon: const Icon(Icons.person_add_alt_1),
+        label: const Text('Tambah'),
+      ),
+    );
+  }
+}
