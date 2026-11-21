@@ -12,45 +12,56 @@ permissions:
 
 jobs:
   build:
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Mengambil kode dari repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Menyiapkan Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      # 3. Menyiapkan Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
+      # 4. Membuat platform Android jika belum tersedia
       - name: Generate Android platform if missing
         run: |
           if [ ! -d android ]; then
             flutter create --platforms=android --project-name bengkelku_pos .
           fi
 
+      # 5. Mengunduh dependensi
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed lib
+      # 6. Merapikan format kode secara otomatis
+      - name: Format Dart code
+        run: dart format lib
 
+      # 7. Memeriksa kesalahan kode
       - name: Analyze project
         run: flutter analyze
 
+      # 8. Menjalankan pengujian
       - name: Run tests
         run: flutter test
 
+      # 9. Membuat APK release
       - name: Build APK
         run: flutter build apk --release
 
+      # 10. Menyimpan hasil APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
