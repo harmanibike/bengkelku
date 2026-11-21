@@ -1,4 +1,3 @@
-
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
@@ -8,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   Database? _database;
 
@@ -141,6 +140,8 @@ class AppDatabase {
         received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         completed_at TEXT,
         notes TEXT,
+        before_photo_path TEXT,
+        after_photo_path TEXT,
         FOREIGN KEY (customer_id)
           REFERENCES customers(id)
           ON DELETE SET NULL,
@@ -301,7 +302,18 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
-    // Migrasi database akan ditambahkan di tahap berikutnya.
+    // Migrasi dari database versi 1 ke versi 2.
+    if (oldVersion < 2) {
+      await db.execute('''
+        ALTER TABLE service_orders
+        ADD COLUMN before_photo_path TEXT
+      ''');
+
+      await db.execute('''
+        ALTER TABLE service_orders
+        ADD COLUMN after_photo_path TEXT
+      ''');
+    }
   }
 
   Future<void> close() async {
