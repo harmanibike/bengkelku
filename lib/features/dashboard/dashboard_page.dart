@@ -2,6 +2,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../customers/presentation/customer_list_page.dart';
+import '../bicycles/presentation/bicycle_list_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -19,6 +20,15 @@ class DashboardPage extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (_) => const CustomerListPage(),
+      ),
+    );
+  }
+
+  void _openBicycles(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const BicycleListPage(),
       ),
     );
   }
@@ -139,7 +149,7 @@ class DashboardPage extends StatelessWidget {
                   _MenuItem(
                     title: 'Sepeda',
                     icon: Icons.pedal_bike,
-                    onTap: () => _showComingSoon(context, 'Data Sepeda'),
+                    onTap: () => _openBicycles(context),
                   ),
                   _MenuItem(
                     title: 'Produk',
