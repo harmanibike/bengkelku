@@ -1,9 +1,16 @@
+
 import 'package:material_ui/material_ui.dart';
+
+import 'core/database/app_database.dart';
 import 'core/theme/app_theme.dart';
 import 'features/dashboard/dashboard_page.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Membuka atau membuat database lokal BengkelKu POS.
+  await AppDatabase.instance.database;
+
   runApp(const BengkelKuApp());
 }
 
