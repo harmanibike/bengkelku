@@ -1,12 +1,25 @@
 
 import 'package:material_ui/material_ui.dart';
 
+import '../customers/presentation/customer_list_page.dart';
+
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature akan tersedia pada tahap berikutnya.')),
+      SnackBar(
+        content: Text('$feature akan tersedia pada tahap berikutnya.'),
+      ),
+    );
+  }
+
+  void _openCustomers(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CustomerListPage(),
+      ),
     );
   }
 
@@ -136,7 +149,7 @@ class DashboardPage extends StatelessWidget {
                   _MenuItem(
                     title: 'Pelanggan',
                     icon: Icons.people,
-                    onTap: () => _showComingSoon(context, 'Pelanggan'),
+                    onTap: () => _openCustomers(context),
                   ),
                   _MenuItem(
                     title: 'Laporan',
@@ -233,7 +246,11 @@ class _MenuItem extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 30, color: Theme.of(context).colorScheme.primary),
+              Icon(
+                icon,
+                size: 30,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(height: 8),
               Text(
                 title,
