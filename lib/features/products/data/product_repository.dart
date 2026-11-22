@@ -128,7 +128,7 @@ class ProductRepository {
     await db.transaction((txn) async {
       final rows = await txn.query(
         'products',
-        columns: ['stock', 'track_stock', 'name'],
+        columns: ['stock', 'track_stock', 'name', 'purchase_price'],
         where: 'id = ? AND is_active = 1',
         whereArgs: [productId],
         limit: 1,
@@ -144,9 +144,43 @@ class ProductRepository {
       if (after < 0) {
         throw StateError('Stok tidak mencukupi. Stok saat ini: $before.');
       }
+      final now = DateTime.now().toIso8601String();
+      if (isStockIn) {
+        final unitCost = rows.first['purchase_price'] as int? ?? 0;
+        await txn.insert('inventory_cost_batches', {
+          'product_id': productId,
+          'batch_code': 'ADJ-$productId-${DateTime.now().microsecondsSinceEpoch}',
+          'quantity_received': quantity,
+          'quantity_remaining': quantity,
+          'unit_cost': unitCost,
+          'received_at': now,
+          'notes': 'Penambahan stok manual',
+        });
+      } else {
+        var remaining = quantity;
+        final batches = await txn.query(
+          'inventory_cost_batches',
+          where: 'product_id = ? AND quantity_remaining > 0',
+          whereArgs: [productId],
+          orderBy: 'received_at ASC, id ASC',
+        );
+        for (final batch in batches) {
+          if (remaining <= 0) break;
+          final available = batch['quantity_remaining'] as int? ?? 0;
+          final take = available < remaining ? available : remaining;
+          if (take <= 0) continue;
+          await txn.update('inventory_cost_batches', {
+            'quantity_remaining': available - take,
+          }, where: 'id = ?', whereArgs: [batch['id']]);
+          remaining -= take;
+        }
+        if (remaining > 0) {
+          throw StateError('Saldo batch biaya tidak cukup untuk mengurangi stok. Kekurangan: $remaining.');
+        }
+      }
       await txn.update('products', {
         'stock': after,
-        'updated_at': DateTime.now().toIso8601String(),
+        'updated_at': now,
       }, where: 'id = ?', whereArgs: [productId]);
       await txn.insert('stock_movements', {
         'product_id': productId,
