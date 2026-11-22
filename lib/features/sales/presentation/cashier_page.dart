@@ -162,10 +162,6 @@ class _CashierPageState extends State<CashierPage> {
       );
       if (confirmed != true || !mounted) return;
       final paid = int.tryParse(paymentController.text) ?? 0;
-      if (paid > _total) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Uang diterima tidak boleh melebihi total.')));
-        return;
-      }
       int? customerId;
       if (paid < _total) {
         customerId = await _chooseCustomer();
