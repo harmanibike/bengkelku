@@ -21,6 +21,16 @@ class PurchaseRepository {
     return db.query('purchase_items', where: 'purchase_id = ?', whereArgs: [purchaseId], orderBy: 'id ASC');
   }
 
+  Future<List<Map<String, Object?>>> getPurchasePayments(int purchaseId) async {
+    final db = await _db;
+    return db.query(
+      'supplier_payments',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+      orderBy: 'payment_date DESC, id DESC',
+    );
+  }
+
   Future<int> createPurchase({
     required String invoiceNumber,
     required int supplierId,
