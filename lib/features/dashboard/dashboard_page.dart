@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../bicycles/presentation/bicycle_list_page.dart';
 import '../customers/presentation/customer_list_page.dart';
 import '../products/presentation/product_list_page.dart';
+import '../products/presentation/stock_movement_page.dart';
 import '../purchases/presentation/suppliers_page.dart';
 import '../purchases/presentation/purchases_page.dart';
 import '../purchases/presentation/purchase_returns_page.dart';
@@ -86,6 +87,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _openProducts() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductListPage()));
+  }
+
+  void _openStockMovements() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const StockMovementPage()));
   }
 
   void _openCashier() {
@@ -465,6 +470,7 @@ class _DashboardPageState extends State<DashboardPage> {
             _menuTile(title: 'Produk', icon: Icons.inventory_2_rounded, colors: const [Color(0xFFEF8D32), Color(0xFFFFB74D)], onTap: _openProducts),
             _menuTile(title: 'Servis', icon: Icons.build_rounded, colors: const [Color(0xFFE91E63), Color(0xFFF06292)], onTap: _openServices),
             _menuTile(title: 'Stok', icon: Icons.bar_chart_rounded, colors: const [Color(0xFF039BE5), Color(0xFF4FC3F7)], onTap: _openProducts),
+            _menuTile(title: 'Audit Stok', icon: Icons.history_rounded, colors: const [Color(0xFF00796B), Color(0xFF4DB6AC)], onTap: _openStockMovements),
             _menuTile(title: 'Pelanggan', icon: Icons.people_alt_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openCustomers),
             _menuTile(title: 'Sepeda', icon: Icons.pedal_bike_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openBicycles),
             _menuTile(title: 'Laporan', icon: Icons.analytics_rounded, colors: const [Color(0xFF8E24AA), Color(0xFFBA68C8)], onTap: _openReports),
