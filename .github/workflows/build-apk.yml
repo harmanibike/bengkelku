@@ -126,6 +126,30 @@ jobs:
 
           PY
 
+
+      - name: Keep Android navigation bar opaque
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/src/main/res/values/styles.xml")
+          source = path.read_text()
+          item = '        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>'
+
+          if "windowOptOutEdgeToEdgeEnforcement" not in source:
+              source, count = re.subn(
+                  r'(<style[^>]*>)',
+                  lambda match: match.group(1) + "\n" + item,
+                  source
+              )
+              if count == 0:
+                  raise SystemExit("Tidak menemukan style Android.")
+              path.write_text(source)
+
+          print("Navigation bar Android diatur solid.")
+          PY
+
       - name: Install dependencies
         run: flutter pub get
 
