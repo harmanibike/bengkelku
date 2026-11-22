@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../data/report_repository.dart';
+import '../../purchases/presentation/purchase_reports_page.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key});
@@ -92,6 +93,28 @@ class _ReportsPageState extends State<ReportsPage> {
               child: ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
+                  const Text('Jenis Laporan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFE8EAF6),
+                        child: Icon(Icons.shopping_bag_outlined, color: Color(0xFF3949AB)),
+                      ),
+                      title: const Text('Laporan Pembelian', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Ringkasan pembelian, pemasok, dan transaksi pembelian'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PurchaseReportsPage()),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Ringkasan Keuangan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: _period,
                     decoration: const InputDecoration(labelText: 'Periode laporan', border: OutlineInputBorder()),
