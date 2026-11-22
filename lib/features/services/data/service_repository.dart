@@ -309,7 +309,17 @@ class ServiceRepository {
     });
   }
 
-  // Koreksi biaya modal tidak boleh mengubah harga tagihan, DP, atau sisa piutang.
+  // Riwayat audit perubahan modal, tidak mengubah tagihan dan stok.
+  Future<List<Map<String, Object?>>> getServiceDirectCostHistory(int id) async {
+    final db = await _db;
+    return db.query(
+      'service_direct_cost_history',
+      where: 'service_order_id = ?',
+      whereArgs: [id],
+      orderBy: 'changed_at DESC, id DESC',
+    );
+  }
+
   Future<int> updateServiceDirectCosts({
     required int id,
     required int directPartsCost,
@@ -319,25 +329,42 @@ class ServiceRepository {
       throw ArgumentError('Biaya langsung tidak boleh negatif.');
     }
     final db = await _db;
-    final existing = await db.query(
-      'service_orders',
-      columns: ['id'],
-      where: 'id = ?',
-      whereArgs: [id],
-      limit: 1,
-    );
-    if (existing.isEmpty) {
-      throw StateError('Nota servis tidak ditemukan.');
-    }
-    return db.update(
-      'service_orders',
-      {
-        'direct_parts_cost': directPartsCost,
-        'other_direct_cost': otherDirectCost,
-      },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final rows = await txn.query(
+        'service_orders',
+        columns: ['id', 'direct_parts_cost', 'other_direct_cost'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isEmpty) {
+        throw StateError('Nota servis tidak ditemukan.');
+      }
+      final oldParts = rows.first['direct_parts_cost'] as int? ?? 0;
+      final oldOther = rows.first['other_direct_cost'] as int? ?? 0;
+      if (oldParts == directPartsCost && oldOther == otherDirectCost) {
+        return 0;
+      }
+
+      final now = DateTime.now().toIso8601String();
+      await txn.insert('service_direct_cost_history', {
+        'service_order_id': id,
+        'old_direct_parts_cost': oldParts,
+        'new_direct_parts_cost': directPartsCost,
+        'old_other_direct_cost': oldOther,
+        'new_other_direct_cost': otherDirectCost,
+        'changed_at': now,
+      });
+      return txn.update(
+        'service_orders',
+        {
+          'direct_parts_cost': directPartsCost,
+          'other_direct_cost': otherDirectCost,
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
   }
 
   // Perubahan status harus mengikuti alur kerja dan selalu tercatat.
