@@ -36,6 +36,117 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
     await next;
   }
 
+  Future<void> _applyCredit(Map<String, Object?> row) async {
+    final returnId = row['id'] as int;
+    final total = (row['total_amount'] as num?)?.toInt() ?? 0;
+    final applied = (row['credit_applied'] as num?)?.toInt() ?? 0;
+    final refunded = (row['refund_received'] as num?)?.toInt() ?? 0;
+    final available = total - applied - refunded;
+    if (available <= 0) return;
+    final invoices = await _repository.getCreditTargetInvoices(returnId);
+    if (!mounted) return;
+    if (invoices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pemasok ini belum memiliki faktur dengan sisa utang.')),
+      );
+      return;
+    }
+    int? purchaseId = invoices.first['id'] as int;
+    final maxAmount = (invoices.first['remaining_amount'] as num?)?.toInt() ?? 0;
+    final amountController = TextEditingController(
+      text: (available < maxAmount ? available : maxAmount).toString(),
+    );
+    final result = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Gunakan Kredit Pemasok'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Saldo kredit tersedia: ${_money(available)}',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                value: purchaseId,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Faktur tujuan', isDense: true),
+                items: invoices.map((invoice) => DropdownMenuItem<int>(
+                  value: invoice['id'] as int,
+                  child: Text(
+                    '${invoice['invoice_number']} • Sisa ${_money(invoice['remaining_amount'])}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                )).toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setDialogState(() {
+                    purchaseId = value;
+                    final target = invoices.firstWhere((item) => item['id'] == value);
+                    final remaining = (target['remaining_amount'] as num?)?.toInt() ?? 0;
+                    amountController.text = (available < remaining ? available : remaining).toString();
+                  });
+                },
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Jumlah kredit yang digunakan',
+                  prefixText: 'Rp ',
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Kredit hanya dapat digunakan untuk faktur milik pemasok yang sama. Tidak ada uang kas yang keluar.',
+                style: TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+            FilledButton(
+              onPressed: () {
+                final amount = int.tryParse(
+                  amountController.text.replaceAll('.', '').replaceAll(',', ''),
+                ) ?? 0;
+                if (purchaseId != null && amount > 0) {
+                  Navigator.pop(dialogContext, {'purchase_id': purchaseId!, 'amount': amount});
+                }
+              },
+              child: const Text('Terapkan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    amountController.dispose();
+    if (result == null || !mounted) return;
+    try {
+      await _repository.applyReturnCredit(
+        returnId: returnId,
+        purchaseId: result['purchase_id']!,
+        amount: result['amount']!,
+      );
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Kredit berhasil diterapkan ke faktur pemasok.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kredit gagal diterapkan: $error')),
+        );
+      }
+    }
+  }
+
   Future<void> _settleReturn(Map<String, Object?> row) async {
     final total = (row['total_amount'] as num?)?.toInt() ?? 0;
     final applied = (row['credit_applied'] as num?)?.toInt() ?? 0;
@@ -328,9 +439,31 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                     ),
                     title: Text(row['return_number'] as String? ?? '-',
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      'Faktur ${row['invoice_number']} • ${row['supplier_name'] ?? 'Pemasok'}',
-                      style: const TextStyle(fontSize: 11),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Faktur ${row['invoice_number']} • ${row['supplier_name'] ?? 'Pemasok'}',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        if (((row['total_amount'] as num?)?.toInt() ?? 0) -
+                            ((row['credit_applied'] as num?)?.toInt() ?? 0) -
+                            ((row['refund_received'] as num?)?.toInt() ?? 0) > 0)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: () => _applyCredit(row),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
+                                minimumSize: const Size(0, 26),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              icon: const Icon(Icons.account_balance_wallet_outlined, size: 14),
+                              label: const Text('Gunakan saldo kredit', style: TextStyle(fontSize: 10)),
+                            ),
+                          ),
+                      ],
                     ),
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
