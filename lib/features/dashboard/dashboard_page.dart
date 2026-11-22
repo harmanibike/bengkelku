@@ -130,7 +130,11 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchaseReportsPage()));
   }
 
-  void _openServicePricing() {\n    Navigator.push(context, MaterialPageRoute(builder: (_) => const ServicePricingPage()));\n  }\n\n  void _openPurchaseCostSettings() {
+  void _openServicePricing() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ServicePricingPage()));
+  }
+
+  void _openPurchaseCostSettings() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchaseCostSettingsPage()));
   }
 
