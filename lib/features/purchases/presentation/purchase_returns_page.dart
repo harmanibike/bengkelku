@@ -36,6 +36,96 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
     await next;
   }
 
+  Future<void> _settleReturn(Map<String, Object?> row) async {
+    final total = (row['total_amount'] as num?)?.toInt() ?? 0;
+    final applied = (row['credit_applied'] as num?)?.toInt() ?? 0;
+    final refunded = (row['refund_received'] as num?)?.toInt() ?? 0;
+    final pending = total - applied - refunded;
+    if (pending <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nilai retur ini sudah diselesaikan seluruhnya.')),
+      );
+      return;
+    }
+    final creditController = TextEditingController();
+    final refundController = TextEditingController();
+    final result = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Penyelesaian ${row['return_number']}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nilai retur: ${_money(total)}', style: const TextStyle(fontSize: 12)),
+            Text('Belum diselesaikan: ${_money(pending)}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: creditController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Kredit untuk mengurangi utang faktur',
+                prefixText: 'Rp ',
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: refundController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Uang yang benar-benar diterima',
+                prefixText: 'Rp ',
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Isi sesuai kesepakatan pemasok. Kredit mengurangi sisa utang faktur; uang kembali baru masuk kas setelah benar-benar diterima.',
+              style: TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+          FilledButton(
+            onPressed: () {
+              final credit = int.tryParse(creditController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0;
+              final refund = int.tryParse(refundController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0;
+              if (credit >= 0 && refund >= 0 && credit + refund > 0 && credit + refund <= pending) {
+                Navigator.pop(dialogContext, {'credit': credit, 'refund': refund});
+              }
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    creditController.dispose();
+    refundController.dispose();
+    if (result == null || !mounted) return;
+    try {
+      await _repository.settleReturn(
+        returnId: row['id'] as int,
+        creditApplied: result['credit']!,
+        refundReceived: result['refund']!,
+      );
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Penyelesaian retur berhasil dicatat.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Penyelesaian gagal: $error')),
+        );
+      }
+    }
+  }
+
   Future<void> _createReturn() async {
     final purchases = await _repository.getPurchases();
     if (!mounted) return;
@@ -242,8 +332,17 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                       'Faktur ${row['invoice_number']} • ${row['supplier_name'] ?? 'Pemasok'}',
                       style: const TextStyle(fontSize: 11),
                     ),
-                    trailing: Text(_money(row['total_amount']),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(_money(row['total_amount']),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text('Sisa ${_money(((row['total_amount'] as num?)?.toInt() ?? 0) - ((row['credit_applied'] as num?)?.toInt() ?? 0) - ((row['refund_received'] as num?)?.toInt() ?? 0))}',
+                          style: const TextStyle(fontSize: 9, color: Colors.deepOrange)),
+                      ],
+                    ),
+                    onTap: () => _settleReturn(row),
                   ),
                 );
               },
