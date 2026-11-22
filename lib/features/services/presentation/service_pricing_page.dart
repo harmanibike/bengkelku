@@ -119,7 +119,7 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
     })),
   ]);
 
-  Widget _history() => _history.isEmpty ? const Center(child: Text('Belum ada perubahan harga.')) : ListView.builder(itemCount: _history.length, itemBuilder: (ctx, i) {
+  Widget _historyTab() => _history.isEmpty ? const Center(child: Text('Belum ada perubahan harga.')) : ListView.builder(itemCount: _history.length, itemBuilder: (ctx, i) {
     final h = _history[i];
     return Card(elevation: 0, margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), child: ListTile(dense: true, title: Text(h['service_name'].toString()), subtitle: Text(_money(h['old_price']) + ' → ' + _money(h['new_price']) + '\n' + (h['change_reason'] ?? '').toString()), isThreeLine: true, trailing: Text(h['changed_at'].toString().split('.').first, style: const TextStyle(fontSize: 10))));
   });
@@ -132,7 +132,7 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
       floatingActionButton: AnimatedBuilder(animation: _tabs, builder: (_, __) => _tabs.index == 0 ? FloatingActionButton.small(onPressed: () => _edit(), child: const Icon(Icons.add)) : const SizedBox.shrink()),
       body: _loading ? const Center(child: CircularProgressIndicator()) : TabBarView(controller: _tabs, children: [
         _master(),
-        _history(),
+        _historyTab(),
         const ListView(padding: EdgeInsets.all(12), children: [
           Card(elevation: 0, child: ListTile(leading: Icon(Icons.tune), title: Text('Metode harga: Keduanya'), subtitle: Text('Harga standar menjadi acuan otomatis. Admin dapat mengubah harga master secara manual.'))),
           Card(elevation: 0, child: Padding(padding: EdgeInsets.all(12), child: Text('Hak perubahan harga: Admin saja. Akses menu memerlukan PIN admin. PIN disimpan dalam bentuk hash dengan salt acak.'))),
