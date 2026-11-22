@@ -119,6 +119,39 @@ class ReportRepository {
         AND datetime(transaction_date) < datetime(?)
     ''', [from, until]);
 
+    // Saldo piutang saat ini tidak dibatasi periode laporan.
+    final serviceReceivableRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(remaining_payment), 0) AS amount, COUNT(*) AS total
+      FROM service_orders
+      WHERE remaining_payment > 0 AND service_status != 'cancelled'
+    ''');
+
+    final saleReceivableRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(
+        s.total - COALESCE(ret.returned_amount, 0) - s.paid
+        + COALESCE(ret.refunded_amount, 0)
+      ), 0) AS amount, COUNT(*) AS total
+      FROM sales s
+      LEFT JOIN (
+        SELECT sale_id, SUM(total_amount) AS returned_amount,
+          SUM(refunded_amount) AS refunded_amount
+        FROM sale_returns GROUP BY sale_id
+      ) ret ON ret.sale_id = s.id
+      WHERE s.payment_status != 'cancelled'
+        AND (s.total - COALESCE(ret.returned_amount, 0) - s.paid
+          + COALESCE(ret.refunded_amount, 0)) > 0
+    ''');
+
+    final supplierPayableRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(
+        CASE WHEN p.total - p.paid - COALESCE(p.return_credit, 0) > 0
+          THEN p.total - p.paid - COALESCE(p.return_credit, 0) ELSE 0 END
+      ), 0) AS amount, COUNT(*) AS total
+      FROM purchases p
+      WHERE p.status = 'active'
+        AND p.total > p.paid + COALESCE(p.return_credit, 0)
+    ''');
+
     final lowStock = await db.rawQuery('''
       SELECT COUNT(*) AS total FROM products
       WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock
@@ -169,6 +202,14 @@ class ReportRepository {
       'manual_operating_expense_amount': manualOperatingExpenseRows.first['amount'] as int? ?? 0,
       'manual_operating_expense_count': manualOperatingExpenseRows.first['total'] as int? ?? 0,
       'profit_after_recorded_operating_expense': grossProfit + (serviceRevenueRows.first['amount'] as int? ?? 0) - (serviceDirectCostRows.first['amount'] as int? ?? 0) - (manualOperatingExpenseRows.first['amount'] as int? ?? 0),
+      'service_receivable_amount': serviceReceivableRows.first['amount'] as int? ?? 0,
+      'service_receivable_count': serviceReceivableRows.first['total'] as int? ?? 0,
+      'sale_receivable_amount': saleReceivableRows.first['amount'] as int? ?? 0,
+      'sale_receivable_count': saleReceivableRows.first['total'] as int? ?? 0,
+      'customer_receivable_amount': (serviceReceivableRows.first['amount'] as int? ?? 0) + (saleReceivableRows.first['amount'] as int? ?? 0),
+      'customer_receivable_count': (serviceReceivableRows.first['total'] as int? ?? 0) + (saleReceivableRows.first['total'] as int? ?? 0),
+      'supplier_payable_amount': supplierPayableRows.first['amount'] as int? ?? 0,
+      'supplier_payable_count': supplierPayableRows.first['total'] as int? ?? 0,
       'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
       'latest': latest,
