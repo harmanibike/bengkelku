@@ -165,6 +165,16 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
     return _returnTotal < availablePaid ? _returnTotal : availablePaid;
   }
 
+  int get _minimumRefund {
+    final total = _selectedSale?['total'] as int? ?? 0;
+    final paid = _selectedSale?['paid'] as int? ?? 0;
+    final returned = _returnSummary['returned_amount'] as int? ?? 0;
+    final refunded = _returnSummary['refunded_amount'] as int? ?? 0;
+    final outstanding = total - paid - returned + refunded;
+    return (_returnTotal - (outstanding > 0 ? outstanding : 0))
+        .clamp(0, 1 << 62).toInt();
+  }
+
   Future<void> _submitReturn() async {
     final saleId = _selectedSaleId;
     if (saleId == null) return;
@@ -192,9 +202,9 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
     }
 
     final refund = int.tryParse(_refundController.text.replaceAll('.', '').trim()) ?? 0;
-    if (refund < 0 || refund > _maximumRefund) {
+    if (refund < _minimumRefund || refund > _maximumRefund) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pengembalian uang maksimal ${_rupiah(_maximumRefund)}.')),
+        SnackBar(content: Text('Pengembalian uang harus antara ${_rupiah(_minimumRefund)} dan ${_rupiah(_maximumRefund)}.')),
       );
       return;
     }
@@ -347,7 +357,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
                           enabled: !_saving,
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
-                          onChanged: (_) => setState(() {}),
+                          onChanged: (_) {\n                            if ((int.tryParse(_refundController.text.trim()) ?? 0) < _minimumRefund) {\n                              _refundController.text = _minimumRefund.toString();\n                            }\n                            setState(() {});\n                          },
                           decoration: const InputDecoration(
                             labelText: 'Qty',
                             isDense: true,
@@ -375,7 +385,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Uang dikembalikan sekarang (Rp)',
-                  helperText: 'Maksimal ${_rupiah(_maximumRefund)} berdasarkan pembayaran yang sudah diterima.',
+                  helperText: 'Minimal ${_rupiah(_minimumRefund)} • Maksimal ${_rupiah(_maximumRefund)} dari pembayaran yang diterima.',
                   border: const OutlineInputBorder(),
                   isDense: true,
                 ),
