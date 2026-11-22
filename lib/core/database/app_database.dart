@@ -296,6 +296,21 @@ class AppDatabase {
       ON service_status_history(service_order_id, changed_at)
     ''');
 
+    // Riwayat audit perubahan biaya modal servis untuk database baru.
+    batch.execute('''
+      CREATE TABLE service_direct_cost_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_order_id INTEGER NOT NULL,
+        old_direct_parts_cost INTEGER NOT NULL DEFAULT 0,
+        new_direct_parts_cost INTEGER NOT NULL DEFAULT 0,
+        old_other_direct_cost INTEGER NOT NULL DEFAULT 0,
+        new_other_direct_cost INTEGER NOT NULL DEFAULT 0,
+        changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_service_direct_cost_history_order ON service_direct_cost_history(service_order_id, changed_at, id)');
+
     // Rincian pekerjaan dan sparepart servis.
     batch.execute('''
       CREATE TABLE service_order_items (
