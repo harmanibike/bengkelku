@@ -154,7 +154,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           });
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: brand,
                         decoration: const InputDecoration(
@@ -162,7 +162,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: model,
                         decoration: const InputDecoration(
@@ -170,7 +170,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
                         initialValue: types.contains(selectedType)
                             ? selectedType
@@ -193,7 +193,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           }
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: color,
                         decoration: const InputDecoration(
@@ -201,7 +201,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: size,
                         decoration: const InputDecoration(
@@ -209,7 +209,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: serial,
                         decoration: const InputDecoration(
@@ -217,7 +217,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextField(
                         controller: notes,
                         maxLines: 2,
@@ -352,7 +352,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: TextField(
               controller: _searchController,
               onChanged: (_) => _loadBicycles(),
