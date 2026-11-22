@@ -288,7 +288,7 @@ class PurchaseReturnRepository {
         final productId = item['product_id'] as int?;
         if (productId == null) continue;
         final products = await txn.query('products',
-          columns: ['stock', 'track_stock'],
+          columns: ['stock', 'track_stock', 'purchase_price'],
           where: 'id = ?', whereArgs: [productId], limit: 1);
         if (products.isEmpty || (products.first['track_stock'] as int? ?? 1) != 1) continue;
         final before = products.first['stock'] as int? ?? 0;
@@ -298,12 +298,20 @@ class PurchaseReturnRepository {
         }
         final after = before - quantity;
         var batchRemaining = quantity;
-        final batches = await txn.query(
+        final sourceBatches = await txn.query(
           'inventory_cost_batches',
-          where: 'product_id = ? AND quantity_remaining > 0',
-          whereArgs: [productId],
+          where: 'product_id = ? AND purchase_item_id = ? AND quantity_remaining > 0',
+          whereArgs: [productId, item['purchase_item_id']],
           orderBy: 'received_at ASC, id ASC',
         );
+        final batches = sourceBatches.isNotEmpty
+            ? sourceBatches
+            : await txn.query(
+                'inventory_cost_batches',
+                where: 'product_id = ? AND quantity_remaining > 0',
+                whereArgs: [productId],
+                orderBy: 'received_at ASC, id ASC',
+              );
         for (final batch in batches) {
           if (batchRemaining <= 0) break;
           final availableBatch = batch['quantity_remaining'] as int? ?? 0;
@@ -315,7 +323,32 @@ class PurchaseReturnRepository {
           batchRemaining -= take;
         }
         if (batchRemaining > 0) {
-          throw StateError('Saldo batch produk tidak cukup untuk retur. Kekurangan: $batchRemaining.');
+          throw StateError('Stok batch asal tidak mencukupi untuk retur. Sisa yang dapat diretur dari batch ini belum cukup.');
+        }
+        final settingRows = await txn.query(
+          'app_settings',
+          columns: ['setting_value'],
+          where: 'setting_key = ?',
+          whereArgs: ['purchase_cost_method'],
+          limit: 1,
+        );
+        final costMethod = settingRows.isEmpty
+            ? 'weighted_average'
+            : settingRows.first['setting_value']?.toString();
+        if (costMethod == 'weighted_average') {
+          final totals = await txn.rawQuery('''
+            SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
+              COALESCE(SUM(quantity_remaining * unit_cost), 0) AS value
+            FROM inventory_cost_batches
+            WHERE product_id = ? AND quantity_remaining > 0
+          ''', [productId]);
+          final remainingQty = (totals.first['quantity'] as num?)?.toInt() ?? 0;
+          final remainingValue = (totals.first['value'] as num?)?.toInt() ?? 0;
+          if (remainingQty > 0) {
+            await txn.update('products', {
+              'purchase_price': (remainingValue / remainingQty).round(),
+            }, where: 'id = ?', whereArgs: [productId]);
+          }
         }
         await txn.update('products', {
           'stock': after,
