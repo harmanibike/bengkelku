@@ -113,8 +113,25 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
       final businessProfile = await BusinessProfileRepository().getProfile();
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Detail Penjualan'),
+        builder: (dialogContext) => Theme(
+          data: Theme.of(context).copyWith(
+            brightness: Brightness.light,
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF245A9A),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF202833),
+              error: Colors.red,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+            ),
+          ),
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            title: const Text('Detail Penjualan'),
           content: SizedBox(
             width: double.maxFinite,
             child: SingleChildScrollView(
@@ -224,6 +241,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
               child: const Text('Tutup'),
             ),
           ],
+          ),
         ),
       );
     } catch (error) {
