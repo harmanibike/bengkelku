@@ -109,6 +109,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
             border: OutlineInputBorder(),
           ),
           items: _statusLabels.entries
+              .where((entry) =>
+                  entry.key == current ||
+                  (ServiceRepository.allowedStatusTransitions[current] ??
+                          const <String>[])
+                      .contains(entry.key))
               .map((entry) => DropdownMenuItem(
                     value: entry.key,
                     child: Text(entry.value),
