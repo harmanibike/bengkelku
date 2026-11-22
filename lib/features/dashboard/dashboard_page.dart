@@ -15,6 +15,7 @@ import '../services/presentation/service_pricing_page.dart';
 import '../business/presentation/business_profile_page.dart';
 import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
+import '../reports/presentation/cashbook_page.dart';
 import '../receivables/presentation/receivables_page.dart';
 import '../sales/presentation/cashier_page.dart';
 import '../sales/presentation/sales_history_page.dart';
@@ -115,6 +116,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _openReports() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsPage()));
+  }
+
+  void _openCashbook() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const CashbookPage()));
   }
 
   void _openReceivables() {
@@ -496,6 +501,7 @@ class _DashboardPageState extends State<DashboardPage> {
             _menuTile(title: 'Pelanggan', icon: Icons.people_alt_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openCustomers),
             _menuTile(title: 'Sepeda', icon: Icons.pedal_bike_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openBicycles),
             _menuTile(title: 'Laporan', icon: Icons.analytics_rounded, colors: const [Color(0xFF8E24AA), Color(0xFFBA68C8)], onTap: _openReports),
+            _menuTile(title: 'Buku Kas', icon: Icons.account_balance_wallet_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openCashbook),
             _menuTile(title: 'Pengeluaran', icon: Icons.money_off_rounded, colors: const [Color(0xFFE64A19), Color(0xFFFF8A65)], onTap: _openReports),
             _menuTile(title: 'Daftar Piutang', icon: Icons.notifications_active_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openReceivables),
             _menuTile(title: 'Pemasok', icon: Icons.local_shipping_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openSuppliers),
