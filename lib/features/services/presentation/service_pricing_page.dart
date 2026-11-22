@@ -133,7 +133,7 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
       body: _loading ? const Center(child: CircularProgressIndicator()) : TabBarView(controller: _tabs, children: [
         _master(),
         _historyTab(),
-        const ListView(padding: EdgeInsets.all(12), children: [
+        ListView(padding: const EdgeInsets.all(12), children: [
           Card(elevation: 0, child: ListTile(leading: Icon(Icons.tune), title: Text('Metode harga: Keduanya'), subtitle: Text('Harga standar menjadi acuan otomatis. Admin dapat mengubah harga master secara manual.'))),
           Card(elevation: 0, child: Padding(padding: EdgeInsets.all(12), child: Text('Hak perubahan harga: Admin saja. Akses menu memerlukan PIN admin. PIN disimpan dalam bentuk hash dengan salt acak.'))),
         ]),
