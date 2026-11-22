@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:material_ui/material_ui.dart';
 
@@ -132,6 +132,69 @@ class ReceiptShareLauncher {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal membuka arsip nota: $error')),
+      );
+    }
+  }
+
+  static Future<void> showHistory(
+    BuildContext context, {
+    required String sourceType,
+    required int sourceId,
+  }) async {
+    try {
+      final records = await getHistory(sourceType: sourceType, sourceId: sourceId);
+      if (!context.mounted) return;
+      if (records.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Belum ada arsip nota untuk transaksi ini.')),
+        );
+        return;
+      }
+      final selectedId = await showModalBottomSheet<int>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(sheetContext).size.height * 0.55,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Text('Riwayat Nota', style: Theme.of(sheetContext).textTheme.titleMedium),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: records.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final item = records[index];
+                      final date = DateTime.tryParse(item['issued_at']?.toString() ?? '')?.toLocal();
+                      final dateText = date == null
+                          ? '-'
+                          : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+                      return ListTile(
+                        leading: const Icon(Icons.receipt_long_outlined),
+                        title: Text(item['document_number']?.toString() ?? 'Nota'),
+                        subtitle: Text('Diterbitkan $dateText'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.pop(sheetContext, item['id'] as int),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (selectedId != null && context.mounted) {
+        await openSnapshot(context, selectedId);
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat riwayat nota: $error')),
       );
     }
   }
