@@ -171,8 +171,10 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
                   const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Belum ada pembelian dari pemasok ini.', style: TextStyle(fontSize: 12))))
                 else
                   ...purchases.map((row) {
-                    final remaining = row['remaining_amount'] as int? ?? 0;
+                    final remaining = (row['remaining_amount'] as num? ?? 0).toInt();
                     final status = row['payment_status'] as String? ?? 'unpaid';
+                    final cancelled = row['status']?.toString() == 'cancelled';
+                    final returned = (row['returned_amount'] as num? ?? 0).toInt();
                     return Card(
                       margin: const EdgeInsets.only(bottom: 6),
                       child: ListTile(
@@ -180,7 +182,7 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 2),
                         leading: const Icon(Icons.receipt_long_outlined, size: 21),
                         title: Text(row['invoice_number'] as String? ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        subtitle: Text('${_date(row['purchase_date'])} • ${row['item_count'] ?? 0} jenis barang • Dibayar ${_money(row['paid'])}',
+                        subtitle: Text('${_date(row['purchase_date'])} • ${row['item_count'] ?? 0} jenis barang • Dibayar ${_money(row['paid'])} • Retur ${_money(returned)}',
                           style: const TextStyle(fontSize: 10)),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
