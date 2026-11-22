@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 7;
+  static const int _databaseVersion = 8;
 
   Database? _database;
 
@@ -129,6 +129,7 @@ class AppDatabase {
         discount INTEGER NOT NULL DEFAULT 0,
         total INTEGER NOT NULL DEFAULT 0,
         paid INTEGER NOT NULL DEFAULT 0,
+        return_credit INTEGER NOT NULL DEFAULT 0,
         payment_status TEXT NOT NULL DEFAULT 'unpaid',
         purchase_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         notes TEXT,
@@ -177,6 +178,8 @@ class AppDatabase {
         purchase_id INTEGER NOT NULL,
         return_number TEXT NOT NULL UNIQUE,
         total_amount INTEGER NOT NULL DEFAULT 0,
+        credit_applied INTEGER NOT NULL DEFAULT 0,
+        refund_received INTEGER NOT NULL DEFAULT 0,
         notes TEXT,
         return_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -565,6 +568,13 @@ class AppDatabase {
       ''');
       await db.execute('CREATE INDEX idx_purchase_returns_purchase ON purchase_returns(purchase_id, return_date)');
       await db.execute('CREATE INDEX idx_purchase_return_items_return ON purchase_return_items(purchase_return_id)');
+    }
+
+    // Penyelesaian retur: kredit untuk mengurangi utang atau pengembalian uang yang diterima.
+    if (oldVersion < 8) {
+      await db.execute("ALTER TABLE purchases ADD COLUMN return_credit INTEGER NOT NULL DEFAULT 0");
+      await db.execute("ALTER TABLE purchase_returns ADD COLUMN credit_applied INTEGER NOT NULL DEFAULT 0");
+      await db.execute("ALTER TABLE purchase_returns ADD COLUMN refund_received INTEGER NOT NULL DEFAULT 0");
     }
 
   }
