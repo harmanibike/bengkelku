@@ -95,17 +95,27 @@ class ReportRepository {
         AND datetime(completed_at) < datetime(?)
     ''', [from, until]);
 
-    // Biaya langsung servis dicatat terpisah dari nilai tagihan pelanggan.
-    // Hanya nota selesai/diambil pada periode penyelesaian yang dihitung.
+    // Biaya langsung servis menggunakan snapshot riwayat terakhir yang
+    // berlaku saat pekerjaan selesai. Koreksi biaya yang dilakukan kemudian
+    // tidak diam-diam mengubah laporan periode lama.
+    // Nota lama tanpa riwayat yang cocok memakai nilai biaya tersimpan.
     final serviceDirectCostRows = await db.rawQuery('''
       SELECT COALESCE(SUM(
-        COALESCE(direct_parts_cost, 0) + COALESCE(other_direct_cost, 0)
+        COALESCE((
+          SELECT COALESCE(h.new_direct_parts_cost, 0)
+               + COALESCE(h.new_other_direct_cost, 0)
+          FROM service_direct_cost_history h
+          WHERE h.service_order_id = s.id
+            AND datetime(h.changed_at) <= datetime(s.completed_at)
+          ORDER BY datetime(h.changed_at) DESC, h.id DESC
+          LIMIT 1
+        ), COALESCE(s.direct_parts_cost, 0) + COALESCE(s.other_direct_cost, 0))
       ), 0) AS amount
-      FROM service_orders
-      WHERE service_status IN ('completed', 'delivered')
-        AND completed_at IS NOT NULL
-        AND datetime(completed_at) >= datetime(?)
-        AND datetime(completed_at) < datetime(?)
+      FROM service_orders s
+      WHERE s.service_status IN ('completed', 'delivered')
+        AND s.completed_at IS NOT NULL
+        AND datetime(s.completed_at) >= datetime(?)
+        AND datetime(s.completed_at) < datetime(?)
     ''', [from, until]);
 
     // Pengeluaran operasional manual dari buku kas. Pembayaran pembelian pemasok
