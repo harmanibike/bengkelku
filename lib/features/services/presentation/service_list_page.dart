@@ -274,6 +274,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 const Divider(),
                 _detailLine('Jasa servis', _rupiah(detail['labor_cost'])),
                 _detailLine('Sparepart', _rupiah(detail['parts_cost'])),
+                _detailLine('Modal sparepart', _rupiah(detail['direct_parts_cost'])),
+                _detailLine('Biaya langsung lain', _rupiah(detail['other_direct_cost'])),
                 _detailLine('Diskon', _rupiah(detail['discount'])),
                 _detailLine('Total', _rupiah(detail['total_cost'])),
                 _detailLine('Sudah dibayar', _rupiah(detail['down_payment'])),
