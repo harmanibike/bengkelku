@@ -94,8 +94,12 @@ class SaleRepository {
         });
       }
 
-      if (paid < subtotal) throw ArgumentError('Pembayaran kurang dari total belanja.');
-      final change = paid - subtotal;
+      if (paid > subtotal) throw ArgumentError('Uang diterima tidak boleh melebihi total.');
+      if (paid < subtotal && customerId == null) {
+        throw ArgumentError('Pilih pelanggan untuk transaksi belum lunas.');
+      }
+      final change = 0;
+      final paymentStatus = paid >= subtotal ? 'paid' : (paid > 0 ? 'partial' : 'unpaid');
       final now = DateTime.now();
       final invoice = 'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch}';
 
@@ -114,7 +118,7 @@ class SaleRepository {
         'paid': paid,
         'change_amount': change,
         'payment_method': paymentMethod ?? 'cash',
-        'payment_status': 'paid',
+        'payment_status': paymentStatus,
         'transaction_date': now.toIso8601String(),
         'notes': notes,
       });
@@ -156,16 +160,54 @@ class SaleRepository {
         }
       }
 
+      if (paid > 0) {
+        await txn.insert('cash_transactions', {
+          'transaction_type': 'income',
+          'category': 'Penjualan',
+          'description': 'Pembayaran penjualan $invoice',
+          'amount': paid,
+          'reference_type': 'sale',
+          'reference_id': saleId,
+          'transaction_date': now.toIso8601String(),
+        });
+      }
+      return saleId;
+    });
+  }
+
+  /// Mencatat pembayaran susulan untuk penjualan yang masih memiliki piutang.
+  Future<int> addSalePayment({required int id, required int amount, String? paymentMethod}) async {
+    if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari nol.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('sales', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) throw StateError('Transaksi penjualan tidak ditemukan.');
+      final sale = rows.first;
+      final status = sale['payment_status']?.toString() ?? 'paid';
+      if (status == 'cancelled') throw StateError('Transaksi yang dibatalkan tidak dapat menerima pembayaran.');
+      final total = sale['total'] as int? ?? 0;
+      final paidBefore = sale['paid'] as int? ?? 0;
+      final remaining = total - paidBefore;
+      if (remaining <= 0) throw StateError('Transaksi ini sudah lunas.');
+      if (amount > remaining) throw ArgumentError('Pembayaran melebihi sisa tagihan ${remaining}.');
+      final paidAfter = paidBefore + amount;
+      final nextStatus = paidAfter >= total ? 'paid' : 'partial';
+      final now = DateTime.now().toIso8601String();
+      await txn.update('sales', {
+        'paid': paidAfter,
+        'payment_status': nextStatus,
+        'payment_method': paymentMethod ?? sale['payment_method'] ?? 'cash',
+      }, where: 'id = ?', whereArgs: [id]);
       await txn.insert('cash_transactions', {
         'transaction_type': 'income',
-        'category': 'Penjualan',
-        'description': 'Penjualan $invoice',
-        'amount': subtotal,
-        'reference_type': 'sale',
-        'reference_id': saleId,
-        'transaction_date': now.toIso8601String(),
+        'category': 'Pembayaran Piutang Penjualan',
+        'description': 'Pembayaran susulan penjualan ${sale['invoice_number'] ?? id}',
+        'amount': amount,
+        'reference_type': 'sale_payment',
+        'reference_id': id,
+        'transaction_date': now,
       });
-      return saleId;
+      return paidAfter;
     });
   }
 
@@ -189,8 +231,8 @@ class SaleRepository {
       if (status == 'cancelled') {
         throw StateError('Transaksi ini sudah pernah dibatalkan.');
       }
-      if (status != 'paid') {
-        throw StateError('Hanya transaksi lunas yang dapat dibatalkan.');
+      if (!['paid', 'partial', 'unpaid'].contains(status)) {
+        throw StateError('Status transaksi tidak dapat dibatalkan.');
       }
 
       final total = sale['total'] as int? ?? 0;
@@ -247,23 +289,26 @@ class SaleRepository {
       }
 
       final cleanReason = reason?.trim();
-      await txn.insert('cash_transactions', {
-        'transaction_type': 'expense',
-        'category': 'Pembatalan Penjualan',
-        'description': cleanReason == null || cleanReason.isEmpty
-            ? 'Pembalikan penjualan $invoice'
-            : 'Pembalikan penjualan $invoice: $cleanReason',
-        'amount': total,
-        'reference_type': 'sale_cancel',
-        'reference_id': id,
-        'transaction_date': now,
-      });
+      final amountReceived = (sale['paid'] as int? ?? 0).clamp(0, total);
+      if (amountReceived > 0) {
+        await txn.insert('cash_transactions', {
+          'transaction_type': 'expense',
+          'category': 'Pembatalan Penjualan',
+          'description': cleanReason == null || cleanReason.isEmpty
+              ? 'Pengembalian pembayaran penjualan $invoice'
+              : 'Pengembalian pembayaran penjualan $invoice: $cleanReason',
+          'amount': amountReceived,
+          'reference_type': 'sale_cancel',
+          'reference_id': id,
+          'transaction_date': now,
+        });
+      }
 
       return txn.update(
         'sales',
         {'payment_status': 'cancelled'},
         where: 'id = ? AND payment_status = ?',
-        whereArgs: [id, 'paid'],
+        whereArgs: [id, status],
       );
     });
   }
