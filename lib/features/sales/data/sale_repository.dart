@@ -268,6 +268,24 @@ class SaleRepository {
     });
   }
 
+  Future<List<Map<String, Object?>>> getSales({String keyword = ''}) async {
+    final db = await _db;
+    final term = keyword.trim();
+    if (term.isEmpty) {
+      return db.query('sales', orderBy: 'transaction_date DESC, id DESC', limit: 200);
+    }
+    return db.rawQuery('''
+      SELECT sales.*
+      FROM sales
+      LEFT JOIN customers ON customers.id = sales.customer_id
+      WHERE sales.invoice_number LIKE ?
+         OR COALESCE(customers.name, '') LIKE ?
+         OR COALESCE(sales.notes, '') LIKE ?
+      ORDER BY sales.transaction_date DESC, sales.id DESC
+      LIMIT 200
+    ''', ['%$term%', '%$term%', '%$term%']);
+  }
+
   Future<Map<String, Object?>?> getSaleById(int id) async {
     final db = await _db;
     final rows = await db.query('sales', where: 'id = ?', whereArgs: [id], limit: 1);
