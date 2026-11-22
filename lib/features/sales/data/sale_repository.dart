@@ -169,6 +169,105 @@ class SaleRepository {
     });
   }
 
+  /// Membatalkan penjualan tanpa menghapus nota atau riwayat kas.
+  /// Stok dibalik berdasarkan pergerakan stok asli dari transaksi tersebut.
+  Future<int> cancelSale({required int id, String? reason}) async {
+    final db = await _db;
+    return db.transaction((txn) async {
+      final sales = await txn.query(
+        'sales',
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (sales.isEmpty) {
+        throw StateError('Transaksi penjualan tidak ditemukan.');
+      }
+
+      final sale = sales.first;
+      final status = sale['payment_status']?.toString() ?? 'paid';
+      if (status == 'cancelled') {
+        throw StateError('Transaksi ini sudah pernah dibatalkan.');
+      }
+      if (status != 'paid') {
+        throw StateError('Hanya transaksi lunas yang dapat dibatalkan.');
+      }
+
+      final total = sale['total'] as int? ?? 0;
+      if (total <= 0) {
+        throw StateError('Total transaksi tidak valid untuk pembatalan.');
+      }
+
+      final invoice = sale['invoice_number']?.toString() ?? 'ID-$id';
+      final movements = await txn.query(
+        'stock_movements',
+        where: "reference_type = 'sale' AND reference_id = ? AND movement_type = 'out'",
+        whereArgs: [id],
+        orderBy: 'id ASC',
+      );
+      final now = DateTime.now().toIso8601String();
+
+      for (final movement in movements) {
+        final productId = movement['product_id'] as int;
+        final quantity = movement['quantity'] as int? ?? 0;
+        if (quantity <= 0) continue;
+
+        final products = await txn.query(
+          'products',
+          columns: ['id', 'stock'],
+          where: 'id = ?',
+          whereArgs: [productId],
+          limit: 1,
+        );
+        if (products.isEmpty) {
+          throw StateError(
+            'Produk dari transaksi $invoice tidak ditemukan. Pembatalan dihentikan agar stok tidak salah.',
+          );
+        }
+
+        final before = products.first['stock'] as int? ?? 0;
+        final after = before + quantity;
+        await txn.update(
+          'products',
+          {'stock': after, 'updated_at': now},
+          where: 'id = ?',
+          whereArgs: [productId],
+        );
+        await txn.insert('stock_movements', {
+          'product_id': productId,
+          'movement_type': 'in',
+          'quantity': quantity,
+          'stock_before': before,
+          'stock_after': after,
+          'reference_type': 'sale_cancel',
+          'reference_id': id,
+          'notes': 'Pembatalan penjualan $invoice',
+          'created_at': now,
+        });
+      }
+
+      final cleanReason = reason?.trim();
+      await txn.insert('cash_transactions', {
+        'transaction_type': 'expense',
+        'category': 'Pembatalan Penjualan',
+        'description': cleanReason == null || cleanReason.isEmpty
+            ? 'Pembalikan penjualan $invoice'
+            : 'Pembalikan penjualan $invoice: $cleanReason',
+        'amount': total,
+        'reference_type': 'sale_cancel',
+        'reference_id': id,
+        'transaction_date': now,
+      });
+
+      return txn.update(
+        'sales',
+        {'payment_status': 'cancelled'},
+        where: 'id = ? AND payment_status = ?',
+        whereArgs: [id, 'paid'],
+      );
+    });
+  }
+
   Future<Map<String, Object?>?> getSaleById(int id) async {
     final db = await _db;
     final rows = await db.query('sales', where: 'id = ?', whereArgs: [id], limit: 1);
