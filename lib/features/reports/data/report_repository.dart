@@ -95,6 +95,19 @@ class ReportRepository {
         AND datetime(completed_at) < datetime(?)
     ''', [from, until]);
 
+    // Biaya langsung servis dicatat terpisah dari nilai tagihan pelanggan.
+    // Hanya nota selesai/diambil pada periode penyelesaian yang dihitung.
+    final serviceDirectCostRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(
+        COALESCE(direct_parts_cost, 0) + COALESCE(other_direct_cost, 0)
+      ), 0) AS amount
+      FROM service_orders
+      WHERE service_status IN ('completed', 'delivered')
+        AND completed_at IS NOT NULL
+        AND datetime(completed_at) >= datetime(?)
+        AND datetime(completed_at) < datetime(?)
+    ''', [from, until]);
+
     final lowStock = await db.rawQuery('''
       SELECT COUNT(*) AS total FROM products
       WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock
@@ -139,6 +152,9 @@ class ReportRepository {
       'service_count': services.first['total'] as int? ?? 0,
       'completed_service_count': serviceRevenueRows.first['total'] as int? ?? 0,
       'service_revenue': serviceRevenueRows.first['amount'] as int? ?? 0,
+      'service_direct_cost_amount': serviceDirectCostRows.first['amount'] as int? ?? 0,
+      'service_gross_profit_amount': (serviceRevenueRows.first['amount'] as int? ?? 0) - (serviceDirectCostRows.first['amount'] as int? ?? 0),
+      'combined_gross_profit_amount': grossProfit + (serviceRevenueRows.first['amount'] as int? ?? 0) - (serviceDirectCostRows.first['amount'] as int? ?? 0),
       'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
       'latest': latest,
