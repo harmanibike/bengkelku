@@ -222,6 +222,17 @@ class ProductRepository {
     );
   }
 
+  Future<List<Map<String, Object?>>> getCostBatches(int productId) async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT b.*, p.invoice_number
+      FROM inventory_cost_batches b
+      LEFT JOIN purchases p ON p.id = b.purchase_id
+      WHERE b.product_id = ?
+      ORDER BY b.received_at DESC, b.id DESC
+    ''', [productId]);
+  }
+
   Future<int> countLowStock() async {
     final db = await _db;
     final rows = await db.rawQuery(
