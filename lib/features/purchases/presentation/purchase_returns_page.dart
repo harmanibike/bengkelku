@@ -128,7 +128,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                                     ),
                                     onChanged: (value) {
                                       final parsed = int.tryParse(value) ?? 0;
-                                      quantities[id] = parsed.clamp(0, available);
+                                      quantities[id] = parsed.clamp(0, available).toInt();
                                     },
                                   ),
                                 ),
