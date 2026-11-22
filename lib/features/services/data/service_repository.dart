@@ -394,11 +394,42 @@ class ServiceRepository {
 
   Future<int> deleteServiceOrder(int id) async {
     final db = await _db;
-    return db.delete(
-      'service_orders',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+
+    return db.transaction((txn) async {
+      final order = await txn.query(
+        'service_orders',
+        columns: ['id'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+
+      if (order.isEmpty) return 0;
+
+      // Jangan hapus nota yang sudah memiliki pembayaran kas.
+      // cash_transactions tidak memakai foreign key ke service_orders;
+      // menghapus nota saja akan meninggalkan pemasukan tanpa sumber.
+      final payments = await txn.query(
+        'cash_transactions',
+        columns: ['id'],
+        where: "reference_type = 'service_order' AND reference_id = ?",
+        whereArgs: [id],
+        limit: 1,
+      );
+
+      if (payments.isNotEmpty) {
+        throw StateError(
+          'Nota servis sudah memiliki pembayaran. '
+          'Batalkan melalui proses koreksi kas agar riwayat keuangan tetap utuh.',
+        );
+      }
+
+      return txn.delete(
+        'service_orders',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
   }
 
   Future<int> countServiceOrders({String? status}) async {
