@@ -176,18 +176,16 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Notifikasi stok minimum yang dapat dikonfigurasi.
 - [ ] Loyalitas, poin, voucher, multi-cabang, dan sinkronisasi cloud opsional.
 
-## Urutan pengerjaan berikutnya
+## Prioritas pengerjaan saat ini
 
-Pengerjaan dilakukan satu tahap per satu tahap, dengan pemeriksaan kode dan database sebelum perubahan:
+Sesuai arahan, pengembangan sementara dibatasi pada empat area berikut. Fitur di luar empat area ini ditunda sampai audit dan perbaikannya selesai.
 
-1. Audit dan rapikan dokumentasi/checklist README agar sesuai implementasi.
-2. Retur penjualan: desain alur, validasi pembayaran, stok, kas, dan audit.
-3. Stok opname: hitung fisik, selisih, persetujuan, dan penyesuaian stok.
-4. Keuangan dan laporan: buku kas, saldo, kategori, arus kas, laba rugi, utang/piutang.
-5. Nota dan pencetakan: format nota, PDF/gambar, WhatsApp, printer Bluetooth/thermal.
-6. Pelanggan, sepeda, mekanik, karyawan, dan hak akses.
-7. Backup, restore, ekspor, dan uji pemulihan data.
-8. Uji perangkat fisik dan stabilisasi rilis.
+1. **Audit riwayat biaya langsung servis** — pastikan biaya awal dan setiap koreksi memiliki jejak nilai lama/baru serta waktu perubahan; migrasi harus mengisi riwayat awal nota lama tanpa mengubah nominal nota.
+2. **Audit utang/piutang terperinci** — cocokkan nilai faktur, DP/pembayaran lanjutan, retur/refund, kredit retur pemasok, pembatalan, dan saldo per nota.
+3. **Rekonsiliasi Buku Kas dengan transaksi sumber** — pastikan setiap referensi kas dapat dikenali, nominal dan arah kas benar, serta transaksi tanpa sumber atau koreksi terdeteksi.
+4. **Audit laporan laba rugi** — validasi periode pengakuan penjualan/servis, retur, HPP, biaya langsung servis, biaya operasional, dan batasan perhitungan laba bersih.
+
+Pencetakan/nota, kompatibilitas perangkat khusus, serta fitur lain belum menjadi fokus sampai prioritas 1–4 dituntaskan.
 
 ## Aturan wajib setiap perubahan
 
