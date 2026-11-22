@@ -65,6 +65,39 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
     }
   }
 
+  Future<void> _addPayment(int id, String invoice, int remaining) async {
+    final controller = TextEditingController(text: remaining.toString());
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Catat pembayaran susulan'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          inputFormatters: const [],
+          decoration: InputDecoration(labelText: 'Jumlah pembayaran (Rp)', helperText: 'Sisa tagihan: ${_rupiah(remaining)}'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Simpan pembayaran')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) { controller.dispose(); return; }
+    final amount = int.tryParse(controller.text.replaceAll('.', '').trim()) ?? 0;
+    controller.dispose();
+    try {
+      await _repository.addSalePayment(id: id, amount: amount);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pembayaran susulan berhasil dicatat.')));
+      await _loadSales();
+      if (mounted) await _showDetail(id);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Pembayaran gagal: $error')));
+    }
+  }
+
   Future<void> _showDetail(int id) async {
     try {
       final sale = await _repository.getSaleById(id);
@@ -116,6 +149,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                   _detailRow('Diskon', sale['discount'] as int? ?? 0),
                   _detailRow('Total', sale['total'] as int? ?? 0, bold: true),
                   _detailRow('Dibayar', sale['paid'] as int? ?? 0),
+                  _detailRow('Sisa tagihan', ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0)).clamp(0, 1 << 62)),
                   _detailRow('Kembalian', sale['change_amount'] as int? ?? 0),
                   const SizedBox(height: 8),
                   Text('Status: ${_statusLabel(sale['payment_status'])}'),
@@ -124,7 +158,18 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
             ),
           ),
           actions: [
-            if ((sale['payment_status']?.toString() ?? 'paid') == 'paid')
+            if (['partial', 'unpaid'].contains(sale['payment_status']?.toString()))
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  final total = sale['total'] as int? ?? 0;
+                  final paid = sale['paid'] as int? ?? 0;
+                  _addPayment(id, sale['invoice_number']?.toString() ?? '-', total - paid);
+                },
+                icon: const Icon(Icons.payments_outlined),
+                label: const Text('Catat pembayaran'),
+              ),
+            if (['paid', 'partial', 'unpaid'].contains(sale['payment_status']?.toString()))
               TextButton.icon(
                 onPressed: () {
                   Navigator.pop(dialogContext);
@@ -169,6 +214,10 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
         return 'Dibatalkan';
       case 'paid':
         return 'Lunas';
+      case 'partial':
+        return 'Belum Lunas (Sebagian)';
+      case 'unpaid':
+        return 'Belum Dibayar';
       default:
         return status?.toString() ?? 'Tidak diketahui';
     }
@@ -282,6 +331,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                             final sale = _sales[index];
                             final status = sale['payment_status']?.toString() ?? 'paid';
                             final cancelled = status == 'cancelled';
+            final remaining = ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0)).clamp(0, 1 << 62);
                             return Card(
                               child: ListTile(
                                 onTap: () => _showDetail(sale['id'] as int),
@@ -290,8 +340,8 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                                       ? Colors.red.withValues(alpha: 0.12)
                                       : Colors.green.withValues(alpha: 0.12),
                                   child: Icon(
-                                    cancelled ? Icons.cancel_outlined : Icons.receipt_long,
-                                    color: cancelled ? Colors.red : Colors.green,
+                                    cancelled ? Icons.cancel_outlined : (status == 'paid' ? Icons.receipt_long : Icons.pending_actions),
+                                    color: cancelled ? Colors.red : (status == 'paid' ? Colors.green : Colors.orange),
                                   ),
                                 ),
                                 title: Text(
