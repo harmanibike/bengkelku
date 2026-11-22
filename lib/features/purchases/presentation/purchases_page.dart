@@ -290,7 +290,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
                 _detailRow('Diskon', row['discount']),
                 _detailRow('Total', row['total']),
                 _detailRow('Dibayar', row['paid']),
-                _detailRow('Sisa utang', (row['total'] as int? ?? 0) - (row['paid'] as int? ?? 0)),
+                _detailRow('Kredit retur', row['return_credit']),
+                _detailRow('Sisa utang', ((row['total'] as int? ?? 0) - (row['paid'] as int? ?? 0) - (row['return_credit'] as int? ?? 0)).clamp(0, 1 << 62)),
                 const Divider(),
                 const Text('Riwayat pembayaran', style: TextStyle(fontWeight: FontWeight.w600)),
                 if (payments.isEmpty)
@@ -311,7 +312,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup')),
-          if ((row['total'] as int? ?? 0) > (row['paid'] as int? ?? 0))
+          if ((row['total'] as int? ?? 0) > (row['paid'] as int? ?? 0) + (row['return_credit'] as int? ?? 0))
             FilledButton(
               onPressed: () {
                 Navigator.pop(dialogContext);
@@ -338,7 +339,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
   Future<void> _addPayment(Map<String, Object?> row) async {
     final total = row['total'] as int? ?? 0;
     final paid = row['paid'] as int? ?? 0;
-    final remaining = total - paid;
+    final returnCredit = row['return_credit'] as int? ?? 0;
+    final remaining = total - paid - returnCredit;
     final amount = TextEditingController(text: remaining.toString());
     final value = await showDialog<int>(
       context: context,
@@ -420,7 +422,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
                       final row = rows[index];
                       final total = row['total'] as int? ?? 0;
                       final paid = row['paid'] as int? ?? 0;
-                      final remaining = total - paid;
+                      final returnCredit = row['return_credit'] as int? ?? 0;
+                      final remaining = total - paid - returnCredit;
                       final status = row['payment_status'] as String? ?? 'unpaid';
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
