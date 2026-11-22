@@ -146,12 +146,11 @@ class SaleReturnRepository {
       final minimumRefund = (returnTotal - (outstandingBefore > 0 ? outstandingBefore : 0))
           .clamp(0, 1 << 62).toInt();
       final availableRefund = (paid - totalPreviouslyRefunded).clamp(0, 1 << 62).toInt();
-      final maximumRefund = returnTotal < availableRefund ? returnTotal : availableRefund;
-      if (refundAmount < minimumRefund) {
-        throw ArgumentError('Pengembalian uang minimal $minimumRefund agar saldo pelanggan tidak menjadi kredit yang belum tercatat.');
+      if (minimumRefund > availableRefund) {
+        throw StateError('Saldo pembayaran yang tersedia tidak cukup untuk menyelesaikan retur ini.');
       }
-      if (refundAmount > maximumRefund) {
-        throw ArgumentError('Pengembalian uang maksimal $maximumRefund berdasarkan pembayaran yang sudah diterima.');
+      if (refundAmount != minimumRefund) {
+        throw ArgumentError('Jumlah pengembalian uang harus tepat $minimumRefund agar piutang dan kas tetap seimbang.');
       }
 
       final now = DateTime.now();
