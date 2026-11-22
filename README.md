@@ -121,6 +121,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Laporan pembelian/pemasok dasar.
 - [x] Audit riwayat pergerakan stok.
 - [x] Ringkasan piutang servis dan penjualan barang.
+- [x] Ringkasan saldo piutang servis, piutang penjualan setelah retur/refund, dan utang pemasok aktif; posisi berjalan tidak dibatasi periode laporan.
 - [x] Ringkasan penjualan bersih setelah retur dan laba kotor barang setelah pengurangan HPP barang yang diretur.
 - [x] Ringkasan pendapatan servis dari nota berstatus selesai/diambil berdasarkan tanggal penyelesaian.
 - [x] Laba kotor servis dan gabungan laba kotor barang + servis berdasarkan biaya langsung servis yang dicatat manual.
