@@ -32,6 +32,41 @@ class ReportRepository {
       WHERE return_date >= ? AND return_date < ?
     ''', [from, until]);
 
+    // HPP penjualan: gunakan alokasi batch FIFO jika tersedia.
+    // Transaksi lama tanpa alokasi memakai harga modal yang tersimpan pada item.
+    final soldCostRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(
+        CASE
+          WHEN EXISTS (
+            SELECT 1 FROM sale_batch_allocations sba
+            WHERE sba.sale_item_id = si.id
+          ) THEN (
+            SELECT COALESCE(SUM(sba.quantity * sba.unit_cost), 0)
+            FROM sale_batch_allocations sba
+            WHERE sba.sale_item_id = si.id
+          )
+          ELSE si.quantity * COALESCE(si.purchase_price, 0)
+        END
+      ), 0) AS amount
+      FROM sale_items si
+      JOIN sales s ON s.id = si.sale_id
+      WHERE s.transaction_date >= ? AND s.transaction_date < ?
+        AND COALESCE(s.payment_status, 'paid') != 'cancelled'
+    ''', [from, until]);
+
+    // HPP barang retur dikurangkan dari HPP terjual karena barang kembali ke stok.
+    final returnedCostRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(sri.quantity * COALESCE(sri.unit_cost, 0)), 0) AS amount
+      FROM sale_return_items sri
+      JOIN sale_returns sr ON sr.id = sri.sale_return_id
+      WHERE sr.return_date >= ? AND sr.return_date < ?
+    ''', [from, until]);
+
+    final grossProfit = (sales.first['amount'] as int? ?? 0)
+        - (saleReturns.first['amount'] as int? ?? 0)
+        - (soldCostRows.first['amount'] as int? ?? 0)
+        + (returnedCostRows.first['amount'] as int? ?? 0);
+
     final services = await db.rawQuery('''
       SELECT COUNT(*) AS total
       FROM service_orders WHERE received_at >= ? AND received_at < ?
@@ -69,6 +104,10 @@ class ReportRepository {
       'sales_return_count': saleReturns.first['total'] as int? ?? 0,
       'sales_return_amount': saleReturns.first['amount'] as int? ?? 0,
       'net_sales_amount': (sales.first['amount'] as int? ?? 0) - (saleReturns.first['amount'] as int? ?? 0),
+      'sold_cogs_amount': soldCostRows.first['amount'] as int? ?? 0,
+      'returned_cogs_amount': returnedCostRows.first['amount'] as int? ?? 0,
+      'net_cogs_amount': (soldCostRows.first['amount'] as int? ?? 0) - (returnedCostRows.first['amount'] as int? ?? 0),
+      'gross_profit_amount': grossProfit,
       'service_count': services.first['total'] as int? ?? 0,
       'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
