@@ -28,12 +28,41 @@ class SaleRepository {
     if (items.isEmpty) throw ArgumentError('Keranjang masih kosong.');
     if (paid < 0) throw ArgumentError('Pembayaran tidak valid.');
 
+    // Gabungkan baris produk yang sama sebelum memeriksa stok.
+    // Ini mencegah stok diperiksa berulang terhadap angka stok awal yang sama.
+    final mergedItems = <int, Map<String, Object?>>{};
+    for (final item in items) {
+      final productId = item['product_id'] as int;
+      final quantity = item['quantity'] as int;
+      final unitPrice = item['unit_price'] as int;
+      if (quantity <= 0) {
+        throw ArgumentError('Jumlah barang harus lebih dari nol.');
+      }
+      if (unitPrice < 0) {
+        throw ArgumentError('Harga jual tidak valid.');
+      }
+
+      final existing = mergedItems[productId];
+      if (existing == null) {
+        mergedItems[productId] = {
+          'product_id': productId,
+          'quantity': quantity,
+          'unit_price': unitPrice,
+        };
+      } else {
+        if (existing['unit_price'] != unitPrice) {
+          throw ArgumentError('Harga produk yang sama tidak boleh berbeda dalam satu transaksi.');
+        }
+        existing['quantity'] = (existing['quantity'] as int) + quantity;
+      }
+    }
+
     final db = await _db;
     return db.transaction((txn) async {
       var subtotal = 0;
       final checkedItems = <Map<String, Object?>>[];
 
-      for (final item in items) {
+      for (final item in mergedItems.values) {
         final productId = item['product_id'] as int;
         final quantity = item['quantity'] as int;
         if (quantity <= 0) throw ArgumentError('Jumlah barang harus lebih dari nol.');
