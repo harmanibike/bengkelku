@@ -108,6 +108,17 @@ class ReportRepository {
         AND datetime(completed_at) < datetime(?)
     ''', [from, until]);
 
+    // Pengeluaran operasional manual dari buku kas. Pembayaran pembelian pemasok
+    // dikecualikan karena merupakan arus kas persediaan dan HPP sudah dihitung terpisah.
+    final manualOperatingExpenseRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(amount), 0) AS amount, COUNT(*) AS total
+      FROM cash_transactions
+      WHERE transaction_type = 'expense'
+        AND reference_type = 'manual_cash'
+        AND datetime(transaction_date) >= datetime(?)
+        AND datetime(transaction_date) < datetime(?)
+    ''', [from, until]);
+
     final lowStock = await db.rawQuery('''
       SELECT COUNT(*) AS total FROM products
       WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock
@@ -155,6 +166,9 @@ class ReportRepository {
       'service_direct_cost_amount': serviceDirectCostRows.first['amount'] as int? ?? 0,
       'service_gross_profit_amount': (serviceRevenueRows.first['amount'] as int? ?? 0) - (serviceDirectCostRows.first['amount'] as int? ?? 0),
       'combined_gross_profit_amount': grossProfit + (serviceRevenueRows.first['amount'] as int? ?? 0) - (serviceDirectCostRows.first['amount'] as int? ?? 0),
+      'manual_operating_expense_amount': manualOperatingExpenseRows.first['amount'] as int? ?? 0,
+      'manual_operating_expense_count': manualOperatingExpenseRows.first['total'] as int? ?? 0,
+      'profit_after_recorded_operating_expense': grossProfit + (serviceRevenueRows.first['amount'] as int? ?? 0) - (serviceDirectCostRows.first['amount'] as int? ?? 0) - (manualOperatingExpenseRows.first['amount'] as int? ?? 0),
       'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
       'latest': latest,
