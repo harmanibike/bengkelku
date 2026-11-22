@@ -264,6 +264,17 @@ class PurchaseRepository {
         whereArgs: [purchaseId],
         orderBy: 'product_id ASC, id ASC',
       );
+      final stockMovements = await txn.query(
+        'stock_movements',
+        columns: ['id'],
+        where: "reference_type = 'purchase' AND reference_id = ?",
+        whereArgs: [purchaseId],
+      );
+      if (stockMovements.length != batches.length) {
+        throw StateError(
+          'Faktur ini berasal dari pencatatan stok versi lama atau batch tidak lengkap. Audit stok manual diperlukan sebelum pembatalan.',
+        );
+      }
       for (final batch in batches) {
         final received = (batch['quantity_received'] as num?)?.toInt() ?? 0;
         final remaining = (batch['quantity_remaining'] as num?)?.toInt() ?? 0;
