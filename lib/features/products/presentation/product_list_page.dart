@@ -1,5 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../data/product_repository.dart';
 
@@ -67,6 +72,30 @@ class _ProductListPageState extends State<ProductListPage> {
     final description = TextEditingController(text: product?['description']?.toString() ?? '');
     final formKey = GlobalKey<FormState>();
     bool trackStock = (product?['track_stock'] as int? ?? 1) == 1;
+    String? imagePath = product?['image_path']?.toString();
+    bool removeImage = false;
+
+    Future<void> chooseImage(ImageSource source, StateSetter setDialogState) async {
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        imageQuality: 82,
+        maxWidth: 1400,
+      );
+      if (picked == null) return;
+      final appDirectory = await getApplicationDocumentsDirectory();
+      final imageDirectory = Directory(p.join(appDirectory.path, 'product_images'));
+      await imageDirectory.create(recursive: true);
+      final extension = p.extension(picked.path).isEmpty ? '.jpg' : p.extension(picked.path);
+      final savedPath = p.join(
+        imageDirectory.path,
+        'product_${DateTime.now().microsecondsSinceEpoch}$extension',
+      );
+      await File(picked.path).copy(savedPath);
+      setDialogState(() {
+        imagePath = savedPath;
+        removeImage = false;
+      });
+    }
 
     try {
       final result = await showDialog<bool>(
@@ -82,6 +111,62 @@ class _ProductListPageState extends State<ProductListPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: SizedBox(
+                                width: 116,
+                                height: 96,
+                                child: imagePath != null && !removeImage
+                                    ? Image.file(File(imagePath!), fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 38))
+                                    : const Icon(Icons.add_a_photo_outlined, size: 38),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 8,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: () => chooseImage(ImageSource.camera, setDialogState),
+                                  icon: const Icon(Icons.camera_alt_outlined),
+                                  label: const Text('Kamera'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: () => chooseImage(ImageSource.gallery, setDialogState),
+                                  icon: const Icon(Icons.photo_library_outlined),
+                                  label: const Text('Galeri'),
+                                ),
+                                if (imagePath != null && !removeImage)
+                                  TextButton.icon(
+                                    onPressed: () => setDialogState(() => removeImage = true),
+                                    icon: const Icon(Icons.delete_outline),
+                                    label: const Text('Hapus foto'),
+                                  ),
+                                if (removeImage)
+                                  TextButton(
+                                    onPressed: () => setDialogState(() {
+                                      imagePath = product?['image_path']?.toString();
+                                      removeImage = false;
+                                    }),
+                                    child: const Text('Batalkan hapus'),
+                                  ),
+                              ],
+                            ),
+                            const Text('Foto disimpan di perangkat ini.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Nama produk *', border: OutlineInputBorder()), validator: (v) => v == null || v.trim().isEmpty ? 'Nama wajib diisi' : null),
                       const SizedBox(height: 10),
                       TextFormField(controller: sku, decoration: const InputDecoration(labelText: 'SKU / Kode produk', border: OutlineInputBorder())),
@@ -138,6 +223,7 @@ class _ProductListPageState extends State<ProductListPage> {
         'purchase': _number(purchase), 'selling': _number(selling),
         'wholesale': _number(wholesale), 'minimum': _number(minimum),
         'track': trackStock, 'description': description.text,
+        'imagePath': removeImage ? null : imagePath,
       };
       if (editing) {
         await _repository.updateProduct(
@@ -154,6 +240,7 @@ class _ProductListPageState extends State<ProductListPage> {
           minimumStock: values['minimum'] as int,
           trackStock: values['track'] as bool,
           description: values['description'] as String,
+          imagePath: values['imagePath'] as String?,
         );
       } else {
         await _repository.addProduct(
@@ -170,6 +257,7 @@ class _ProductListPageState extends State<ProductListPage> {
           minimumStock: values['minimum'] as int,
           trackStock: values['track'] as bool,
           description: values['description'] as String,
+          imagePath: values['imagePath'] as String?,
         );
       }
       if (!mounted) return;
@@ -312,7 +400,17 @@ class _ProductListPageState extends State<ProductListPage> {
           children: [
             Row(
               children: [
-                CircleAvatar(child: Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary)),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: 58,
+                    height: 58,
+                    child: product['image_path'] != null && product['image_path'].toString().isNotEmpty
+                        ? Image.file(File(product['image_path'].toString()), fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary))
+                        : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary),
+                  ),
+                ),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(product['name']?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.bold)),
