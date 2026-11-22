@@ -332,7 +332,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
       builder: (dialogContext) => AlertDialog(
         title: Text(detail['order_number']?.toString() ?? 'Detail Servis'),
         content: SizedBox(
-          width: 440,
+          width: 520,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
