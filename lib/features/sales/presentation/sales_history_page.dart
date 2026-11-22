@@ -65,7 +65,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
     }
   }
 
-  Future<void> _addPayment(int id, String invoice, int remaining) async {
+  Future<void> _addPayment(int id, int remaining) async {
     final controller = TextEditingController(text: remaining.toString());
     final confirmed = await showDialog<bool>(
       context: context,
@@ -74,7 +74,6 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
-          inputFormatters: const [],
           decoration: InputDecoration(labelText: 'Jumlah pembayaran (Rp)', helperText: 'Sisa tagihan: ${_rupiah(remaining)}'),
         ),
         actions: [
@@ -164,7 +163,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                   Navigator.pop(dialogContext);
                   final total = sale['total'] as int? ?? 0;
                   final paid = sale['paid'] as int? ?? 0;
-                  _addPayment(id, sale['invoice_number']?.toString() ?? '-', total - paid);
+                  _addPayment(id, total - paid);
                 },
                 icon: const Icon(Icons.payments_outlined),
                 label: const Text('Catat pembayaran'),
