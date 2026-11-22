@@ -1,4 +1,0 @@
-GitHub write-access test
-Repository: harmanibike/bengkelku
-Branch: test/github-connection-2026-11-22
-Purpose: temporary permission verification only.
