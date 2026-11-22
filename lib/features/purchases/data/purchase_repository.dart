@@ -173,10 +173,11 @@ class PurchaseRepository {
     final db = await _db;
     await db.transaction((txn) async {
       final rows = await txn.query('purchases',
-        columns: ['supplier_id', 'invoice_number', 'total', 'paid', 'return_credit'],
+        columns: ['supplier_id', 'invoice_number', 'total', 'paid', 'return_credit', 'status'],
         where: 'id = ?', whereArgs: [purchaseId], limit: 1);
       if (rows.isEmpty) throw StateError('Faktur pembelian tidak ditemukan.');
       final row = rows.first;
+      if (row['status']?.toString() == 'cancelled') throw StateError('Faktur sudah dibatalkan.');
       final total = row['total'] as int? ?? 0;
       final paid = row['paid'] as int? ?? 0;
       final returnCredit = row['return_credit'] as int? ?? 0;
@@ -206,8 +207,167 @@ class PurchaseRepository {
         SUM(p.return_credit) AS return_credit,
         SUM(MAX(p.total - p.paid - p.return_credit, 0)) AS remaining_amount
       FROM purchases p JOIN suppliers s ON s.id = p.supplier_id
-      WHERE p.total > p.paid + p.return_credit GROUP BY s.id, s.name ORDER BY remaining_amount DESC
+      WHERE p.status = 'active' AND p.total > p.paid + p.return_credit GROUP BY s.id, s.name ORDER BY remaining_amount DESC
     ''');
+  }
+
+  Future<void> cancelPurchase({
+    required int purchaseId,
+    required String reason,
+  }) async {
+    final note = reason.trim();
+    if (note.isEmpty) throw ArgumentError('Alasan pembatalan wajib diisi.');
+    final db = await _db;
+    await db.transaction((txn) async {
+      final rows = await txn.query(
+        'purchases',
+        columns: ['id', 'invoice_number', 'supplier_id', 'paid', 'return_credit', 'status'],
+        where: 'id = ?',
+        whereArgs: [purchaseId],
+        limit: 1,
+      );
+      if (rows.isEmpty) throw StateError('Faktur pembelian tidak ditemukan.');
+      final purchase = rows.first;
+      if (purchase['status']?.toString() == 'cancelled') {
+        throw StateError('Faktur ini sudah dibatalkan sebelumnya.');
+      }
+      if ((purchase['paid'] as num? ?? 0) > 0 ||
+          (purchase['return_credit'] as num? ?? 0) > 0) {
+        throw StateError(
+          'Faktur memiliki pembayaran atau kredit retur. Selesaikan pembalikan pembayaran/kredit terlebih dahulu; sistem tidak akan mengubah kas secara otomatis.',
+        );
+      }
+      final returns = await txn.query(
+        'purchase_returns',
+        columns: ['id'],
+        where: "purchase_id = ? AND status = 'active'",
+        whereArgs: [purchaseId],
+        limit: 1,
+      );
+      if (returns.isNotEmpty) {
+        throw StateError('Faktur sudah memiliki retur aktif. Batalkan retur terlebih dahulu.');
+      }
+      final payments = await txn.query(
+        'supplier_payments',
+        columns: ['id'],
+        where: 'purchase_id = ?',
+        whereArgs: [purchaseId],
+        limit: 1,
+      );
+      if (payments.isNotEmpty) {
+        throw StateError('Riwayat pembayaran pemasok ditemukan. Faktur tidak dapat dibatalkan otomatis.');
+      }
+
+      final batches = await txn.query(
+        'inventory_cost_batches',
+        where: 'purchase_id = ?',
+        whereArgs: [purchaseId],
+        orderBy: 'product_id ASC, id ASC',
+      );
+      for (final batch in batches) {
+        final received = (batch['quantity_received'] as num?)?.toInt() ?? 0;
+        final remaining = (batch['quantity_remaining'] as num?)?.toInt() ?? 0;
+        if (received != remaining) {
+          throw StateError(
+            'Stok dari faktur ini sudah terpakai atau disesuaikan. Koreksi stok terlebih dahulu; pembatalan otomatis dihentikan agar stok tidak minus.',
+          );
+        }
+      }
+
+      final byProduct = <int, int>{};
+      for (final batch in batches) {
+        final productId = (batch['product_id'] as num?)?.toInt();
+        final qty = (batch['quantity_received'] as num?)?.toInt() ?? 0;
+        if (productId != null && qty > 0) {
+          byProduct[productId] = (byProduct[productId] ?? 0) + qty;
+        }
+      }
+      for (final entry in byProduct.entries) {
+        final productRows = await txn.query(
+          'products',
+          columns: ['stock', 'track_stock'],
+          where: 'id = ?',
+          whereArgs: [entry.key],
+          limit: 1,
+        );
+        if (productRows.isEmpty) {
+          throw StateError('Produk dari faktur tidak ditemukan; pembatalan dibatalkan.');
+        }
+        final before = (productRows.first['stock'] as num?)?.toInt() ?? 0;
+        if ((productRows.first['track_stock'] as num?)?.toInt() != 1) continue;
+        if (before < entry.value) {
+          throw StateError('Stok saat ini tidak cukup untuk membalik pembelian produk ID ${entry.key}.');
+        }
+        final after = before - entry.value;
+        await txn.update('products', {
+          'stock': after,
+          'updated_at': DateTime.now().toIso8601String(),
+        }, where: 'id = ?', whereArgs: [entry.key]);
+        await txn.insert('stock_movements', {
+          'product_id': entry.key,
+          'movement_type': 'out',
+          'quantity': entry.value,
+          'stock_before': before,
+          'stock_after': after,
+          'reference_type': 'purchase_cancel',
+          'reference_id': purchaseId,
+          'notes': 'Pembatalan faktur ${purchase['invoice_number']}: $note',
+        });
+        final settingRows = await txn.query(
+          'app_settings',
+          columns: ['setting_value'],
+          where: 'setting_key = ?',
+          whereArgs: ['purchase_cost_method'],
+          limit: 1,
+        );
+        final method = settingRows.isEmpty
+            ? 'weighted_average'
+            : settingRows.first['setting_value']?.toString();
+        if (method == 'weighted_average') {
+          final totals = await txn.rawQuery('''
+            SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
+              COALESCE(SUM(quantity_remaining * unit_cost), 0) AS value
+            FROM inventory_cost_batches
+            WHERE product_id = ? AND quantity_remaining > 0
+          ''', [entry.key]);
+          final qty = (totals.first['quantity'] as num?)?.toInt() ?? 0;
+          final value = (totals.first['value'] as num?)?.toInt() ?? 0;
+          if (qty > 0) {
+            await txn.update('products', {
+              'purchase_price': (value / qty).round(),
+            }, where: 'id = ?', whereArgs: [entry.key]);
+          }
+        } else if (method == 'last_cost') {
+          final previous = await txn.query(
+            'inventory_cost_batches',
+            columns: ['unit_cost'],
+            where: 'product_id = ? AND purchase_id != ? AND quantity_remaining > 0',
+            whereArgs: [entry.key, purchaseId],
+            orderBy: 'received_at DESC, id DESC',
+            limit: 1,
+          );
+          if (previous.isNotEmpty) {
+            await txn.update('products', {
+              'purchase_price': previous.first['unit_cost'],
+            }, where: 'id = ?', whereArgs: [entry.key]);
+          }
+        }
+      }
+      for (final batch in batches) {
+        await txn.update(
+          'inventory_cost_batches',
+          {'quantity_remaining': 0, 'notes': 'Dibatalkan: $note'},
+          where: 'id = ?',
+          whereArgs: [batch['id']],
+        );
+      }
+      await txn.update('purchases', {
+        'status': 'cancelled',
+        'cancelled_at': DateTime.now().toIso8601String(),
+        'cancel_reason': note,
+        'payment_status': 'cancelled',
+      }, where: 'id = ?', whereArgs: [purchaseId]);
+    });
   }
 
   String? _nullable(String? value) {
