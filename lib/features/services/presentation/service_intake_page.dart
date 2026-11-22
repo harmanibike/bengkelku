@@ -23,6 +23,8 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   final _estimateController = TextEditingController(text: '0');
   final _laborController = TextEditingController(text: '0');
   final _partsController = TextEditingController(text: '0');
+  final _directPartsCostController = TextEditingController(text: '0');
+  final _otherDirectCostController = TextEditingController(text: '0');
   final _discountController = TextEditingController(text: '0');
   final _downPaymentController = TextEditingController(text: '0');
   final _mechanicController = TextEditingController();
@@ -54,6 +56,8 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     _estimateController.dispose();
     _laborController.dispose();
     _partsController.dispose();
+    _directPartsCostController.dispose();
+    _otherDirectCostController.dispose();
     _discountController.dispose();
     _downPaymentController.dispose();
     _mechanicController.dispose();
@@ -207,6 +211,8 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
         estimatedCost: _amount(_estimateController),
         laborCost: _amount(_laborController),
         partsCost: _amount(_partsController),
+        directPartsCost: _amount(_directPartsCostController),
+        otherDirectCost: _amount(_otherDirectCostController),
         discount: _amount(_discountController),
         downPayment: _amount(_downPaymentController),
         mechanicName: _mechanicController.text,
@@ -505,6 +511,24 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _moneyField('Modal sparepart', _directPartsCostController),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _moneyField('Biaya langsung lain', _otherDirectCostController),
+                          ),
+                        ],
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4, bottom: 8),
+                        child: Text(
+                          'Isi biaya modal/bahan yang benar-benar dikeluarkan. Ini bukan harga jual pelanggan dan tidak otomatis mengurangi stok.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ),
                       Row(
                         children: [
                           Expanded(
