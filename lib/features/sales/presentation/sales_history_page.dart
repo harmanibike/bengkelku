@@ -172,7 +172,9 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                   Navigator.pop(dialogContext);
                   final total = sale['total'] as int? ?? 0;
                   final paid = sale['paid'] as int? ?? 0;
-                  _addPayment(id, total - paid);
+                  final returned = returnSummary['returned_amount'] as int? ?? 0;
+                  final refunded = returnSummary['refunded_amount'] as int? ?? 0;
+                  _addPayment(id, (total - returned - paid + refunded).clamp(0, 1 << 62).toInt());
                 },
                 icon: const Icon(Icons.payments_outlined),
                 label: const Text('Catat pembayaran'),
@@ -353,7 +355,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                             final sale = _sales[index];
                             final status = sale['payment_status']?.toString() ?? 'paid';
                             final cancelled = status == 'cancelled';
-            final remaining = ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0)).clamp(0, 1 << 62).toInt();
+            final remaining = sale['remaining_amount'] as int? ?? 0;
                             return Card(
                               child: ListTile(
                                 onTap: () => _showDetail(sale['id'] as int),
