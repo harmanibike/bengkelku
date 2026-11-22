@@ -432,7 +432,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
         onTap: () => _showDetail(order),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -523,7 +523,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
             child: TextField(
               controller: _searchController,
               onChanged: (_) => _refresh(),
@@ -544,7 +544,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
           SizedBox(
             height: 54,
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               scrollDirection: Axis.horizontal,
               children: [
                 FilterChip(
@@ -591,7 +591,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.build_circle_outlined, size: 60),
-                          SizedBox(height: 12),
+                          SizedBox(height: 8),
                           Text('Belum ada data servis',
                               style: TextStyle(fontWeight: FontWeight.bold)),
                           SizedBox(height: 5),
@@ -603,7 +603,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   );
                 }
                 return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
                   itemCount: orders.length,
                   itemBuilder: (context, index) => _buildOrderCard(orders[index]),
                 );
