@@ -94,12 +94,12 @@ class SaleRepository {
         });
       }
 
-      if (paid > subtotal) throw ArgumentError('Uang diterima tidak boleh melebihi total.');
-      if (paid < subtotal && customerId == null) {
+      final appliedPayment = paid.clamp(0, subtotal);
+      if (appliedPayment < subtotal && customerId == null) {
         throw ArgumentError('Pilih pelanggan untuk transaksi belum lunas.');
       }
-      final change = 0;
-      final paymentStatus = paid >= subtotal ? 'paid' : (paid > 0 ? 'partial' : 'unpaid');
+      final change = paid > subtotal ? paid - subtotal : 0;
+      final paymentStatus = appliedPayment >= subtotal ? 'paid' : (appliedPayment > 0 ? 'partial' : 'unpaid');
       final now = DateTime.now();
       final invoice = 'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch}';
 
@@ -115,7 +115,7 @@ class SaleRepository {
         'discount': 0,
         'tax': 0,
         'total': subtotal,
-        'paid': paid,
+        'paid': appliedPayment,
         'change_amount': change,
         'payment_method': paymentMethod ?? 'cash',
         'payment_status': paymentStatus,
@@ -160,12 +160,12 @@ class SaleRepository {
         }
       }
 
-      if (paid > 0) {
+      if (appliedPayment > 0) {
         await txn.insert('cash_transactions', {
           'transaction_type': 'income',
           'category': 'Penjualan',
           'description': 'Pembayaran penjualan $invoice',
-          'amount': paid,
+          'amount': appliedPayment,
           'reference_type': 'sale',
           'reference_id': saleId,
           'transaction_date': now.toIso8601String(),
