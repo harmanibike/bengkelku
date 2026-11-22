@@ -44,13 +44,20 @@ class ReceivableRepository {
           s.transaction_date AS transaction_date,
           s.total AS total_amount,
           s.paid AS paid_amount,
-          (s.total - s.paid) AS remaining_amount,
+          (s.total - COALESCE(ret.returned_amount, 0) - s.paid + COALESCE(ret.refunded_amount, 0)) AS remaining_amount,
           s.payment_status AS record_status,
           c.name AS customer_name,
           c.phone AS customer_phone
         FROM sales s
         LEFT JOIN customers c ON c.id = s.customer_id
-        WHERE s.total > s.paid
+        LEFT JOIN (
+          SELECT sale_id,
+                 SUM(total_amount) AS returned_amount,
+                 SUM(refunded_amount) AS refunded_amount
+          FROM sale_returns
+          GROUP BY sale_id
+        ) ret ON ret.sale_id = s.id
+        WHERE (s.total - COALESCE(ret.returned_amount, 0) - s.paid + COALESCE(ret.refunded_amount, 0)) > 0
           AND s.payment_status != 'cancelled'
           AND (? = '' OR s.invoice_number LIKE ? OR COALESCE(c.name, '') LIKE ? OR COALESCE(c.phone, '') LIKE ?)
         ORDER BY s.transaction_date ASC, s.id ASC
