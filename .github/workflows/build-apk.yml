@@ -1,4 +1,3 @@
-
 name: Build BengkelKu POS APK
 
 on:
@@ -166,6 +165,30 @@ jobs:
 
           path.write_text(source)
           print("Release signing berhasil dikonfigurasi.")
+          PY
+
+      - name: Disable crashing Android lint checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/build.gradle.kts")
+          source = path.read_text()
+
+          marker = '    lint {\n        disable += setOf("EasterEgg", "StopShip")\n    }\n\n'
+
+          if 'disable += setOf("EasterEgg", "StopShip")' not in source:
+              if "android {" not in source:
+                  raise SystemExit("Blok android tidak ditemukan.")
+
+              source = source.replace(
+                  "android {",
+                  "android {\n" + marker,
+                  1
+              )
+              path.write_text(source)
+
+          print("Android Lint EasterEgg dan StopShip dinonaktifkan.")
           PY
 
       - name: Build signed APK
