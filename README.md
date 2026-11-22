@@ -53,7 +53,8 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Penentuan mekanik, biaya jasa/spare part, komisi, dan diskon servis.
 - [ ] Garansi pekerjaan servis.
 - [x] Buat pratinjau nota servis dalam PDF dan foto PNG, serta bagikan melalui menu berbagi Android; pilihan chat WhatsApp dan pengiriman tetap dilakukan manual oleh pengguna.
-- [ ] Snapshot nota penerimaan dan bukti pembayaran akhir agar cetak ulang selalu identik dengan dokumen saat diterbitkan.
+- [ ] Nota penerimaan servis dan bukti pembayaran akhir sebagai dokumen terpisah.
+- [x] Snapshot nota servis yang diterbitkan menyimpan data servis, pembayaran, dan profil usaha; arsip dapat dibuka ulang tanpa membaca ulang data transaksi terkini.
 
 ## 5. Kasir penjualan (POS)
 
@@ -69,7 +70,8 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Retur penjualan dengan pembalikan stok, pengembalian dana, penyesuaian piutang, dan jejak audit.
 - [x] Buat pratinjau nota penjualan dalam PDF dan foto PNG, termasuk rincian item, pembayaran, retur, dan sisa tagihan; bagikan melalui menu berbagi Android.
 - [x] Cetak melalui layanan cetak Android dari pratinjau PDF.
-- [ ] Snapshot nota untuk versi historis yang tidak berubah ketika transaksi dikoreksi; uji hasil cetak pada printer fisik.
+- [x] Snapshot nota penjualan yang diterbitkan menyimpan data transaksi, item, pembayaran, retur, dan profil usaha; arsip dapat dibuka ulang tanpa membaca ulang data transaksi terkini.
+- [ ] Uji hasil cetak pada printer fisik.
 
 ## 6. Produk dan inventaris
 
@@ -142,7 +144,8 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Generate foto PNG dari nota dan tampilkan pratinjau sebelum dibagikan.
 - [x] Bagikan file PDF atau foto melalui menu berbagi Android; pengguna memilih WhatsApp/chat dan menekan kirim sendiri.
 - [x] Buka layanan cetak Android dari pratinjau PDF.
-- [ ] Nota penerimaan servis dan bukti pembayaran akhir sebagai dokumen terpisah dengan snapshot historis.
+- [x] Arsip snapshot nota yang pernah diterbitkan dan buka ulang dari riwayat nota per transaksi.
+- [ ] Nota penerimaan servis dan bukti pembayaran akhir sebagai dokumen terpisah.
 - [ ] Cetak langsung printer thermal Bluetooth 58 mm/80 mm dan pengaturan perangkat/kertas.
 - [ ] Cetak label harga dan barcode.
 
