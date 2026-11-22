@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 18;
+  static const int _databaseVersion = 19;
 
   Database? _database;
 
@@ -564,6 +564,21 @@ class AppDatabase {
     ''');
     batch.execute('CREATE INDEX idx_service_price_history_service ON service_price_history(service_id, changed_at)');
 
+    // Snapshot nota yang sudah diterbitkan; payload tidak berubah saat transaksi diedit.
+    batch.execute('''
+      CREATE TABLE receipt_snapshots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_type TEXT NOT NULL,
+        source_type TEXT NOT NULL,
+        source_id INTEGER NOT NULL,
+        document_number TEXT NOT NULL,
+        snapshot_json TEXT NOT NULL,
+        issued_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_receipt_snapshots_source ON receipt_snapshots(source_type, source_id, issued_at, id)');
+
     // Index untuk mempercepat pencarian.
     batch.execute('''
       CREATE INDEX idx_customers_name
@@ -1011,6 +1026,23 @@ class AppDatabase {
           WHERE h.service_order_id = s.id
         )
       ''');
+    }
+
+    // Arsip snapshot nota. Data transaksi lama tidak diubah atau dihapus.
+    if (oldVersion < 19) {
+      await db.execute('''
+        CREATE TABLE receipt_snapshots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_type TEXT NOT NULL,
+          source_type TEXT NOT NULL,
+          source_id INTEGER NOT NULL,
+          document_number TEXT NOT NULL,
+          snapshot_json TEXT NOT NULL,
+          issued_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_receipt_snapshots_source ON receipt_snapshots(source_type, source_id, issued_at, id)');
     }
 
     // Stok opname: menambah tabel sesi dan snapshot produk secara aditif.
