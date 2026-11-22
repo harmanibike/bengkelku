@@ -253,6 +253,70 @@ class _PurchasesPageState extends State<PurchasesPage> {
     cost.dispose();
   }
 
+  Future<void> _cancelPurchase(Map<String, Object?> row) async {
+    if (row['status']?.toString() == 'cancelled') return;
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Batalkan Pembelian'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Faktur: ${row['invoice_number']}'),
+            const SizedBox(height: 8),
+            const Text(
+              'Pembatalan hanya diproses jika belum ada pembayaran, kredit/retur aktif, dan seluruh stok dari faktur masih tersedia. Riwayat faktur tidak dihapus.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reasonController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Alasan pembatalan *',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Kembali')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.isNotEmpty) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Batalkan Faktur'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null || !mounted) return;
+    try {
+      await _purchases.cancelPurchase(
+        purchaseId: row['id'] as int,
+        reason: reason,
+      );
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Faktur dibatalkan dan stok telah dikoreksi.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pembatalan ditolak: $error')),
+        );
+      }
+    }
+  }
+
   Future<void> _showDetails(Map<String, Object?> row) async {
     final id = row['id'] as int;
     final results = await Future.wait([
@@ -274,6 +338,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('Pemasok: ${row['supplier_name'] ?? '-'}'),
+                if (row['status']?.toString() == 'cancelled')
+                  Text('DIBATALKAN • ${row['cancel_reason'] ?? '-'}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 11)),
                 const SizedBox(height: 8),
                 const Text('Barang dibeli', style: TextStyle(fontWeight: FontWeight.w600)),
                 ...items.map((item) => Padding(
@@ -312,7 +378,15 @@ class _PurchasesPageState extends State<PurchasesPage> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup')),
-          if ((row['total'] as int? ?? 0) > (row['paid'] as int? ?? 0) + (row['return_credit'] as int? ?? 0))
+          if (row['status']?.toString() != 'cancelled')
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _cancelPurchase(row);
+              },
+              child: const Text('Batalkan', style: TextStyle(color: Colors.red)),
+            ),
+          if (row['status']?.toString() != 'cancelled' && (row['total'] as int? ?? 0) > (row['paid'] as int? ?? 0) + (row['return_credit'] as int? ?? 0))
             FilledButton(
               onPressed: () {
                 Navigator.pop(dialogContext);
@@ -425,6 +499,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                       final returnCredit = row['return_credit'] as int? ?? 0;
                       final remaining = total - paid - returnCredit;
                       final status = row['payment_status'] as String? ?? 'unpaid';
+                      final cancelled = row['status']?.toString() == 'cancelled';
                       return Card(
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
@@ -447,9 +522,9 @@ class _PurchasesPageState extends State<PurchasesPage> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(_money(total), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              Text(status == 'paid' ? 'Lunas' : status == 'partial' ? 'Sebagian' : 'Belum lunas',
-                                style: TextStyle(fontSize: 10, color: status == 'paid' ? Colors.green : Colors.orange)),
-                              if (remaining > 0)
+                              Text(cancelled ? 'Dibatalkan' : status == 'paid' ? 'Lunas' : status == 'partial' ? 'Sebagian' : 'Belum lunas',
+                                style: TextStyle(fontSize: 10, color: cancelled ? Colors.red : status == 'paid' ? Colors.green : Colors.orange)),
+                              if (!cancelled && remaining > 0)
                                 InkWell(onTap: () => _addPayment(row),
                                   child: const Text('Bayar', style: TextStyle(fontSize: 11, color: Color(0xFF3157B7), fontWeight: FontWeight.w600))),
                             ],
