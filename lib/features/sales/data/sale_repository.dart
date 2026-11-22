@@ -94,7 +94,7 @@ class SaleRepository {
         });
       }
 
-      final appliedPayment = paid.clamp(0, subtotal);
+      final appliedPayment = paid.clamp(0, subtotal).toInt();
       if (appliedPayment < subtotal && customerId == null) {
         throw ArgumentError('Pilih pelanggan untuk transaksi belum lunas.');
       }
@@ -289,7 +289,7 @@ class SaleRepository {
       }
 
       final cleanReason = reason?.trim();
-      final amountReceived = (sale['paid'] as int? ?? 0).clamp(0, total);
+      final amountReceived = (sale['paid'] as int? ?? 0).clamp(0, total).toInt();
       if (amountReceived > 0) {
         await txn.insert('cash_transactions', {
           'transaction_type': 'expense',
