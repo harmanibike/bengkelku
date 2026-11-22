@@ -69,6 +69,61 @@ class ReceiptShareLauncher {
     }
   }
 
+
+  static Future<void> serviceIntake(BuildContext context, int id) async {
+    try {
+      final service = await ServiceRepository().getServiceOrderById(id);
+      if (service == null || !context.mounted) return;
+      final profile = await BusinessProfileRepository().getProfile();
+      final number = service['order_number']?.toString() ?? 'nota-servis';
+      final snapshotId = await _snapshots.createSnapshot(
+        documentType: 'service_intake',
+        sourceType: 'service_order',
+        sourceId: id,
+        documentNumber: '$number-TERIMA',
+        payload: {'service': service, 'profile': profile},
+      );
+      await openSnapshot(context, snapshotId);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyiapkan bukti penerimaan: $error')),
+      );
+    }
+  }
+
+  static Future<void> serviceFinalPayment(BuildContext context, int id) async {
+    try {
+      final repository = ServiceRepository();
+      final service = await repository.getServiceOrderById(id);
+      if (service == null || !context.mounted) return;
+      final remaining = service['remaining_payment'] as int? ?? 0;
+      final status = service['service_status']?.toString() ?? '';
+      if (remaining > 0 || status == 'cancelled') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bukti pelunasan hanya tersedia untuk servis yang sudah lunas.')),
+        );
+        return;
+      }
+      final payments = await repository.getServicePaymentHistory(id);
+      final profile = await BusinessProfileRepository().getProfile();
+      final number = service['order_number']?.toString() ?? 'nota-servis';
+      final snapshotId = await _snapshots.createSnapshot(
+        documentType: 'service_final_payment',
+        sourceType: 'service_order',
+        sourceId: id,
+        documentNumber: '$number-LUNAS',
+        payload: {'service': service, 'payments': payments, 'profile': profile},
+      );
+      await openSnapshot(context, snapshotId);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyiapkan bukti pelunasan: $error')),
+      );
+    }
+  }
+
   static Future<void> openSnapshot(BuildContext context, int snapshotId) async {
     try {
       final record = await _snapshots.getSnapshot(snapshotId);
@@ -111,6 +166,30 @@ class ReceiptShareLauncher {
         );
         title = 'Nota Servis';
         shareText = 'Berikut nota servis $number.';
+      } else if (type == 'service_intake') {
+        final service = Map<String, Object?>.from(payload['service'] as Map);
+        final profile = Map<String, String>.from(payload['profile'] as Map);
+        pdfBytes = await ReceiptDocumentService.buildServiceIntakeReceipt(
+          service: service,
+          profile: profile,
+        );
+        title = 'Bukti Penerimaan Sepeda';
+        shareText = 'Berikut bukti penerimaan sepeda untuk servis $number.';
+      } else if (type == 'service_final_payment') {
+        final service = Map<String, Object?>.from(payload['service'] as Map);
+        final payments = List<Map<String, Object?>>.from(
+          (payload['payments'] as List? ?? const []).map(
+            (item) => Map<String, Object?>.from(item as Map),
+          ),
+        );
+        final profile = Map<String, String>.from(payload['profile'] as Map);
+        pdfBytes = await ReceiptDocumentService.buildServiceFinalPaymentReceipt(
+          service: service,
+          payments: payments,
+          profile: profile,
+        );
+        title = 'Bukti Pelunasan Servis';
+        shareText = 'Berikut bukti pelunasan servis $number.';
       } else {
         throw const FormatException('Jenis snapshot nota tidak dikenali.');
       }
