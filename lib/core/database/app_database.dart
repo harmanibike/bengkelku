@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 10;
+  static const int _databaseVersion = 11;
 
   Database? _database;
 
@@ -131,6 +131,9 @@ class AppDatabase {
         paid INTEGER NOT NULL DEFAULT 0,
         return_credit INTEGER NOT NULL DEFAULT 0,
         payment_status TEXT NOT NULL DEFAULT 'unpaid',
+        status TEXT NOT NULL DEFAULT 'active',
+        cancelled_at TEXT,
+        cancel_reason TEXT,
         purchase_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         notes TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -180,6 +183,9 @@ class AppDatabase {
         total_amount INTEGER NOT NULL DEFAULT 0,
         credit_applied INTEGER NOT NULL DEFAULT 0,
         refund_received INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active',
+        cancelled_at TEXT,
+        cancel_reason TEXT,
         notes TEXT,
         return_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -203,6 +209,22 @@ class AppDatabase {
     ''');
     batch.execute('CREATE INDEX idx_purchase_returns_purchase ON purchase_returns(purchase_id, return_date)');
     batch.execute('CREATE INDEX idx_purchase_return_items_return ON purchase_return_items(purchase_return_id)');
+    batch.execute('''
+      CREATE TABLE purchase_return_batch_allocations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        return_id INTEGER NOT NULL,
+        return_item_id INTEGER NOT NULL,
+        batch_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL CHECK(quantity > 0),
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (return_id) REFERENCES purchase_returns(id) ON DELETE RESTRICT,
+        FOREIGN KEY (return_item_id) REFERENCES purchase_return_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (batch_id) REFERENCES inventory_cost_batches(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_purchase_return_batch_alloc_return ON purchase_return_batch_allocations(return_id, return_item_id)');
+
     batch.execute('''
       CREATE TABLE supplier_return_credit_applications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -672,6 +694,31 @@ class AppDatabase {
         FROM products
         WHERE track_stock = 1 AND stock > 0
       ''');
+    }
+
+    // Status pembatalan dan ledger batch untuk retur pembelian.
+    if (oldVersion < 11) {
+      await db.execute("ALTER TABLE purchases ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+      await db.execute('ALTER TABLE purchases ADD COLUMN cancelled_at TEXT');
+      await db.execute('ALTER TABLE purchases ADD COLUMN cancel_reason TEXT');
+      await db.execute("ALTER TABLE purchase_returns ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
+      await db.execute('ALTER TABLE purchase_returns ADD COLUMN cancelled_at TEXT');
+      await db.execute('ALTER TABLE purchase_returns ADD COLUMN cancel_reason TEXT');
+      await db.execute('''
+        CREATE TABLE purchase_return_batch_allocations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          return_id INTEGER NOT NULL,
+          return_item_id INTEGER NOT NULL,
+          batch_id INTEGER NOT NULL,
+          quantity INTEGER NOT NULL CHECK(quantity > 0),
+          unit_cost INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (return_id) REFERENCES purchase_returns(id) ON DELETE RESTRICT,
+          FOREIGN KEY (return_item_id) REFERENCES purchase_return_items(id) ON DELETE RESTRICT,
+          FOREIGN KEY (batch_id) REFERENCES inventory_cost_batches(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_purchase_return_batch_alloc_return ON purchase_return_batch_allocations(return_id, return_item_id)');
     }
 
     // Buku pemakaian kredit retur lintas faktur pemasok.
