@@ -352,7 +352,7 @@ class PurchaseRepository {
           final previous = await txn.query(
             'inventory_cost_batches',
             columns: ['unit_cost'],
-            where: 'product_id = ? AND purchase_id != ? AND quantity_remaining > 0',
+            where: 'product_id = ? AND (purchase_id IS NULL OR purchase_id != ?)',
             whereArgs: [entry.key, purchaseId],
             orderBy: 'received_at DESC, id DESC',
             limit: 1,
