@@ -4,6 +4,7 @@ import '../bicycles/presentation/bicycle_list_page.dart';
 import '../customers/presentation/customer_list_page.dart';
 import '../products/presentation/product_list_page.dart';
 import '../purchases/presentation/suppliers_page.dart';
+import '../purchases/presentation/purchases_page.dart';
 import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
 import '../receivables/presentation/receivables_page.dart';
@@ -101,6 +102,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _openSuppliers() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const SuppliersPage()));
+  }
+
+  void _openPurchases() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchasesPage()));
   }
 
   Widget _header() {
@@ -446,6 +451,7 @@ class _DashboardPageState extends State<DashboardPage> {
             _menuTile(title: 'Pengeluaran', icon: Icons.money_off_rounded, colors: const [Color(0xFFE64A19), Color(0xFFFF8A65)], onTap: _openReports),
             _menuTile(title: 'Daftar Piutang', icon: Icons.notifications_active_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openReceivables),
             _menuTile(title: 'Pemasok', icon: Icons.local_shipping_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openSuppliers),
+            _menuTile(title: 'Pembelian Barang', icon: Icons.add_shopping_cart_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openPurchases),
             _menuTile(title: 'Pengaturan', icon: Icons.settings_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openReports),
           ],
         ),
