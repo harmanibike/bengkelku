@@ -143,14 +143,14 @@ class SaleRepository {
         });
 
         if (item['tracks_stock'] == true) {
+          final batchCost = await _consumeCostBatches(
+            txn,
+            productId: product['id'] as int,
+            saleId: saleId,
+            saleItemId: saleItemId,
+            quantity: quantity,
+          );
           if (useBatchCost) {
-            final batchCost = await _consumeCostBatches(
-              txn,
-              productId: product['id'] as int,
-              saleId: saleId,
-              saleItemId: saleItemId,
-              quantity: quantity,
-            );
             await txn.update('sale_items', {'purchase_price': batchCost},
               where: 'id = ?', whereArgs: [saleItemId]);
           }
