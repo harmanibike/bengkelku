@@ -199,6 +199,9 @@ class _CashierPageState extends State<CashierPage> {
       );
       if (confirmedMethod == null || !mounted) return;
       final paid = int.tryParse(paymentController.text) ?? 0;
+      final paymentMethodLabel = _paymentMethods.firstWhere(
+        (method) => method['code'] == confirmedMethod,
+      )['name']!;
       int? customerId;
       if (paid < _total) {
         customerId = await _chooseCustomer();
@@ -212,7 +215,7 @@ class _CashierPageState extends State<CashierPage> {
           'unit_price': item['unit_price'],
         }).toList(),
         paid: paid,
-        paymentMethod: confirmedMethod,
+        paymentMethod: paymentMethodLabel,
         customerId: customerId,
       );
       if (!mounted) return;
