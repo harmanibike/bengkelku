@@ -20,9 +20,8 @@ class CashbookRepository {
     final rows = await db.rawQuery('''
       SELECT * FROM cash_transactions
       WHERE transaction_date >= ? AND transaction_date < ?
-        AND (?='all' OR transaction_type=?)
       ORDER BY transaction_date ASC, id ASC
-    ''', [from, until, type, type]);
+    ''', [from, until]);
     var balance = (openingRows.first['balance'] as num?)?.toInt() ?? 0;
     var income = 0;
     var expense = 0;
@@ -37,7 +36,9 @@ class CashbookRepository {
         expense += amount;
         balance -= amount;
       }
-      entries.add({...row, 'running_balance': balance});
+      if (type == 'all' || row['transaction_type'] == type) {
+        entries.add({...row, 'running_balance': balance});
+      }
     }
     return {
       'opening_balance': (openingRows.first['balance'] as num?)?.toInt() ?? 0,
