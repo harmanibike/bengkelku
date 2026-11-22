@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 6;
+  static const int _databaseVersion = 7;
 
   Database? _database;
 
@@ -169,6 +169,37 @@ class AppDatabase {
     batch.execute('CREATE INDEX idx_purchases_supplier ON purchases(supplier_id, purchase_date)');
     batch.execute('CREATE INDEX idx_purchase_items_purchase ON purchase_items(purchase_id)');
     batch.execute('CREATE INDEX idx_supplier_payments_purchase ON supplier_payments(purchase_id, payment_date)');
+
+    // Retur pembelian ke pemasok.
+    batch.execute('''
+      CREATE TABLE purchase_returns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        purchase_id INTEGER NOT NULL,
+        return_number TEXT NOT NULL UNIQUE,
+        total_amount INTEGER NOT NULL DEFAULT 0,
+        notes TEXT,
+        return_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('''
+      CREATE TABLE purchase_return_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        purchase_return_id INTEGER NOT NULL,
+        purchase_item_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        subtotal INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (purchase_return_id) REFERENCES purchase_returns(id) ON DELETE CASCADE,
+        FOREIGN KEY (purchase_item_id) REFERENCES purchase_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_purchase_returns_purchase ON purchase_returns(purchase_id, return_date)');
+    batch.execute('CREATE INDEX idx_purchase_return_items_return ON purchase_return_items(purchase_return_id)');
 
     // Perintah kerja servis.
     batch.execute('''
@@ -501,6 +532,39 @@ class AppDatabase {
       await db.execute('CREATE INDEX idx_purchases_supplier ON purchases(supplier_id, purchase_date)');
       await db.execute('CREATE INDEX idx_purchase_items_purchase ON purchase_items(purchase_id)');
       await db.execute('CREATE INDEX idx_supplier_payments_purchase ON supplier_payments(purchase_id, payment_date)');
+    }
+
+    // Retur pembelian. Migrasi aditif; faktur, pembayaran, dan stok lama tetap utuh.
+    if (oldVersion < 7) {
+      await db.execute('''
+        CREATE TABLE purchase_returns (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          purchase_id INTEGER NOT NULL,
+          return_number TEXT NOT NULL UNIQUE,
+          total_amount INTEGER NOT NULL DEFAULT 0,
+          notes TEXT,
+          return_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE purchase_return_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          purchase_return_id INTEGER NOT NULL,
+          purchase_item_id INTEGER NOT NULL,
+          product_id INTEGER,
+          product_name TEXT NOT NULL,
+          quantity INTEGER NOT NULL,
+          unit_cost INTEGER NOT NULL DEFAULT 0,
+          subtotal INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (purchase_return_id) REFERENCES purchase_returns(id) ON DELETE CASCADE,
+          FOREIGN KEY (purchase_item_id) REFERENCES purchase_items(id) ON DELETE RESTRICT,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_purchase_returns_purchase ON purchase_returns(purchase_id, return_date)');
+      await db.execute('CREATE INDEX idx_purchase_return_items_return ON purchase_return_items(purchase_return_id)');
     }
 
   }
