@@ -452,9 +452,26 @@ class SaleRepository {
 
   Future<Map<String, Object?>?> getSaleById(int id) async {
     final db = await _db;
-    final rows = await db.query('sales', where: 'id = ?', whereArgs: [id], limit: 1);
+    final rows = await db.rawQuery('''
+      SELECT sales.*, customers.name AS customer_name,
+             customers.phone AS customer_phone
+      FROM sales
+      LEFT JOIN customers ON customers.id = sales.customer_id
+      WHERE sales.id = ?
+      LIMIT 1
+    ''', [id]);
     if (rows.isEmpty) return null;
     final items = await db.query('sale_items', where: 'sale_id = ?', whereArgs: [id], orderBy: 'id ASC');
     return {...rows.first, 'items': items};
+  }
+
+  Future<List<Map<String, Object?>>> getSalePaymentHistory(int id) async {
+    final db = await _db;
+    return db.query(
+      'cash_transactions',
+      where: "reference_id = ? AND reference_type IN ('sale', 'sale_payment') AND transaction_type = 'income'",
+      whereArgs: [id],
+      orderBy: 'transaction_date ASC, id ASC',
+    );
   }
 }
