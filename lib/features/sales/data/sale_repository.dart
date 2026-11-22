@@ -321,10 +321,31 @@ class SaleRepository {
         }
       }
 
+      final legacySaleItems = batchAllocations.isEmpty
+          ? await txn.query('sale_items', where: 'sale_id = ?', whereArgs: [id])
+          : const <Map<String, Object?>>[];
       for (final movement in movements) {
         final productId = movement['product_id'] as int;
         final quantity = movement['quantity'] as int? ?? 0;
         if (quantity <= 0) continue;
+
+        if (batchAllocations.isEmpty) {
+          final matchingItems = legacySaleItems.where(
+            (item) => item['product_id'] == productId,
+          );
+          final unitCost = matchingItems.isEmpty
+              ? 0
+              : matchingItems.first['purchase_price'] as int? ?? 0;
+          await txn.insert('inventory_cost_batches', {
+            'product_id': productId,
+            'batch_code': 'CANCEL-$id-$productId',
+            'quantity_received': quantity,
+            'quantity_remaining': quantity,
+            'unit_cost': unitCost,
+            'received_at': now,
+            'notes': 'Stok kembali dari pembatalan penjualan lama',
+          });
+        }
 
         final products = await txn.query(
           'products',
