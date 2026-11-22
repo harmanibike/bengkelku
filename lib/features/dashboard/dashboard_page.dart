@@ -13,7 +13,6 @@ import '../settings/presentation/settings_page.dart';
 import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
 import '../reports/presentation/cashbook_page.dart';
-import '../receivables/presentation/receivables_page.dart';
 import '../sales/presentation/cashier_page.dart';
 import '../sales/presentation/sales_history_page.dart';
 import '../sales/presentation/sale_returns_page.dart';
