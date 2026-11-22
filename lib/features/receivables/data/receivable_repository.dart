@@ -69,8 +69,6 @@ class ReceivableRepository {
     return rows;
   }
 
-  Future<Map<String, Object?>>? _unused() async => null;
-
   Future<Map<String, Object?>> getReceivableDetail({
     required String type,
     required int recordId,
