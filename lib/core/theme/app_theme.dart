@@ -42,6 +42,16 @@ class AppTheme {
           fontWeight: FontWeight.w600,
         ),
       ),
+      dialogTheme: DialogThemeData(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+        titleTextStyle: const TextStyle(
+          color: Color(0xFF263238),
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+        ),
+        contentTextStyle: const TextStyle(fontSize: 13, height: 1.3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 1,
