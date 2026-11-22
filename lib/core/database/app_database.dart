@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 17;
+  static const int _databaseVersion = 18;
 
   Database? _database;
 
@@ -984,6 +984,33 @@ class AppDatabase {
         )
       ''');
       await db.execute('CREATE INDEX idx_service_direct_cost_history_order ON service_direct_cost_history(service_order_id, changed_at, id)');
+    }
+
+    // Catat biaya awal pada nota lama yang belum memiliki riwayat biaya.
+    // Migrasi hanya menambah baris audit; nilai nota dan transaksi kas tidak diubah.
+    if (oldVersion < 18) {
+      await db.execute('''
+        INSERT INTO service_direct_cost_history (
+          service_order_id,
+          old_direct_parts_cost,
+          new_direct_parts_cost,
+          old_other_direct_cost,
+          new_other_direct_cost,
+          changed_at
+        )
+        SELECT
+          s.id,
+          0,
+          COALESCE(s.direct_parts_cost, 0),
+          0,
+          COALESCE(s.other_direct_cost, 0),
+          COALESCE(s.received_at, CURRENT_TIMESTAMP)
+        FROM service_orders s
+        WHERE NOT EXISTS (
+          SELECT 1 FROM service_direct_cost_history h
+          WHERE h.service_order_id = s.id
+        )
+      ''');
     }
 
     // Stok opname: menambah tabel sesi dan snapshot produk secara aditif.
