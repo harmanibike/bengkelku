@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../customers/data/customer_repository.dart';
 import '../data/service_repository.dart';
+import '../data/service_pricing_repository.dart';
 import 'service_photo_helper.dart';
 
 class ServiceIntakePage extends StatefulWidget {
@@ -15,6 +16,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   final _formKey = GlobalKey<FormState>();
   final _customerRepository = CustomerRepository();
   final _serviceRepository = ServiceRepository();
+  final _pricingRepository = ServicePricingRepository();
 
   final _complaintController = TextEditingController();
   final _diagnosisController = TextEditingController();
@@ -28,6 +30,9 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
 
   List<Map<String, Object?>> _customers = [];
   List<Map<String, Object?>> _bicycles = [];
+  List<Map<String, Object?>> _serviceCatalog = [];
+  int? _selectedCatalogServiceId;
+  bool _laborPriceUnlocked = false;
   int? _selectedCustomerId;
   int? _selectedBicycleId;
   String? _beforePhotoPath;
@@ -39,6 +44,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   void initState() {
     super.initState();
     _loadCustomers();
+    _loadServiceCatalog();
   }
 
   @override
@@ -84,6 +90,53 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       if (!mounted) return;
       _showMessage('Gagal memuat sepeda: $error');
     }
+  }
+
+
+  Future<void> _loadServiceCatalog() async {
+    try {
+      final items = await _pricingRepository.getServices(activeOnly: true);
+      if (mounted) setState(() => _serviceCatalog = items);
+    } catch (error) {
+      _showMessage('Gagal memuat master jasa: $error');
+    }
+  }
+
+  Future<void> _unlockLaborPrice() async {
+    final pin = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Otorisasi Admin'),
+        content: TextField(
+          controller: pin,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: 8,
+          decoration: const InputDecoration(labelText: 'PIN admin'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Verifikasi'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final valid = await _pricingRepository.verifyAdminPin(pin.text);
+      if (valid && mounted) {
+        setState(() => _laborPriceUnlocked = true);
+        _showMessage('Perubahan harga manual diizinkan untuk sesi ini.');
+      } else if (mounted) {
+        _showMessage('PIN admin salah atau belum dibuat di menu Harga Jasa.');
+      }
+    }
+    pin.dispose();
   }
 
   Future<void> _pickBeforePhoto() async {
@@ -192,10 +245,14 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     String label,
     TextEditingController controller, {
     bool required = false,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: TextInputType.number,
+      readOnly: readOnly,
+      onTap: onTap,
       inputFormatters: const [],
       decoration: InputDecoration(
         labelText: label,
@@ -400,12 +457,45 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                       ),
                       _beforePhotoSection(),
                       _sectionTitle('Estimasi & pembayaran', Icons.payments_outlined),
+
+                      if (_serviceCatalog.isNotEmpty)
+                        DropdownButtonFormField<int>(
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Master jasa / harga standar',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: _serviceCatalog.map((item) {
+                            final label = item['name'].toString() +
+                                ' • Rp' +
+                                (item['standard_price'] ?? 0).toString();
+                            return DropdownMenuItem<int>(
+                              value: item['id'] as int,
+                              child: Text(label, overflow: TextOverflow.ellipsis),
+                            );
+                          }).toList(),
+                          onChanged: (id) {
+                            if (id == null) return;
+                            final item = _serviceCatalog.firstWhere(
+                              (entry) => entry['id'] == id,
+                            );
+                            setState(() {
+                              _selectedCatalogServiceId = id;
+                              _laborController.text =
+                                  (item['standard_price'] ?? 0).toString();
+                              _laborPriceUnlocked = false;
+                            });
+                          },
+                        ),
+                      if (_serviceCatalog.isNotEmpty)
+                        const SizedBox(height: 8),
                       _moneyField('Estimasi biaya', _estimateController),
                       const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
-                            child: _moneyField('Jasa servis', _laborController),
+                            child: _moneyField('Jasa servis', _laborController, readOnly: !_laborPriceUnlocked, onTap: _laborPriceUnlocked ? null : _unlockLaborPrice),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
