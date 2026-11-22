@@ -268,6 +268,21 @@ class AppDatabase {
       )
     ''');
 
+    // Log pengingat untuk instalasi baru.
+    batch.execute('''
+      CREATE TABLE receivable_reminder_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        receivable_type TEXT NOT NULL,
+        record_id INTEGER NOT NULL,
+        phone TEXT NOT NULL,
+        opened_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+    batch.execute('''
+      CREATE INDEX idx_receivable_reminder_record
+      ON receivable_reminder_logs(receivable_type, record_id, opened_at)
+    ''');
+
     // Index untuk mempercepat pencarian.
     batch.execute('''
       CREATE INDEX idx_customers_name
@@ -377,12 +392,12 @@ class AppDatabase {
           receivable_type TEXT NOT NULL,
           record_id INTEGER NOT NULL,
           phone TEXT NOT NULL,
-          sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          opened_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
       ''');
       await db.execute('''
         CREATE INDEX idx_receivable_reminder_record
-        ON receivable_reminder_logs(receivable_type, record_id, sent_at)
+        ON receivable_reminder_logs(receivable_type, record_id, opened_at)
       ''');
     }
 
