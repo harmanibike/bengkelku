@@ -177,7 +177,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 children: [
                   Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   SizedBox(height: 2),
-                  Text('Kelola servis, produk, dan transaksi', style: TextStyle(color: Colors.grey, fontSize: 10),
+                  Text('Kelola servis, produk, dan transaksi', style: TextStyle(color: Colors.grey, fontSize: 10)),
                 ],
               ),
             ),
