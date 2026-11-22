@@ -70,7 +70,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
               isEditing ? 'Edit Pelanggan' : 'Tambah Pelanggan',
             ),
             content: SizedBox(
-              width: 400,
+              width: 520,
               child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
