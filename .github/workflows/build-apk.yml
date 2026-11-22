@@ -36,6 +36,40 @@ jobs:
             flutter create --platforms=android --project-name bengkelku_pos .
           fi
 
+      - name: Ensure Gradle plugin repositories
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/settings.gradle.kts")
+          source = path.read_text()
+          start = source.find("pluginManagement {")
+          if start < 0:
+              raise SystemExit("Blok pluginManagement tidak ditemukan.")
+
+          repo_start = source.find("repositories {", start)
+          if repo_start < 0:
+              raise SystemExit("Blok repositories dalam pluginManagement tidak ditemukan.")
+
+          insert_at = repo_start + len("repositories {")
+          repo_block_end = source.find("}", insert_at)
+          if repo_block_end < 0:
+              raise SystemExit("Penutup repositories tidak ditemukan.")
+
+          repo_block = source[insert_at:repo_block_end]
+          additions = []
+          if "google()" not in repo_block:
+              additions.append("        google()")
+          if "mavenCentral()" not in repo_block:
+              additions.append("        mavenCentral()")
+
+          if additions:
+              source = source[:insert_at] + "\\n" + "\\n".join(additions) + source[insert_at:]
+              path.write_text(source)
+
+          print("Gradle plugin repositories siap: Google dan Maven Central.")
+          PY
+
       - name: Set Android app display name
         run: |
           python3 - <<'PY'
