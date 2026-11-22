@@ -233,7 +233,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Nota $invoice akan ditandai dibatalkan. Stok akan dikembalikan dan pembalikan kas dicatat sebagai pengeluaran.'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             TextField(
               controller: reasonController,
               maxLines: 2,
@@ -295,7 +295,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
             child: TextField(
               controller: _search,
               onChanged: (_) => _loadSales(),
