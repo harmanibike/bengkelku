@@ -193,10 +193,11 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
       final invoiceNumber = record[sale ? 'invoice_number' : 'order_number']?.toString() ?? '-';
       final customerName = record['customer_name']?.toString() ?? 'Pelanggan dihapus';
       final dateValue = record[sale ? 'transaction_date' : 'received_at'];
+      final dialogTitle = sale ? 'Rincian Penjualan' : 'Rincian Servis';
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text('Rincian ${sale ? 'Penjualan' : 'Servis'}'),
+          title: Text(dialogTitle),
           content: SizedBox(
             width: 440,
             child: SingleChildScrollView(
@@ -239,18 +240,24 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
                     const Divider(),
                     const Text('Riwayat retur',
                         style: TextStyle(fontWeight: FontWeight.bold)),
-                    ...returns.map((entry) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(entry['return_number']?.toString() ?? 'Retur',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              Text('${_date(entry['return_date'])} • Nilai ${_rupiah(entry['total_amount'])} • Refund ${_rupiah(entry['refunded_amount'])}',
-                                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                            ],
-                          ),
-                        )),
+                    ...returns.map((entry) {
+                      final returnNumber = entry['return_number']?.toString() ?? 'Retur';
+                      final returnDate = _date(entry['return_date']);
+                      final returnTotal = _rupiah(entry['total_amount']);
+                      final returnRefund = _rupiah(entry['refunded_amount']);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(returnNumber,
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            Text('$returnDate • Nilai $returnTotal • Refund $returnRefund',
+                                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          ],
+                        ),
+                      );
+                    }),
                   ],
                 ],
               ),
