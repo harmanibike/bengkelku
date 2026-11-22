@@ -162,34 +162,31 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Row(
           children: [
             Container(
-              width: 46,
-              height: 46,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                color: const Color(0xFF0756D8),
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.75), width: 1.5),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF16D9F2), Color(0xFF087BFA), Color(0xFF082FEA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  width: 1.2,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
-                    blurRadius: 8,
+                    color: const Color(0xFF0756D8).withValues(alpha: 0.28),
+                    blurRadius: 9,
                     offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(Icons.pedal_bike_rounded, color: Colors.white, size: 37),
-                  Positioned(
-                    top: 5,
-                    right: 4,
-                    child: Icon(
-                      Icons.build_rounded,
-                      color: const Color(0xFFFFC928),
-                      size: 17,
-                    ),
-                  ),
-                ],
+              child: const Icon(
+                Icons.pedal_bike_rounded,
+                color: Colors.white,
+                size: 40,
               ),
             ),
             const Spacer(),
