@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../data/sale_repository.dart';
+import '../data/sale_return_repository.dart';
+import 'sale_returns_page.dart';
 import '../../business/data/business_profile_repository.dart';
 import '../../business/presentation/business_identity_header.dart';
 
@@ -103,6 +105,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
     try {
       final sale = await _repository.getSaleById(id);
       if (!mounted || sale == null) return;
+      final returnSummary = await SaleReturnRepository().getSaleReturnSummary(id);
       final items = List<Map<String, Object?>>.from(
         sale['items'] as List? ?? const [],
       );
@@ -152,7 +155,9 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                   _detailRow('Diskon', sale['discount'] as int? ?? 0),
                   _detailRow('Total', sale['total'] as int? ?? 0, bold: true),
                   _detailRow('Dibayar', sale['paid'] as int? ?? 0),
-                  _detailRow('Sisa tagihan', ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0)).clamp(0, 1 << 62).toInt()),
+                  _detailRow('Total retur', returnSummary['returned_amount'] as int? ?? 0),
+                  _detailRow('Uang dikembalikan', returnSummary['refunded_amount'] as int? ?? 0),
+                  _detailRow('Sisa tagihan', ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0) - (returnSummary['returned_amount'] as int? ?? 0) + (returnSummary['refunded_amount'] as int? ?? 0)).clamp(0, 1 << 62).toInt()),
                   _detailRow('Kembalian', sale['change_amount'] as int? ?? 0),
                   const SizedBox(height: 8),
                   Text('Status: ${_statusLabel(sale['payment_status'])}'),
@@ -171,6 +176,20 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                 },
                 icon: const Icon(Icons.payments_outlined),
                 label: const Text('Catat pembayaran'),
+              ),
+            if (sale['payment_status']?.toString() != 'cancelled')
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SaleReturnsPage(initialSaleId: id),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.assignment_return_outlined),
+                label: const Text('Retur barang'),
               ),
             if (['paid', 'partial', 'unpaid'].contains(sale['payment_status']?.toString()))
               TextButton.icon(
