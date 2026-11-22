@@ -171,6 +171,113 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
     );
   }
 
+  Future<void> _showReceivableDetail(Map<String, Object?> row) async {
+    try {
+      final type = row['receivable_type'].toString();
+      final detail = await _repository.getReceivableDetail(
+        type: type,
+        recordId: _int(row['record_id']),
+      );
+      if (!mounted) return;
+      final record = detail['record'] as Map<String, Object?>;
+      final payments = detail['payments'] as List<Map<String, Object?>>;
+      final returns = detail['returns'] as List<Map<String, Object?>>;
+      final sale = type == 'sale';
+      final returned = _int(record['returned_amount']);
+      final refunded = _int(record['refunded_amount']);
+      final netTotal = sale ? _int(record['total']) - returned : _int(record['total_cost']);
+      final paid = sale ? _int(record['paid']) : _int(record['down_payment']);
+      final remaining = sale
+          ? netTotal - paid + refunded
+          : _int(record['remaining_payment']);
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Rincian ${sale ? 'Penjualan' : 'Servis'}'),
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Nota: ${record[sale ? 'invoice_number' : 'order_number'] ?? '-}',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('Pelanggan: ${record['customer_name'] ?? 'Pelanggan dihapus'}'),
+                  Text('Tanggal: ${_date(record[sale ? 'transaction_date' : 'received_at'])}'),
+                  const Divider(),
+                  _detailAmount('Total awal', sale ? record['total'] : record['total_cost']),
+                  if (sale) ...[
+                    _detailAmount('Nilai barang diretur', returned),
+                    _detailAmount('Dana retur dikembalikan', refunded),
+                    _detailAmount('Total setelah retur', netTotal),
+                  ],
+                  _detailAmount('Total dibayar', paid),
+                  _detailAmount('Sisa piutang', remaining),
+                  const Divider(),
+                  const Text('Riwayat pembayaran',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  if (payments.isEmpty)
+                    const Text('Belum ada pembayaran tercatat.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey))
+                  else
+                    ...payments.map((payment) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(_date(payment['transaction_date']),
+                                  style: const TextStyle(fontSize: 11))),
+                              Text(_rupiah(payment['amount']),
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        )),
+                  if (returns.isNotEmpty) ...[
+                    const Divider(),
+                    const Text('Riwayat retur',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...returns.map((entry) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(entry['return_number']?.toString() ?? 'Retur',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              Text('${_date(entry['return_date'])} • Nilai ${_rupiah(entry['total_amount'])} • Refund ${_rupiah(entry['refunded_amount'])}',
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            ],
+                          ),
+                        )),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Tutup')),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat rincian piutang: $error')),
+        );
+      }
+    }
+  }
+
+  Widget _detailAmount(String label, Object? amount) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
+            Text(_rupiah(amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+
   Widget _receivableCard(Map<String, Object?> row) {
     final service = row['receivable_type'] == 'service';
     final remaining = _int(row['remaining_amount']);
@@ -226,6 +333,11 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
                         : 'Nomor WhatsApp belum tersedia',
                     style: const TextStyle(fontSize: 11, color: Colors.grey),
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Rincian piutang',
+                  onPressed: () => _showReceivableDetail(row),
+                  icon: const Icon(Icons.receipt_long_outlined, size: 20),
                 ),
                 IconButton(
                   tooltip: 'Riwayat pengingat',
