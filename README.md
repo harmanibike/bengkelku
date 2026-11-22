@@ -76,7 +76,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Peringatan/indikator stok menipis yang tersedia pada modul produk.
 - [ ] Arsip produk dan penghapusan aman dengan perlindungan riwayat transaksi.
 - [ ] Harga jual grosir dan beberapa tingkat harga.
-- [ ] Stok opname/penyesuaian stok dengan alasan, persetujuan, dan audit.
+- [x] Stok opname: snapshot stok, input hitung fisik, validasi perubahan stok selama penghitungan, penerapan selisih, dan audit pergerakan stok.
 - [x] Retur penjualan dengan pengembalian stok dan pencatatan retur.
 - [ ] Cetak label harga dan barcode.
 
@@ -99,11 +99,11 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Penerimaan penjualan dan pembayaran piutang penjualan.
 - [x] DP dan pembayaran servis masuk ke transaksi kas.
 - [x] Pengeluaran pembelian dan pembayaran pemasok dicatat pada alur pembelian.
-- [ ] Buku kas terpadu, saldo awal, saldo berjalan, dan tutup kas harian.
+- [x] Buku kas terpadu dengan saldo awal, saldo berjalan, ringkasan masuk/keluar, filter periode/jenis, dan transaksi manual.
 - [ ] Kategori pemasukan/pengeluaran yang dapat dikelola.
 - [ ] Biaya operasional, gaji, dan komisi.
 - [ ] Rekonsiliasi serta koreksi dengan jejak audit.
-- [ ] Laporan laba rugi dan arus kas yang tervalidasi.
+- [ ] Laporan arus kas dan laba rugi lengkap yang tervalidasi; saat ini tersedia ringkasan laba kotor barang berdasarkan HPP FIFO/alokasi batch dan harga modal tersimpan untuk transaksi lama.
 
 ## 9. Karyawan dan mekanik
 
@@ -119,7 +119,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Laporan pembelian/pemasok dasar.
 - [x] Audit riwayat pergerakan stok.
 - [x] Ringkasan piutang servis dan penjualan barang.
-- [ ] Laporan penjualan, servis, produk terlaris, dan stok yang lebih lengkap.
+- [x] Ringkasan penjualan bersih setelah retur dan laba kotor barang setelah pengurangan HPP barang yang diretur.\n- [ ] Laporan servis, produk terlaris, dan stok yang lebih lengkap.
 - [ ] Laporan utang/piutang terperinci.
 - [ ] Laporan pemasukan, pengeluaran, laba rugi, arus kas, dan komisi.
 - [ ] Filter periode yang konsisten dan ekspor PDF/Excel.
