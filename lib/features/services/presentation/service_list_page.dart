@@ -475,6 +475,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
             child: const Text('Tutup'),
           ),
           OutlinedButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, 'receipt_history'),
+            icon: const Icon(Icons.history),
+            label: const Text('Riwayat Nota'),
+          ),
+          OutlinedButton.icon(
             onPressed: () => Navigator.pop(dialogContext, 'receipt'),
             icon: const Icon(Icons.receipt_long_outlined),
             label: const Text('Nota / Bagikan'),
@@ -503,6 +508,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
     if (!mounted) return;
     if (action == 'receipt') {
       await ReceiptShareLauncher.service(context, id);
+    } else if (action == 'receipt_history') {
+      await ReceiptShareLauncher.showHistory(context, sourceType: 'service_order', sourceId: id);
     } else if (action == 'direct_costs') {
       await _editDirectCosts(detail);
     } else if (action == 'status') {
