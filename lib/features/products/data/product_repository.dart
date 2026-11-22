@@ -117,7 +117,9 @@ class ProductRepository {
     required bool isStockIn,
     String? notes,
   }) async {
-    if (quantity <= 0) throw ArgumentError('Jumlah stok harus lebih dari nol.');
+    if (quantity <= 0) {
+      throw ArgumentError('Jumlah stok harus lebih dari nol.');
+    }
     final db = await _db;
     await db.transaction((txn) async {
       final rows = await txn.query(
@@ -135,7 +137,9 @@ class ProductRepository {
       }
       final before = rows.first['stock'] as int? ?? 0;
       final after = isStockIn ? before + quantity : before - quantity;
-      if (after < 0) throw StateError('Stok tidak mencukupi. Stok saat ini: $before.');
+      if (after < 0) {
+        throw StateError('Stok tidak mencukupi. Stok saat ini: $before.');
+      }
       await txn.update('products', {
         'stock': after,
         'updated_at': DateTime.now().toIso8601String(),
