@@ -110,25 +110,37 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 54,
+              height: 54,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white24),
+                color: const Color(0xFF0756D8),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.75), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.pedal_bike, color: Colors.white, size: 26),
-            ),
-            const SizedBox(width: 9),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  Text('BengkelKu', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  Text('POS • Manajemen Bengkel Sepeda', style: TextStyle(color: Colors.white70, fontSize: 10)),
+                  const Icon(Icons.pedal_bike_rounded, color: Colors.white, size: 37),
+                  Positioned(
+                    top: 5,
+                    right: 4,
+                    child: Icon(
+                      Icons.build_rounded,
+                      color: const Color(0xFFFFC928),
+                      size: 17,
+                    ),
+                  ),
                 ],
               ),
             ),
+            const Spacer(),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
