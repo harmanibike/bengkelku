@@ -65,6 +65,15 @@ class ProductRepository {
         'is_active': 1,
       });
       if (trackStock && initialStock > 0) {
+        await txn.insert('inventory_cost_batches', {
+          'product_id': id,
+          'batch_code': 'OPENING-$id',
+          'quantity_received': initialStock,
+          'quantity_remaining': initialStock,
+          'unit_cost': purchasePrice,
+          'received_at': DateTime.now().toIso8601String(),
+          'notes': 'Stok awal produk',
+        });
         await txn.insert('stock_movements', {
           'product_id': id,
           'movement_type': 'in',
