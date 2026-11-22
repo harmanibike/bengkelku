@@ -33,7 +33,8 @@ Dokumen ini menjadi acuan resmi pengembangan BengkelKu POS. Status fitur harus d
 - [ ] Riwayat servis pelanggan.
 - [ ] Daftar sepeda milik pelanggan.
 - [ ] Catatan khusus pelanggan.
-- [ ] Riwayat pembayaran dan piutang.
+- [ ] Riwayat pembayaran dan piutang servis maupun pembelian barang.
+- [ ] Daftar tagihan pelanggan yang belum lunas, termasuk sepeda yang sudah diambil dan barang yang dibawa dengan pembayaran tempo.
 
 ## 3. Data sepeda
 
@@ -76,7 +77,8 @@ Dokumen ini menjadi acuan resmi pengembangan BengkelKu POS. Status fitur harus d
 - [ ] Diskon per barang dan diskon seluruh transaksi.
 - [ ] Pajak yang dapat dikonfigurasi.
 - [ ] Pembayaran transfer, QRIS, dan pembayaran campuran.
-- [ ] Pembayaran DP dan pelunasan bila diperlukan.
+- [ ] Pembayaran DP, pembayaran sebagian/tempo, dan pelunasan.
+- [ ] Penjualan barang secara kredit dengan pencatatan piutang per pelanggan.
 - [ ] Cetak struk.
 - [ ] Simpan transaksi, pembatalan, dan retur penjualan dengan pembalikan stok/kas yang benar.
 
@@ -137,7 +139,7 @@ Dokumen ini menjadi acuan resmi pengembangan BengkelKu POS. Status fitur harus d
 - [ ] Laporan stok.
 - [ ] Laporan pembelian dan pemasok.
 - [ ] Laporan pelanggan.
-- [ ] Laporan piutang dan utang.
+- [ ] Laporan piutang dan utang, dipisahkan antara piutang servis dan piutang penjualan barang.
 - [ ] Laporan pemasukan dan pengeluaran.
 - [ ] Laporan laba dan rugi.
 - [ ] Laporan komisi mekanik.
@@ -197,6 +199,11 @@ Dokumen ini menjadi acuan resmi pengembangan BengkelKu POS. Status fitur harus d
 - [ ] Pengingat servis berkala dan garansi servis.
 - [ ] Notifikasi stok minimum.
 - [ ] Notifikasi servis selesai melalui WhatsApp.
+- [ ] Menu Pengingat Tagihan WhatsApp untuk pelanggan yang masih memiliki piutang setelah sepeda diambil atau setelah membeli barang secara kredit.
+- [ ] Daftar tagihan jatuh tempo/belum lunas dengan nama pelanggan, nomor WhatsApp, nomor nota, tanggal transaksi, total tagihan, jumlah dibayar, dan sisa tagihan.
+- [ ] Pengingat tagihan manual melalui WhatsApp dengan pesan otomatis yang memuat rincian tagihan dan tautan/aksi untuk membuka percakapan WhatsApp.
+- [ ] Template pesan pengingat yang dapat diedit, serta pencatatan tanggal pengingat terakhir agar pelanggan tidak dikirimi pesan berulang tanpa kontrol.
+- [ ] Filter pengingat berdasarkan jenis piutang (servis atau penjualan barang), status, dan tanggal jatuh tempo.
 - [ ] Foto bukti transaksi.
 - [ ] Kode QR pada nota.
 - [ ] Pencarian riwayat servis menggunakan nomor rangka.
@@ -212,13 +219,14 @@ Urutan berikut menjadi panduan pengerjaan. Urutan dapat disesuaikan jika audit m
 1. **Stabilitas fitur inti:** dashboard, pelanggan, sepeda, servis, produk, kasir, dan laporan.
 2. **Inventaris dan pembelian:** stok opname, pemasok, pembelian, utang, dan retur.
 3. **Penyempurnaan servis:** mekanik, diagnosis, biaya jasa/spare part, foto, status, garansi, dan nota.
-4. **Keuangan:** saldo kas, pengeluaran, piutang, utang, pembayaran campuran, laba rugi, dan arus kas.
-5. **Karyawan dan hak akses:** akun, peran, komisi, dan kinerja.
-6. **Laporan lanjutan:** grafik, laporan terperinci, PDF, dan Excel.
-7. **Nota dan perangkat:** printer Bluetooth, thermal, PDF, barcode, dan berbagi nota.
-8. **Backup dan pengaturan:** profil toko, konfigurasi, backup, restore, dan ekspor.
-9. **Multi-perangkat:** server lokal, Wi-Fi/LAN, API, WebSocket, QR Code, dan sinkronisasi.
-10. **Fitur lanjutan:** pengingat, loyalitas, voucher, dan multi-cabang.
+4. **Keuangan:** saldo kas, pengeluaran, piutang servis dan penjualan barang, utang, pembayaran campuran, laba rugi, dan arus kas.
+5. **Pengingat tagihan:** menu daftar piutang dan pengiriman pengingat pembayaran melalui WhatsApp untuk servis yang sudah diambil tetapi belum lunas serta pembelian barang secara kredit.
+6. **Karyawan dan hak akses:** akun, peran, komisi, dan kinerja.
+7. **Laporan lanjutan:** grafik, laporan terperinci, PDF, dan Excel.
+8. **Nota dan perangkat:** printer Bluetooth, thermal, PDF, barcode, dan berbagi nota.
+9. **Backup dan pengaturan:** profil toko, konfigurasi, backup, restore, dan ekspor.
+10. **Multi-perangkat:** server lokal, Wi-Fi/LAN, API, WebSocket, QR Code, dan sinkronisasi.
+11. **Fitur lanjutan:** loyalitas, voucher, dan multi-cabang.
 
 ## Aturan wajib setiap perubahan
 
