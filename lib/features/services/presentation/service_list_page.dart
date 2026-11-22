@@ -17,6 +17,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
   final TextEditingController _searchController = TextEditingController();
 
   String? _statusFilter;
+  bool _showOutstandingOnly = false;
   late Future<List<Map<String, Object?>>> _ordersFuture;
   static const Map<String, String> _statusLabels = {
     'waiting': 'Menunggu',
@@ -40,10 +41,14 @@ class _ServiceListPageState extends State<ServiceListPage> {
   }
 
   void _loadOrders() {
-    _ordersFuture = _repository.getServiceOrders(
-      keyword: _searchController.text,
-      status: _statusFilter,
-    );
+    _ordersFuture = _showOutstandingOnly
+        ? _repository.getOutstandingServiceOrders(
+            keyword: _searchController.text,
+          )
+        : _repository.getServiceOrders(
+            keyword: _searchController.text,
+            status: _statusFilter,
+          );
   }
 
   void _refresh() => setState(_loadOrders);
@@ -542,6 +547,18 @@ class _ServiceListPageState extends State<ServiceListPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
               scrollDirection: Axis.horizontal,
               children: [
+                FilterChip(
+                  label: const Text('Piutang'),
+                  selected: _showOutstandingOnly,
+                  avatar: const Icon(Icons.account_balance_wallet_outlined, size: 17),
+                  onSelected: (selected) {
+                    setState(() {
+                      _showOutstandingOnly = selected;
+                      if (selected) _statusFilter = null;
+                      _loadOrders();
+                    });
+                  },
+                ),
                 _filterChip('Semua', null),
                 ..._statusLabels.entries.map(
                   (entry) => _filterChip(entry.value, entry.key),
@@ -612,6 +629,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
         selected: selected,
         onSelected: (_) {
           setState(() {
+            _showOutstandingOnly = false;
             _statusFilter = value;
             _loadOrders();
           });
