@@ -39,6 +39,8 @@ class ServiceRepository {
     int estimatedCost = 0,
     int laborCost = 0,
     int partsCost = 0,
+    int directPartsCost = 0,
+    int otherDirectCost = 0,
     int discount = 0,
     int downPayment = 0,
     String? mechanicName,
@@ -55,6 +57,8 @@ class ServiceRepository {
     final estimated = _safeAmount(estimatedCost);
     final labor = _safeAmount(laborCost);
     final parts = _safeAmount(partsCost);
+    final directParts = _safeAmount(directPartsCost);
+    final otherDirect = _safeAmount(otherDirectCost);
     final safeDiscount = _safeAmount(discount);
     final total = (labor + parts > 0 ? labor + parts : estimated) -
         safeDiscount;
@@ -105,6 +109,8 @@ class ServiceRepository {
         'estimated_cost': estimated,
         'labor_cost': labor,
         'parts_cost': parts,
+        'direct_parts_cost': directParts,
+        'other_direct_cost': otherDirect,
         'discount': safeDiscount,
         'total_cost': safeTotal,
         'down_payment': paid,
@@ -231,6 +237,8 @@ class ServiceRepository {
     int? estimatedCost,
     int? laborCost,
     int? partsCost,
+    int? directPartsCost,
+    int? otherDirectCost,
     int? discount,
     String? mechanicName,
     String? notes,
@@ -274,6 +282,8 @@ class ServiceRepository {
         'estimated_cost': estimated,
         'labor_cost': labor,
         'parts_cost': parts,
+        'direct_parts_cost': _safeAmount(directPartsCost ?? (existing['direct_parts_cost'] as int? ?? 0)),
+        'other_direct_cost': _safeAmount(otherDirectCost ?? (existing['other_direct_cost'] as int? ?? 0)),
         'discount': safeDiscount,
         'total_cost': total,
         'remaining_payment': total - paid,
