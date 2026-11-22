@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../data/product_repository.dart';
+import '../../purchases/presentation/purchase_cost_settings_page.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -41,6 +42,13 @@ class _ProductListPageState extends State<ProductListPage> {
   }
 
   void _refresh() => setState(_loadProducts);
+
+  void _openPurchaseCostSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PurchaseCostSettingsPage()),
+    );
+  }
 
   String _rupiah(Object? value) {
     final amount = value is num ? value.toInt() : 0;
@@ -531,6 +539,24 @@ class _ProductListPageState extends State<ProductListPage> {
       appBar: AppBar(
         title: const Text('Produk & Stok'),
         actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Pengelolaan harga produk',
+            onSelected: (value) {
+              if (value == 'purchase_cost') _openPurchaseCostSettings();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'purchase_cost',
+                child: Row(
+                  children: [
+                    Icon(Icons.price_change_outlined),
+                    SizedBox(width: 10),
+                    Text('Metode Harga Beli'),
+                  ],
+                ),
+              ),
+            ],
+          ),
           IconButton(onPressed: _refresh, tooltip: 'Muat ulang', icon: const Icon(Icons.refresh)),
         ],
       ),
