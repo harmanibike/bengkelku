@@ -52,7 +52,8 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Keluhan, diagnosis, estimasi, foto sebelum/sesudah, dan catatan mekanik yang lengkap.
 - [ ] Penentuan mekanik, biaya jasa/spare part, komisi, dan diskon servis.
 - [ ] Garansi pekerjaan servis.
-- [ ] Cetak atau bagikan nota servis.
+- [x] Buat pratinjau nota servis dalam PDF dan foto PNG, serta bagikan melalui menu berbagi Android; pilihan chat WhatsApp dan pengiriman tetap dilakukan manual oleh pengguna.
+- [ ] Snapshot nota penerimaan dan bukti pembayaran akhir agar cetak ulang selalu identik dengan dokumen saat diterbitkan.
 
 ## 5. Kasir penjualan (POS)
 
@@ -66,7 +67,9 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Pilihan metode pembayaran tunai, transfer bank, QRIS, kartu debit, dan kartu kredit; metode aktif dapat diatur dan pilihan dicatat pada transaksi kasir.
 - [ ] Integrasi/verifikasi pembayaran digital otomatis, barcode scanner, harga grosir, diskon, pajak, dan pembayaran campuran.
 - [x] Retur penjualan dengan pembalikan stok, pengembalian dana, penyesuaian piutang, dan jejak audit.
-- [ ] Cetak struk dan berbagi bukti transaksi (belum ada alur cetak fisik/PDF/berbagi yang terintegrasi).
+- [x] Buat pratinjau nota penjualan dalam PDF dan foto PNG, termasuk rincian item, pembayaran, retur, dan sisa tagihan; bagikan melalui menu berbagi Android.
+- [x] Cetak melalui layanan cetak Android dari pratinjau PDF.
+- [ ] Snapshot nota untuk versi historis yang tidak berubah ketika transaksi dikoreksi; uji hasil cetak pada printer fisik.
 
 ## 6. Produk dan inventaris
 
@@ -135,10 +138,12 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 
 ## 11. Nota, struk, dan pencetakan
 
-- [ ] Cetak struk kasir dan nota servis.
-- [ ] Kertas thermal 58 mm/80 mm dan printer Bluetooth.
-- [ ] Simpan nota sebagai PDF atau gambar.
-- [ ] Bagikan nota melalui WhatsApp dengan pilihan format **Foto (gambar)** atau **PDF**; pengguna dapat melihat pratinjau sebelum mengirim.
+- [x] Generate dan pratinjau nota penjualan serta servis dalam format PDF.
+- [x] Generate foto PNG dari nota dan tampilkan pratinjau sebelum dibagikan.
+- [x] Bagikan file PDF atau foto melalui menu berbagi Android; pengguna memilih WhatsApp/chat dan menekan kirim sendiri.
+- [x] Buka layanan cetak Android dari pratinjau PDF.
+- [ ] Nota penerimaan servis dan bukti pembayaran akhir sebagai dokumen terpisah dengan snapshot historis.
+- [ ] Cetak langsung printer thermal Bluetooth 58 mm/80 mm dan pengaturan perangkat/kertas.
 - [ ] Cetak label harga dan barcode.
 
 ## 12. Pengaturan aplikasi
@@ -187,7 +192,7 @@ Sesuai arahan, pengembangan sementara dibatasi pada empat area berikut. Fitur di
 3. **Rekonsiliasi Buku Kas dengan transaksi sumber** — pastikan setiap referensi kas dapat dikenali, nominal dan arah kas benar, serta transaksi tanpa sumber atau koreksi terdeteksi.
 4. **Audit laporan laba rugi** — validasi periode pengakuan penjualan/servis, retur, HPP, biaya langsung servis, biaya operasional, dan batasan perhitungan laba bersih.
 
-Pencetakan/nota, kompatibilitas perangkat khusus, serta fitur lain belum menjadi fokus sampai prioritas 1–4 dituntaskan.
+Pencetakan langsung Bluetooth, snapshot historis dokumen, serta kompatibilitas perangkat khusus masih perlu dilanjutkan dan diuji setelah alur dasar nota ini.
 
 ## Aturan wajib setiap perubahan
 
