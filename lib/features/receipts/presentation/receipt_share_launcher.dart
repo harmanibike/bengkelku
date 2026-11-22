@@ -252,10 +252,18 @@ class ReceiptShareLauncher {
                       final dateText = date == null
                           ? '-'
                           : '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+                      final type = item['document_type']?.toString() ?? '';
+                      final typeLabel = switch (type) {
+                        'service_intake' => 'Bukti Penerimaan Sepeda',
+                        'service_final_payment' => 'Bukti Pelunasan Servis',
+                        'service' => 'Nota Servis',
+                        'sale' => 'Nota Penjualan',
+                        _ => 'Nota',
+                      };
                       return ListTile(
                         leading: const Icon(Icons.receipt_long_outlined),
-                        title: Text(item['document_number']?.toString() ?? 'Nota'),
-                        subtitle: Text('Diterbitkan $dateText'),
+                        title: Text(typeLabel),
+                        subtitle: Text('${item['document_number'] ?? '-'} • Diterbitkan $dateText'),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: () => Navigator.pop(sheetContext, item['id'] as int),
                       );
