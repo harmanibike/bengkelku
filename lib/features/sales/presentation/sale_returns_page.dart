@@ -152,12 +152,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
     return total;
   }
 
-  int get _maximumRefund {
-    final paid = _selectedSale?['paid'] as int? ?? 0;
-    final alreadyRefunded = _returnSummary['refunded_amount'] as int? ?? 0;
-    final availablePaid = (paid - alreadyRefunded).clamp(0, 1 << 62).toInt();
-    return _returnTotal < availablePaid ? _returnTotal : availablePaid;
-  }
+  int get _maximumRefund => _minimumRefund;
 
   int get _minimumRefund {
     final total = _selectedSale?['total'] as int? ?? 0;
@@ -196,9 +191,9 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
     }
 
     final refund = int.tryParse(_refundController.text.replaceAll('.', '').trim()) ?? 0;
-    if (refund < _minimumRefund || refund > _maximumRefund) {
+    if (refund != _minimumRefund) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pengembalian uang harus antara ${_rupiah(_minimumRefund)} dan ${_rupiah(_maximumRefund)}.')),
+        SnackBar(content: Text('Jumlah pengembalian uang yang harus dicatat adalah ${_rupiah(_minimumRefund)}.')),
       );
       return;
     }
@@ -384,7 +379,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Uang dikembalikan sekarang (Rp)',
-                  helperText: 'Minimal ${_rupiah(_minimumRefund)} • Maksimal ${_rupiah(_maximumRefund)} dari pembayaran yang diterima.',
+                  helperText: 'Nominal wajib agar saldo tagihan dan kas tetap seimbang: ${_rupiah(_minimumRefund)}.',
                   border: const OutlineInputBorder(),
                   isDense: true,
                 ),
