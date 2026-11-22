@@ -4,7 +4,9 @@ import '../data/sale_repository.dart';
 import '../data/sale_return_repository.dart';
 
 class SaleReturnsPage extends StatefulWidget {
-  const SaleReturnsPage({super.key});
+  const SaleReturnsPage({super.key, this.initialSaleId});
+
+  final int? initialSaleId;
 
   @override
   State<SaleReturnsPage> createState() => _SaleReturnsPageState();
@@ -30,7 +32,11 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _load().then((_) {
+      if (mounted && widget.initialSaleId != null) {
+        _selectSale(widget.initialSaleId);
+      }
+    });
   }
 
   @override
