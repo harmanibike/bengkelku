@@ -145,7 +145,7 @@ class _CashierPageState extends State<CashierPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Total: ${_rupiah(_total)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextField(
                 controller: paymentController,
                 keyboardType: TextInputType.number,
@@ -210,7 +210,7 @@ class _CashierPageState extends State<CashierPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: TextField(
               controller: _search,
               onChanged: (_) => _loadProducts(),
@@ -228,7 +228,7 @@ class _CashierPageState extends State<CashierPage> {
                 : _products.isEmpty
                     ? const Center(child: Text('Belum ada produk aktif. Tambahkan produk terlebih dahulu.'))
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         itemCount: _products.length,
                         itemBuilder: (context, index) {
                           final product = _products[index];
@@ -261,7 +261,7 @@ class _CashierPageState extends State<CashierPage> {
           ),
           Container(
             decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black12)]),
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
