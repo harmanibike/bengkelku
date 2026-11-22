@@ -1,0 +1,146 @@
+import 'package:sqflite/sqflite.dart';
+
+import '../../../core/database/app_database.dart';
+
+class PurchaseReturnRepository {
+  Future<Database> get _db => AppDatabase.instance.database;
+
+  Future<List<Map<String, Object?>>> getPurchases() async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT p.id, p.invoice_number, p.purchase_date, s.name AS supplier_name
+      FROM purchases p
+      LEFT JOIN suppliers s ON s.id = p.supplier_id
+      WHERE EXISTS (SELECT 1 FROM purchase_items pi WHERE pi.purchase_id = p.id)
+      ORDER BY p.purchase_date DESC, p.id DESC
+    ''');
+  }
+
+  Future<List<Map<String, Object?>>> getReturnableItems(int purchaseId) async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT pi.id AS purchase_item_id, pi.product_id, pi.product_name,
+        pi.quantity AS purchased_quantity, pi.unit_cost,
+        COALESCE((SELECT SUM(pri.quantity)
+          FROM purchase_return_items pri
+          JOIN purchase_returns pr ON pr.id = pri.purchase_return_id
+          WHERE pri.purchase_item_id = pi.id), 0) AS returned_quantity
+      FROM purchase_items pi
+      WHERE pi.purchase_id = ?
+      ORDER BY pi.id
+    ''', [purchaseId]);
+  }
+
+  Future<List<Map<String, Object?>>> getReturns() async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT pr.*, p.invoice_number, s.name AS supplier_name
+      FROM purchase_returns pr
+      JOIN purchases p ON p.id = pr.purchase_id
+      LEFT JOIN suppliers s ON s.id = p.supplier_id
+      ORDER BY pr.return_date DESC, pr.id DESC
+    ''');
+  }
+
+  Future<int> createReturn({
+    required int purchaseId,
+    required String returnNumber,
+    required Map<int, int> quantities,
+    String? notes,
+  }) async {
+    if (quantities.isEmpty || quantities.values.every((q) => q <= 0)) {
+      throw ArgumentError('Pilih minimal satu barang dan jumlah retur.');
+    }
+    final number = returnNumber.trim();
+    if (number.isEmpty) throw ArgumentError('Nomor retur wajib diisi.');
+
+    final db = await _db;
+    return db.transaction((txn) async {
+      final purchase = await txn.query('purchases',
+        columns: ['id', 'invoice_number'], where: 'id = ?', whereArgs: [purchaseId], limit: 1);
+      if (purchase.isEmpty) throw StateError('Faktur pembelian tidak ditemukan.');
+
+      var total = 0;
+      final selected = <Map<String, Object?>>[];
+      for (final entry in quantities.entries) {
+        final quantity = entry.value;
+        if (quantity <= 0) continue;
+        final itemRows = await txn.query('purchase_items',
+          where: 'id = ? AND purchase_id = ?', whereArgs: [entry.key, purchaseId], limit: 1);
+        if (itemRows.isEmpty) throw StateError('Barang tidak sesuai dengan faktur pembelian.');
+        final item = itemRows.first;
+        final purchased = item['quantity'] as int? ?? 0;
+        final returnedRows = await txn.rawQuery('''
+          SELECT COALESCE(SUM(pri.quantity), 0) AS total
+          FROM purchase_return_items pri
+          JOIN purchase_returns pr ON pr.id = pri.purchase_return_id
+          WHERE pri.purchase_item_id = ?
+        ''', [entry.key]);
+        final alreadyReturned = returnedRows.first['total'] as int? ?? 0;
+        final available = purchased - alreadyReturned;
+        if (quantity > available) {
+          throw StateError('Retur ${item['product_name']} melebihi sisa yang dapat diretur ($available).');
+        }
+        final unitCost = item['unit_cost'] as int? ?? 0;
+        final productId = item['product_id'] as int?;
+        total += quantity * unitCost;
+        selected.add({
+          'purchase_item_id': entry.key,
+          'product_id': productId,
+          'product_name': item['product_name'],
+          'quantity': quantity,
+          'unit_cost': unitCost,
+          'subtotal': quantity * unitCost,
+        });
+      }
+      if (selected.isEmpty) throw ArgumentError('Jumlah retur harus lebih dari nol.');
+
+      final returnId = await txn.insert('purchase_returns', {
+        'purchase_id': purchaseId,
+        'return_number': number,
+        'total_amount': total,
+        'notes': _nullable(notes),
+        'return_date': DateTime.now().toIso8601String(),
+      });
+
+      for (final item in selected) {
+        await txn.insert('purchase_return_items', {
+          ...item,
+          'purchase_return_id': returnId,
+        });
+        final productId = item['product_id'] as int?;
+        if (productId == null) continue;
+        final products = await txn.query('products',
+          columns: ['stock', 'track_stock'],
+          where: 'id = ?', whereArgs: [productId], limit: 1);
+        if (products.isEmpty || (products.first['track_stock'] as int? ?? 1) != 1) continue;
+        final before = products.first['stock'] as int? ?? 0;
+        final quantity = item['quantity'] as int;
+        if (before < quantity) {
+          throw StateError('Stok ${item['product_name']} tidak cukup untuk retur. Stok tersedia: $before.');
+        }
+        final after = before - quantity;
+        await txn.update('products', {
+          'stock': after,
+          'updated_at': DateTime.now().toIso8601String(),
+        }, where: 'id = ?', whereArgs: [productId]);
+        await txn.insert('stock_movements', {
+          'product_id': productId,
+          'movement_type': 'out',
+          'quantity': quantity,
+          'stock_before': before,
+          'stock_after': after,
+          'reference_type': 'purchase_return',
+          'reference_id': returnId,
+          'notes': 'Retur ${number} dari faktur ${purchase.first['invoice_number']}',
+        });
+      }
+      return returnId;
+    });
+  }
+
+  String? _nullable(String? value) {
+    final text = value?.trim();
+    return text == null || text.isEmpty ? null : text;
+  }
+}
