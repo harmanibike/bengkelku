@@ -102,6 +102,7 @@ class SaleReturnRepository {
         FROM sale_returns
         WHERE sale_id = ?
       ''', [saleId]);
+      final totalPreviouslyReturned = previousReturns.first['total_returned'] as int? ?? 0;
       final totalPreviouslyRefunded = previousReturns.first['total_refunded'] as int? ?? 0;
 
       final checked = <Map<String, Object?>>[];
@@ -140,10 +141,17 @@ class SaleReturnRepository {
 
       if (returnTotal <= 0) throw StateError('Nilai retur harus lebih dari nol.');
       final paid = sale['paid'] as int? ?? 0;
+      final total = sale['total'] as int? ?? 0;
+      final outstandingBefore = total - paid - totalPreviouslyReturned + totalPreviouslyRefunded;
+      final minimumRefund = (returnTotal - (outstandingBefore > 0 ? outstandingBefore : 0))
+          .clamp(0, 1 << 62).toInt();
       final availableRefund = (paid - totalPreviouslyRefunded).clamp(0, 1 << 62).toInt();
       final maximumRefund = returnTotal < availableRefund ? returnTotal : availableRefund;
+      if (refundAmount < minimumRefund) {
+        throw ArgumentError('Pengembalian uang minimal $minimumRefund agar saldo pelanggan tidak menjadi kredit yang belum tercatat.');
+      }
       if (refundAmount > maximumRefund) {
-        throw ArgumentError('Pengembalian uang maksimal $maximumRefund. Sesuaikan dengan pembayaran yang sudah diterima.');
+        throw ArgumentError('Pengembalian uang maksimal $maximumRefund berdasarkan pembayaran yang sudah diterima.');
       }
 
       final now = DateTime.now();
@@ -293,6 +301,15 @@ class SaleReturnRepository {
           'created_at': now.toIso8601String(),
         });
       }
+
+      final effectiveTotal = total - totalPreviouslyReturned - returnTotal
+          + totalPreviouslyRefunded + refundAmount;
+      final nextPaymentStatus = paid >= effectiveTotal
+          ? 'paid'
+          : (paid > 0 ? 'partial' : 'unpaid');
+      await txn.update('sales', {
+        'payment_status': nextPaymentStatus,
+      }, where: 'id = ?', whereArgs: [saleId]);
 
       return returnId;
     });
