@@ -48,7 +48,8 @@ class SupplierRepository {
       SELECT COUNT(*) AS invoice_count,
         COALESCE(SUM(total), 0) AS total_amount,
         COALESCE(SUM(paid), 0) AS paid_amount,
-        COALESCE(SUM(total - paid), 0) AS remaining_amount
+        COALESCE(SUM(return_credit), 0) AS return_credit,
+        COALESCE(SUM(MAX(total - paid - return_credit, 0)), 0) AS remaining_amount
       FROM purchases WHERE supplier_id = ?
     ''', [supplierId]);
     return rows.first;
