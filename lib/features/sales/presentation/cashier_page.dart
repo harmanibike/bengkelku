@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -201,6 +203,17 @@ class _CashierPageState extends State<CashierPage> {
                           final stock = product['stock'] as int? ?? 0;
                           return Card(
                             child: ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: 52,
+                                  height: 52,
+                                  child: product['image_path'] != null && product['image_path'].toString().isNotEmpty
+                                      ? Image.file(File(product['image_path'].toString()), fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined))
+                                      : const Icon(Icons.inventory_2_outlined),
+                                ),
+                              ),
                               title: Text(product['name']?.toString() ?? '-'),
                               subtitle: Text('${_rupiah(product['selling_price'] as int? ?? 0)} • ${tracked ? 'Stok: $stock' : 'Stok tidak dipantau'}'),
                               trailing: IconButton(
