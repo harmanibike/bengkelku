@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../data/sale_repository.dart';
 import '../data/sale_return_repository.dart';
 import 'sale_returns_page.dart';
+import '../../receipts/presentation/receipt_share_launcher.dart';
 import '../../business/data/business_profile_repository.dart';
 import '../../business/presentation/business_identity_header.dart';
 
@@ -202,6 +203,14 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                 icon: const Icon(Icons.cancel_outlined, color: Colors.red),
                 label: const Text('Batalkan nota', style: TextStyle(color: Colors.red)),
               ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                ReceiptShareLauncher.sale(context, id);
+              },
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Nota / Bagikan'),
+            ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Tutup'),
