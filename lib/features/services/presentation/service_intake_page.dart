@@ -460,6 +460,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
 
                       if (_serviceCatalog.isNotEmpty)
                         DropdownButtonFormField<int>(
+                          initialValue: _selectedCatalogServiceId,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Master jasa / harga standar',
