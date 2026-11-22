@@ -5,6 +5,7 @@ import '../bicycles/presentation/bicycle_list_page.dart';
 import '../services/presentation/service_list_page.dart';
 import '../products/presentation/product_list_page.dart';
 import '../sales/presentation/cashier_page.dart';
+import '../reports/presentation/reports_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -33,6 +34,10 @@ class DashboardPage extends StatelessWidget {
 
   void _openCashier(BuildContext context) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const CashierPage()));
+  }
+
+  void _openReports(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsPage()));
   }
 
   @override
@@ -90,7 +95,7 @@ class DashboardPage extends StatelessWidget {
                   _MenuItem(title: 'Sepeda', icon: Icons.pedal_bike, onTap: () => _openBicycles(context)),
                   _MenuItem(title: 'Produk', icon: Icons.inventory_2, onTap: () => _openProducts(context)),
                   _MenuItem(title: 'Pelanggan', icon: Icons.people, onTap: () => _openCustomers(context)),
-                  _MenuItem(title: 'Laporan', icon: Icons.bar_chart, onTap: () => _showComingSoon(context, 'Laporan')),
+                  _MenuItem(title: 'Laporan', icon: Icons.bar_chart, onTap: () => _openReports(context)),
                 ],
               ),
               const SizedBox(height: 24),
