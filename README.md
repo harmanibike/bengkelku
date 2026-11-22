@@ -53,7 +53,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Penentuan mekanik, biaya jasa/spare part, komisi, dan diskon servis.
 - [ ] Garansi pekerjaan servis.
 - [x] Buat pratinjau nota servis dalam PDF dan foto PNG, serta bagikan melalui menu berbagi Android; pilihan chat WhatsApp dan pengiriman tetap dilakukan manual oleh pengguna.
-- [ ] Nota penerimaan servis dan bukti pembayaran akhir sebagai dokumen terpisah.
+- [x] Bukti penerimaan sepeda saat masuk bengkel dan bukti pelunasan servis sebagai dokumen terpisah; keduanya memiliki snapshot arsip sendiri. Bukti pelunasan hanya dapat diterbitkan saat sisa tagihan nol.
 - [x] Snapshot nota servis yang diterbitkan menyimpan data servis, pembayaran, dan profil usaha; arsip dapat dibuka ulang tanpa membaca ulang data transaksi terkini.
 
 ## 5. Kasir penjualan (POS)
@@ -145,7 +145,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Bagikan file PDF atau foto melalui menu berbagi Android; pengguna memilih WhatsApp/chat dan menekan kirim sendiri.
 - [x] Buka layanan cetak Android dari pratinjau PDF.
 - [x] Arsip snapshot nota yang pernah diterbitkan dan buka ulang dari riwayat nota per transaksi.
-- [ ] Nota penerimaan servis dan bukti pembayaran akhir sebagai dokumen terpisah.
+- [x] Bukti penerimaan sepeda saat masuk bengkel dan bukti pelunasan servis sebagai dokumen terpisah; keduanya memiliki snapshot arsip sendiri. Bukti pelunasan hanya dapat diterbitkan saat sisa tagihan nol.
 - [ ] Cetak langsung printer thermal Bluetooth 58 mm/80 mm dan pengaturan perangkat/kertas.
 - [ ] Cetak label harga dan barcode.
 
