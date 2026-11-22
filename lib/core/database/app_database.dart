@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 8;
+  static const int _databaseVersion = 9;
 
   Database? _database;
 
@@ -203,6 +203,22 @@ class AppDatabase {
     ''');
     batch.execute('CREATE INDEX idx_purchase_returns_purchase ON purchase_returns(purchase_id, return_date)');
     batch.execute('CREATE INDEX idx_purchase_return_items_return ON purchase_return_items(purchase_return_id)');
+    batch.execute('''
+      CREATE TABLE supplier_return_credit_applications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        return_id INTEGER NOT NULL,
+        purchase_id INTEGER NOT NULL,
+        supplier_id INTEGER NOT NULL,
+        amount INTEGER NOT NULL CHECK(amount > 0),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (return_id) REFERENCES purchase_returns(id) ON DELETE RESTRICT,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE RESTRICT,
+        FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_return_credit_applications_return ON supplier_return_credit_applications(return_id, created_at)');
+    batch.execute('CREATE INDEX idx_return_credit_applications_purchase ON supplier_return_credit_applications(purchase_id, created_at)');
+
 
     // Perintah kerja servis.
     batch.execute('''
@@ -576,6 +592,26 @@ class AppDatabase {
       await db.execute("ALTER TABLE purchase_returns ADD COLUMN credit_applied INTEGER NOT NULL DEFAULT 0");
       await db.execute("ALTER TABLE purchase_returns ADD COLUMN refund_received INTEGER NOT NULL DEFAULT 0");
     }
+
+    // Buku pemakaian kredit retur lintas faktur pemasok.
+    if (oldVersion < 9) {
+      await db.execute('''
+        CREATE TABLE supplier_return_credit_applications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          return_id INTEGER NOT NULL,
+          purchase_id INTEGER NOT NULL,
+          supplier_id INTEGER NOT NULL,
+          amount INTEGER NOT NULL CHECK(amount > 0),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (return_id) REFERENCES purchase_returns(id) ON DELETE RESTRICT,
+          FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE RESTRICT,
+          FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_return_credit_applications_return ON supplier_return_credit_applications(return_id, created_at)');
+      await db.execute('CREATE INDEX idx_return_credit_applications_purchase ON supplier_return_credit_applications(purchase_id, created_at)');
+    }
+
 
   }
 
