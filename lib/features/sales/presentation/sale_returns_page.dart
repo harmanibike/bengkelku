@@ -357,7 +357,12 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
                           enabled: !_saving,
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
-                          onChanged: (_) {\n                            if ((int.tryParse(_refundController.text.trim()) ?? 0) < _minimumRefund) {\n                              _refundController.text = _minimumRefund.toString();\n                            }\n                            setState(() {});\n                          },
+                          onChanged: (_) {
+                            if ((int.tryParse(_refundController.text.trim()) ?? 0) < _minimumRefund) {
+                              _refundController.text = _minimumRefund.toString();
+                            }
+                            setState(() {});
+                          },
                           decoration: const InputDecoration(
                             labelText: 'Qty',
                             isDense: true,
