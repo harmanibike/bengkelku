@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../data/sale_repository.dart';
+import '../../business/data/business_profile_repository.dart';
+import '../../business/presentation/business_identity_header.dart';
 
 class SalesHistoryPage extends StatefulWidget {
   const SalesHistoryPage({super.key});
@@ -104,6 +106,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
       final items = List<Map<String, Object?>>.from(
         sale['items'] as List? ?? const [],
       );
+      final businessProfile = await BusinessProfileRepository().getProfile();
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -115,6 +118,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  BusinessIdentityHeader(profile: businessProfile),
                   Text(
                     sale['invoice_number']?.toString() ?? '-',
                     style: const TextStyle(fontWeight: FontWeight.bold),
