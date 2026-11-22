@@ -168,6 +168,8 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 
 - [x] Daftar piutang gabungan servis dan penjualan barang.
 - [x] Filter/pencarian piutang dan rincian sisa tagihan.
+- [x] Rincian piutang per nota menampilkan total, pembayaran, sisa, serta riwayat pembayaran; penjualan juga menampilkan retur dan refund.
+- [x] Detail pemasok menampilkan riwayat faktur, pembayaran, kredit retur, dan nilai retur; faktur batal tidak dihitung sebagai utang aktif.
 - [x] Membuka WhatsApp dengan template pengingat yang dapat ditinjau pengguna.
 - [x] Log mencatat waktu WhatsApp dibuka untuk pengingat; aplikasi tidak mengirim pesan otomatis.
 - [ ] Pengingat servis berkala dan garansi.
