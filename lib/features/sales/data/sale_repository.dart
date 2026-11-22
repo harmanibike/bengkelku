@@ -244,11 +244,20 @@ class SaleRepository {
       if (status == 'cancelled') throw StateError('Transaksi yang dibatalkan tidak dapat menerima pembayaran.');
       final total = sale['total'] as int? ?? 0;
       final paidBefore = sale['paid'] as int? ?? 0;
-      final remaining = total - paidBefore;
-      if (remaining <= 0) throw StateError('Transaksi ini sudah lunas.');
-      if (amount > remaining) throw ArgumentError('Pembayaran melebihi sisa tagihan ${remaining}.');
+      final returnRows = await txn.rawQuery('''
+        SELECT COALESCE(SUM(total_amount), 0) AS returned_amount,
+               COALESCE(SUM(refunded_amount), 0) AS refunded_amount
+        FROM sale_returns
+        WHERE sale_id = ?
+      ''', [id]);
+      final returnedAmount = returnRows.first['returned_amount'] as int? ?? 0;
+      final refundedAmount = returnRows.first['refunded_amount'] as int? ?? 0;
+      final effectiveTotal = total - returnedAmount + refundedAmount;
+      final remaining = effectiveTotal - paidBefore;
+      if (remaining <= 0) throw StateError('Transaksi ini sudah lunas setelah memperhitungkan retur.');
+      if (amount > remaining) throw ArgumentError('Pembayaran melebihi sisa tagihan $remaining.');
       final paidAfter = paidBefore + amount;
-      final nextStatus = paidAfter >= total ? 'paid' : 'partial';
+      final nextStatus = paidAfter >= effectiveTotal ? 'paid' : 'partial';
       final now = DateTime.now().toIso8601String();
       await txn.update('sales', {
         'paid': paidAfter,
@@ -417,19 +426,28 @@ class SaleRepository {
   Future<List<Map<String, Object?>>> getSales({String keyword = ''}) async {
     final db = await _db;
     final term = keyword.trim();
-    if (term.isEmpty) {
-      return db.query('sales', orderBy: 'transaction_date DESC, id DESC', limit: 200);
-    }
     return db.rawQuery('''
-      SELECT sales.*
+      SELECT sales.*,
+             COALESCE(ret.returned_amount, 0) AS returned_amount,
+             COALESCE(ret.refunded_amount, 0) AS refunded_amount,
+             MAX(0, sales.total - sales.paid
+               - COALESCE(ret.returned_amount, 0)
+               + COALESCE(ret.refunded_amount, 0)) AS remaining_amount
       FROM sales
       LEFT JOIN customers ON customers.id = sales.customer_id
-      WHERE sales.invoice_number LIKE ?
+      LEFT JOIN (
+        SELECT sale_id,
+               SUM(total_amount) AS returned_amount,
+               SUM(refunded_amount) AS refunded_amount
+        FROM sale_returns
+        GROUP BY sale_id
+      ) ret ON ret.sale_id = sales.id
+      WHERE (? = '' OR sales.invoice_number LIKE ?
          OR COALESCE(customers.name, '') LIKE ?
-         OR COALESCE(sales.notes, '') LIKE ?
+         OR COALESCE(sales.notes, '') LIKE ?)
       ORDER BY sales.transaction_date DESC, sales.id DESC
       LIMIT 200
-    ''', ['%$term%', '%$term%', '%$term%']);
+    ''', [term, '%$term%', '%$term%', '%$term%']);
   }
 
   Future<Map<String, Object?>?> getSaleById(int id) async {
