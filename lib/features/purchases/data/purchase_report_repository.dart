@@ -22,7 +22,9 @@ class PurchaseReportRepository {
       WHERE purchase_date >= ? AND purchase_date < ?
     ''', [from, until]);
     final returns = await db.rawQuery('''
-      SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS amount
+      SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS amount,
+        COALESCE(SUM(credit_applied), 0) AS credit_applied,
+        COALESCE(SUM(refund_received), 0) AS refund_received
       FROM purchase_returns
       WHERE return_date >= ? AND return_date < ?
     ''', [from, until]);
@@ -61,6 +63,8 @@ class PurchaseReportRepository {
       'outstanding': purchases.first['outstanding'] ?? 0,
       'return_count': returns.first['count'] ?? 0,
       'return_amount': returns.first['amount'] ?? 0,
+      'return_credit_applied': returns.first['credit_applied'] ?? 0,
+      'return_refund_received': returns.first['refund_received'] ?? 0,
       'payment_count': payments.first['count'] ?? 0,
       'payment_amount': payments.first['amount'] ?? 0,
       'suppliers': suppliers,
