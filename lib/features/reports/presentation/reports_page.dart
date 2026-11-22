@@ -122,7 +122,8 @@ class _ReportsPageState extends State<ReportsPage> {
                       _metric('Retur Penjualan', _rupiah((_summary['sales_return_amount'] as num?)?.toInt() ?? 0), Icons.assignment_return, Colors.deepOrange),
                       _metric('HPP Bersih Barang', _rupiah((_summary['net_cogs_amount'] as num?)?.toInt() ?? 0), Icons.inventory_2, Colors.blueGrey),
                       _metric('Laba Kotor Barang', _rupiah((_summary['gross_profit_amount'] as num?)?.toInt() ?? 0), Icons.account_balance_wallet, Colors.green),
-                      _metric('Servis Masuk', '${_summary['service_count'] ?? 0} nota', Icons.build, Colors.blue),
+                      _metric('Pendapatan Servis Selesai', _rupiah((_summary['service_revenue'] as num?)?.toInt() ?? 0), Icons.handyman, Colors.teal),
+                      _metric('Servis Selesai', '${_summary['completed_service_count'] ?? 0} nota', Icons.build, Colors.blue),
                       _metric('Stok Menipis', '${_summary['low_stock'] ?? 0} produk', Icons.inventory, Colors.deepOrange),
                       _metric('Transaksi Kas', '${_summary['transaction_count'] ?? 0}', Icons.receipt_long, Colors.purple),
                     ],
@@ -154,7 +155,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      'Arus kas menunjukkan uang yang benar-benar masuk dan keluar, bukan laba. Laba kotor hanya untuk penjualan barang setelah dikurangi HPP dan HPP barang retur; biaya operasional, gaji, komisi, serta biaya jasa belum dikurangkan sehingga bukan laba bersih.',
+                      'Arus kas menunjukkan uang yang benar-benar masuk dan keluar, bukan laba. Pendapatan servis dihitung dari nota berstatus selesai/diambil berdasarkan tanggal selesai; DP dan pelunasan servis tetap dicatat terpisah di arus kas. HPP barang, biaya operasional, gaji, komisi, dan biaya langsung servis belum seluruhnya dihitung sehingga laporan ini belum menunjukkan laba bersih.',
                       style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ),
