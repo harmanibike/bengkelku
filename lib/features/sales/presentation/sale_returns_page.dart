@@ -152,8 +152,6 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
     return total;
   }
 
-  int get _maximumRefund => _minimumRefund;
-
   int get _minimumRefund {
     final total = _selectedSale?['total'] as int? ?? 0;
     final paid = _selectedSale?['paid'] as int? ?? 0;
