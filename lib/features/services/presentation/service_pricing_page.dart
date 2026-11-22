@@ -107,6 +107,42 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
     name.dispose(); category.dispose(); description.dispose(); price.dispose(); reason.dispose();
   }
 
+  Future<void> _delete(Map<String, Object?> item) async {
+    final name = item['name']?.toString() ?? 'jasa ini';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hapus master jasa?'),
+        content: Text(
+          'Master "$name" akan dihapus dari daftar pilihan servis. '
+          'Riwayat perubahan harga milik master ini juga dihapus. '
+          'Nota servis yang sudah tersimpan tidak ikut berubah.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _repo.deleteService(item['id'] as int);
+      await _load();
+      _message('Master jasa berhasil dihapus.');
+    } catch (e) {
+      _message('Gagal menghapus master jasa: $e');
+    }
+  }
+
   Widget _master() => Column(children: [
     Padding(padding: const EdgeInsets.all(10), child: TextField(controller: _search, onChanged: (_) => _load(), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Cari nama/kategori jasa', isDense: true, border: OutlineInputBorder()))),
     Expanded(child: _services.isEmpty ? const Center(child: Text('Belum ada master jasa. Tekan + untuk menambahkan.')) : ListView.builder(padding: const EdgeInsets.all(10), itemCount: _services.length, itemBuilder: (ctx, i) {
@@ -115,7 +151,12 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
       return Card(elevation: 0, child: ListTile(dense: true, title: Text(x['name'].toString()), subtitle: Text((x['category'] ?? 'Tanpa kategori').toString() + ' • ' + _money(x['standard_price'])), trailing: PopupMenuButton<String>(onSelected: (v) async {
         if (v == 'edit') await _edit(x);
         if (v == 'toggle') { await _repo.setActive(x['id'] as int, !active); await _load(); }
-      }, itemBuilder: (_) => [const PopupMenuItem(value: 'edit', child: Text('Ubah')), PopupMenuItem(value: 'toggle', child: Text(active ? 'Nonaktifkan' : 'Aktifkan'))])));
+        if (v == 'delete') await _delete(x);
+      }, itemBuilder: (_) => [
+        const PopupMenuItem(value: 'edit', child: Text('Ubah')),
+        PopupMenuItem(value: 'toggle', child: Text(active ? 'Nonaktifkan' : 'Aktifkan')),
+        const PopupMenuItem(value: 'delete', child: Text('Hapus')),
+      ])));
     })),
   ]);
 
