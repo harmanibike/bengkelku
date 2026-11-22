@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../data/supplier_repository.dart';
+import 'supplier_detail_page.dart';
 
 class SuppliersPage extends StatefulWidget {
   const SuppliersPage({super.key});
@@ -135,6 +136,7 @@ class _SuppliersPageState extends State<SuppliersPage> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SupplierDetailPage(supplier: row))),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
         leading: CircleAvatar(
           radius: 20,
