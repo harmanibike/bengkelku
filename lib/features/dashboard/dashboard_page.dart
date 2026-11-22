@@ -10,6 +10,7 @@ import '../purchases/presentation/purchase_returns_page.dart';
 import '../purchases/presentation/supplier_debts_page.dart';
 import '../purchases/presentation/purchase_reports_page.dart';
 import '../purchases/presentation/purchase_cost_settings_page.dart';
+import '../services/presentation/service_pricing_page.dart';
 import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
 import '../receivables/presentation/receivables_page.dart';
@@ -129,7 +130,7 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchaseReportsPage()));
   }
 
-  void _openPurchaseCostSettings() {
+  void _openServicePricing() {\n    Navigator.push(context, MaterialPageRoute(builder: (_) => const ServicePricingPage()));\n  }\n\n  void _openPurchaseCostSettings() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchaseCostSettingsPage()));
   }
 
@@ -481,7 +482,7 @@ class _DashboardPageState extends State<DashboardPage> {
             _menuTile(title: 'Retur Pembelian', icon: Icons.assignment_return_rounded, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: _openPurchaseReturns),
             _menuTile(title: 'Utang Pemasok', icon: Icons.account_balance_wallet_rounded, colors: const [Color(0xFFE65100), Color(0xFFFFB74D)], onTap: _openSupplierDebts),
             _menuTile(title: 'Laporan Pembelian', icon: Icons.assessment_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openPurchaseReports),
-            _menuTile(title: 'Harga Beli', icon: Icons.settings_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openPurchaseCostSettings),
+            _menuTile(title: 'Harga Beli', icon: Icons.settings_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openPurchaseCostSettings),\n            _menuTile(title: 'Harga Jasa', icon: Icons.price_change_rounded, colors: const [Color(0xFF1565C0), Color(0xFF42A5F5)], onTap: _openServicePricing),
           ],
         ),
       ],
