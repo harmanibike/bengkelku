@@ -63,7 +63,8 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Pelunasan piutang penjualan dicatat sebagai transaksi kas masuk.
 - [x] Riwayat penjualan menampilkan status pembayaran dan sisa tagihan.
 - [x] Pembatalan transaksi dengan pemulihan stok dan pembalikan penerimaan kas yang tercatat.
-- [ ] Barcode scanner, harga grosir, diskon, pajak, transfer, QRIS, dan pembayaran campuran.
+- [x] Pilihan metode pembayaran tunai, transfer bank, QRIS, kartu debit, dan kartu kredit; metode aktif dapat diatur dan pilihan dicatat pada transaksi kasir.
+- [ ] Integrasi/verifikasi pembayaran digital otomatis, barcode scanner, harga grosir, diskon, pajak, dan pembayaran campuran.
 - [x] Retur penjualan dengan pembalikan stok, pengembalian dana, penyesuaian piutang, dan jejak audit.
 - [ ] Cetak struk dan berbagi bukti transaksi.
 
@@ -144,6 +145,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Profil usaha dan logo.
 - [x] Pengaturan metode update harga beli.
 - [x] Pengaturan harga jasa dan PIN admin untuk override harga.
+- [x] Pengaturan metode pembayaran yang aktif pada kasir.
 - [ ] Pengaturan pajak, mata uang, nomor nota, printer, diskon, dan akun pengguna.
 - [ ] Backup database, restore, dan ekspor data yang telah diuji.
 
