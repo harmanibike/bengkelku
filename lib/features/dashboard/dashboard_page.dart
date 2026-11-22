@@ -18,7 +18,6 @@ import '../sales/presentation/sales_history_page.dart';
 import '../sales/presentation/sale_returns_page.dart';
 import '../services/presentation/service_list_page.dart';
 import '../services/presentation/service_pricing_page.dart';
-import '../purchases/presentation/purchase_cost_settings_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -90,10 +89,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _openServicePricing() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ServicePricingPage()));
-  }
-
-  void _openPurchaseCostSettings() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchaseCostSettingsPage()));
   }
 
   void _openProducts() {
@@ -511,7 +506,6 @@ class _DashboardPageState extends State<DashboardPage> {
             
             _menuTile(title: 'Pemasok', icon: Icons.local_shipping_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openSuppliers),
             _menuTile(title: 'Pembelian', icon: Icons.add_shopping_cart_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openPurchases),
-            _menuTile(title: 'Harga Beli', icon: Icons.price_change_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openPurchaseCostSettings),
             _menuTile(title: 'Retur Beli', icon: Icons.assignment_return_rounded, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: _openPurchaseReturns),
             _menuTile(title: 'Utang', icon: Icons.account_balance_wallet_rounded, colors: const [Color(0xFFE65100), Color(0xFFFFB74D)], onTap: _openSupplierDebts),
             _menuTile(title: 'Pengaturan', icon: Icons.settings_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openSettings),
