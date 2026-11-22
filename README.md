@@ -47,7 +47,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Riwayat perubahan harga jasa beserta harga lama/baru, alasan, dan waktu.
 - [x] Profil usaha (nama, alamat, telepon, WhatsApp, email, website, nomor pajak, logo, dan catatan bawah nota).
 - [x] Identitas usaha ditampilkan pada detail transaksi penjualan dan detail servis.
-- [x] Biaya modal sparepart dan biaya langsung lain servis dicatat terpisah dari harga jual, serta ditampilkan pada detail nota; input dan koreksi biaya aktual tersedia dari detail nota; tidak mengubah tagihan pelanggan atau mengurangi stok otomatis.
+- [x] Biaya modal sparepart dan biaya langsung lain servis dicatat terpisah dari harga jual, serta ditampilkan pada detail nota; input dan koreksi biaya aktual tersedia dari detail nota; riwayat nilai lama/baru dan waktu perubahan tersimpan; tidak mengubah tagihan pelanggan atau mengurangi stok otomatis.
 - [ ] Nomor nota servis dan format nota yang dapat dikonfigurasi.
 - [ ] Keluhan, diagnosis, estimasi, foto sebelum/sesudah, dan catatan mekanik yang lengkap.
 - [ ] Penentuan mekanik, biaya jasa/spare part, komisi, dan diskon servis.
