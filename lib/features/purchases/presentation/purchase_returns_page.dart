@@ -147,7 +147,72 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
     }
   }
 
+  Future<void> _cancelReturn(Map<String, Object?> row) async {
+    if (row['status']?.toString() == 'cancelled') return;
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Batalkan Retur Pembelian'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Nomor retur: ${row['return_number']}'),
+            const SizedBox(height: 8),
+            const Text(
+              'Retur hanya dapat dibatalkan jika belum digunakan sebagai kredit pemasok atau menerima pengembalian uang. Stok akan dikembalikan ke batch asal dan riwayat tetap disimpan.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reasonController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Alasan pembatalan *',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Kembali')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              final value = reasonController.text.trim();
+              if (value.isNotEmpty) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Batalkan Retur'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+    if (reason == null || !mounted) return;
+    try {
+      await _repository.cancelReturn(
+        returnId: row['id'] as int,
+        reason: reason,
+      );
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Retur dibatalkan dan stok dikembalikan ke batch asal.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pembatalan ditolak: $error')),
+        );
+      }
+    }
+  }
+
   Future<void> _settleReturn(Map<String, Object?> row) async {
+    if (row['status']?.toString() == 'cancelled') return;
     final total = (row['total_amount'] as num?)?.toInt() ?? 0;
     final applied = (row['credit_applied'] as num?)?.toInt() ?? 0;
     final refunded = (row['refund_received'] as num?)?.toInt() ?? 0;
@@ -447,7 +512,9 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                           'Faktur ${row['invoice_number']} • ${row['supplier_name'] ?? 'Pemasok'}',
                           style: const TextStyle(fontSize: 11),
                         ),
-                        if (((row['total_amount'] as num?)?.toInt() ?? 0) -
+                        if (row['status']?.toString() == 'cancelled')
+                          Text('DIBATALKAN • ${row['cancel_reason'] ?? '-'}', style: const TextStyle(fontSize: 10, color: Colors.red)),
+                        if (row['status']?.toString() != 'cancelled' && ((row['total_amount'] as num?)?.toInt() ?? 0) -
                             ((row['credit_applied'] as num?)?.toInt() ?? 0) -
                             ((row['refund_received'] as num?)?.toInt() ?? 0) > 0)
                           Align(
@@ -471,8 +538,14 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                       children: [
                         Text(_money(row['total_amount']),
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        Text('Sisa ${_money(((row['total_amount'] as num?)?.toInt() ?? 0) - ((row['credit_applied'] as num?)?.toInt() ?? 0) - ((row['refund_received'] as num?)?.toInt() ?? 0))}',
-                          style: const TextStyle(fontSize: 9, color: Colors.deepOrange)),
+                        Text(row['status']?.toString() == 'cancelled' ? 'Dibatalkan' : 'Sisa ${_money(((row['total_amount'] as num?)?.toInt() ?? 0) - ((row['credit_applied'] as num?)?.toInt() ?? 0) - ((row['refund_received'] as num?)?.toInt() ?? 0))}',
+                          style: TextStyle(fontSize: 9, color: row['status']?.toString() == 'cancelled' ? Colors.red : Colors.deepOrange)),
+                        if (row['status']?.toString() != 'cancelled')
+                          TextButton(
+                            onPressed: () => _cancelReturn(row),
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 22), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                            child: const Text('Batalkan', style: TextStyle(fontSize: 10, color: Colors.red)),
+                          ),
                       ],
                     ),
                     onTap: () => _settleReturn(row),
