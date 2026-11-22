@@ -19,14 +19,14 @@ class PurchaseReportRepository {
         COALESCE(SUM(return_credit), 0) AS return_credit,
         COALESCE(SUM(MAX(total - paid - return_credit, 0)), 0) AS outstanding
       FROM purchases
-      WHERE purchase_date >= ? AND purchase_date < ?
+      WHERE status = 'active' AND purchase_date >= ? AND purchase_date < ?
     ''', [from, until]);
     final returns = await db.rawQuery('''
       SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS amount,
         COALESCE(SUM(credit_applied), 0) AS credit_applied,
         COALESCE(SUM(refund_received), 0) AS refund_received
       FROM purchase_returns
-      WHERE return_date >= ? AND return_date < ?
+      WHERE status = 'active' AND return_date >= ? AND return_date < ?
     ''', [from, until]);
     final payments = await db.rawQuery('''
       SELECT COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
@@ -41,7 +41,7 @@ class PurchaseReportRepository {
         COALESCE(SUM(MAX(p.total - p.paid - p.return_credit, 0)), 0) AS outstanding
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
-      WHERE p.purchase_date >= ? AND p.purchase_date < ?
+      WHERE p.status = 'active' AND p.purchase_date >= ? AND p.purchase_date < ?
       GROUP BY s.id, s.name
       ORDER BY total_amount DESC
       LIMIT 20
