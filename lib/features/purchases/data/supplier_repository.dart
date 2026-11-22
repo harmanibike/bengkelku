@@ -42,6 +42,42 @@ class SupplierRepository {
     return Sqflite.firstIntValue(rows) ?? 0;
   }
 
+  Future<Map<String, Object?>> getSupplierSummary(int supplierId) async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      SELECT COUNT(*) AS invoice_count,
+        COALESCE(SUM(total), 0) AS total_amount,
+        COALESCE(SUM(paid), 0) AS paid_amount,
+        COALESCE(SUM(total - paid), 0) AS remaining_amount
+      FROM purchases WHERE supplier_id = ?
+    ''', [supplierId]);
+    return rows.first;
+  }
+
+  Future<List<Map<String, Object?>>> getPurchaseHistory(int supplierId) async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT p.id, p.invoice_number, p.purchase_date, p.subtotal, p.discount,
+        p.total, p.paid, p.payment_status,
+        (p.total - p.paid) AS remaining_amount,
+        (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id) AS item_count
+      FROM purchases p
+      WHERE p.supplier_id = ?
+      ORDER BY p.purchase_date DESC, p.id DESC
+    ''', [supplierId]);
+  }
+
+  Future<List<Map<String, Object?>>> getSupplierPayments(int supplierId) async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT sp.*, p.invoice_number
+      FROM supplier_payments sp
+      LEFT JOIN purchases p ON p.id = sp.purchase_id
+      WHERE sp.supplier_id = ?
+      ORDER BY sp.payment_date DESC, sp.id DESC
+    ''', [supplierId]);
+  }
+
   String? _nullable(String? value) {
     final text = value?.trim();
     return text == null || text.isEmpty ? null : text;
