@@ -42,6 +42,72 @@ class PurchaseReturnRepository {
     ''');
   }
 
+  Future<void> settleReturn({
+    required int returnId,
+    required int creditApplied,
+    required int refundReceived,
+    String? notes,
+  }) async {
+    if (creditApplied < 0 || refundReceived < 0) {
+      throw ArgumentError('Nilai penyelesaian tidak boleh negatif.');
+    }
+    final db = await _db;
+    await db.transaction((txn) async {
+      final rows = await txn.rawQuery('''
+        SELECT pr.id, pr.return_number, pr.purchase_id, pr.total_amount,
+          pr.credit_applied, pr.refund_received,
+          p.supplier_id, p.invoice_number, p.total, p.paid, p.return_credit
+        FROM purchase_returns pr
+        JOIN purchases p ON p.id = pr.purchase_id
+        WHERE pr.id = ?
+        LIMIT 1
+      ''', [returnId]);
+      if (rows.isEmpty) throw StateError('Data retur tidak ditemukan.');
+      final row = rows.first;
+      final alreadyCredit = (row['credit_applied'] as num?)?.toInt() ?? 0;
+      final alreadyRefund = (row['refund_received'] as num?)?.toInt() ?? 0;
+      if (alreadyCredit > 0 || alreadyRefund > 0) {
+        throw StateError('Retur ini sudah pernah diselesaikan. Buat catatan penyelesaian baru melalui pemasok bila diperlukan.');
+      }
+      final total = (row['total_amount'] as num?)?.toInt() ?? 0;
+      if (creditApplied + refundReceived > total) {
+        throw StateError('Kredit dan uang kembali tidak boleh melebihi nilai retur Rp$total.');
+      }
+      final purchaseTotal = (row['total'] as num?)?.toInt() ?? 0;
+      final paid = (row['paid'] as num?)?.toInt() ?? 0;
+      final priorCredit = (row['return_credit'] as num?)?.toInt() ?? 0;
+      final outstanding = purchaseTotal - paid - priorCredit;
+      if (creditApplied > outstanding) {
+        throw StateError('Kredit retur melebihi sisa utang faktur Rp${outstanding < 0 ? 0 : outstanding}.');
+      }
+      final now = DateTime.now().toIso8601String();
+      await txn.update('purchase_returns', {
+        'credit_applied': creditApplied,
+        'refund_received': refundReceived,
+        'notes': _nullable(notes) ?? row['return_number'],
+      }, where: 'id = ?', whereArgs: [returnId]);
+      if (creditApplied > 0) {
+        final nextCredit = priorCredit + creditApplied;
+        final nextOutstanding = purchaseTotal - paid - nextCredit;
+        await txn.update('purchases', {
+          'return_credit': nextCredit,
+          'payment_status': nextOutstanding <= 0 ? 'paid' : paid == 0 ? 'unpaid' : 'partial',
+        }, where: 'id = ?', whereArgs: [row['purchase_id']]);
+      }
+      if (refundReceived > 0) {
+        await txn.insert('cash_transactions', {
+          'transaction_type': 'income',
+          'category': 'Pengembalian retur pembelian',
+          'description': 'Pengembalian uang retur ${row['return_number']} dari faktur ${row['invoice_number']}',
+          'amount': refundReceived,
+          'reference_type': 'purchase_return_refund',
+          'reference_id': returnId,
+          'transaction_date': now,
+        });
+      }
+    });
+  }
+
   Future<int> createReturn({
     required int purchaseId,
     required String returnNumber,
