@@ -151,6 +151,58 @@ class _ServiceListPageState extends State<ServiceListPage> {
     }
   }
 
+  Future<void> _addServicePayment(int id) async {
+    final controller = TextEditingController();
+    final amount = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Catat Pembayaran Servis'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Jumlah pembayaran (Rp)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = int.tryParse(
+                controller.text.replaceAll(RegExp(r'[^0-9]'), ''),
+              );
+              if (value != null && value > 0) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (amount == null || !mounted) return;
+    try {
+      await _repository.addPayment(id: id, amount: amount);
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pembayaran berhasil dicatat ke kas.')),
+      );
+      await _showDetail({'id': id});
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mencatat pembayaran: $error')),
+      );
+    }
+  }
+
   Future<void> _pickServicePhoto(int id, {required bool before}) async {
     try {
       final path = await ServicePhotoHelper.pickAndSave(context);
@@ -217,7 +269,15 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 _detailLine('Total', _rupiah(detail['total_cost'])),
                 _detailLine('Sudah dibayar', _rupiah(detail['down_payment'])),
                 _detailLine('Sisa tagihan', _rupiah(detail['remaining_payment'])),
-                _detailLine('Status', _statusLabels[status] ?? status),
+                _detailLine(
+                  'Status pembayaran',
+                  (detail['remaining_payment'] as int? ?? 0) <= 0
+                      ? 'Lunas'
+                      : (detail['down_payment'] as int? ?? 0) > 0
+                          ? 'Belum lunas (sebagian dibayar)'
+                          : 'Belum dibayar',
+                ),
+                _detailLine('Status sepeda', _statusLabels[status] ?? status),
                 if (statusHistory.isNotEmpty) ...[
                   const Divider(),
                   const Text('Riwayat Status',
@@ -303,6 +363,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Tutup'),
           ),
+          if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
+              status != 'cancelled')
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, 'payment'),
+              icon: const Icon(Icons.payments_outlined),
+              label: const Text('Catat Pembayaran'),
+            ),
           FilledButton.icon(
             onPressed: () => Navigator.pop(dialogContext, 'status'),
             icon: const Icon(Icons.edit_outlined),
@@ -315,6 +382,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
     if (!mounted) return;
     if (action == 'status') {
       await _changeStatus(detail);
+    } else if (action == 'payment') {
+      await _addServicePayment(id);
     } else if (action == 'before') {
       await _pickServicePhoto(id, before: true);
     } else if (action == 'after') {
@@ -393,6 +462,17 @@ class _ServiceListPageState extends State<ServiceListPage> {
               if (complaint.isNotEmpty) ...[
                 const SizedBox(height: 7),
                 Text(complaint, maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
+              if ((order['remaining_payment'] as int? ?? 0) > 0) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Sisa tagihan: ${_rupiah(order['remaining_payment'])}',
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
               const Divider(height: 18),
               Row(
