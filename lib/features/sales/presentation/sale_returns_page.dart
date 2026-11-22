@@ -73,16 +73,14 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final results = await Future.wait([
-        _salesRepository.getSales(),
-        _returnRepository.getReturns(),
-      ]);
+      final sales = await _salesRepository.getSales();
+      final returns = await _returnRepository.getReturns();
       if (!mounted) return;
       setState(() {
-        _sales = results[0]
+        _sales = sales
             .where((sale) => sale['payment_status'] != 'cancelled')
             .toList();
-        _returns = results[1] as List<Map<String, Object?>>;
+        _returns = returns;
         _loading = false;
       });
     } catch (error) {
@@ -116,14 +114,10 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
     });
 
     try {
-      final results = await Future.wait([
-        _salesRepository.getSaleById(saleId),
-        _returnRepository.getReturnableItems(saleId),
-        _returnRepository.getSaleReturnSummary(saleId),
-      ]);
+      final sale = await _salesRepository.getSaleById(saleId);
+      final items = await _returnRepository.getReturnableItems(saleId);
+      final summary = await _returnRepository.getSaleReturnSummary(saleId);
       if (!mounted) return;
-      final sale = results[0] as Map<String, Object?>?;
-      final items = results[1];
       for (final item in items) {
         final id = item['sale_item_id'] as int;
         _quantityControllers[id] = TextEditingController(text: '0');
@@ -131,7 +125,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
       setState(() {
         _selectedSale = sale;
         _saleItems = items;
-        _returnSummary = results[2] as Map<String, Object?>;
+        _returnSummary = summary;
         _loadingSale = false;
       });
     } catch (error) {
