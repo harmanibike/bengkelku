@@ -83,7 +83,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
           return AlertDialog(
             title: const Text('Pembelian Baru'),
             content: SizedBox(
-              width: 480,
+              width: 520,
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -331,7 +331,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
       builder: (dialogContext) => AlertDialog(
         title: Text('Faktur ${row['invoice_number']}'),
         content: SizedBox(
-          width: 440,
+          width: 520,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
