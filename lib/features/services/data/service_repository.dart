@@ -95,7 +95,7 @@ class ServiceRepository {
       final now = DateTime.now();
       final orderNumber = _generateOrderNumber(now);
 
-      return txn.insert('service_orders', {
+      final serviceOrderId = await txn.insert('service_orders', {
         'order_number': orderNumber,
         'customer_id': customerId,
         'bicycle_id': bicycleId,
@@ -114,6 +114,22 @@ class ServiceRepository {
         'notes': _nullableText(notes),
         'before_photo_path': _nullableText(beforePhotoPath),
       });
+
+      // DP dicatat sebagai kas masuk dalam transaksi database yang sama.
+      // Jika pencatatan kas gagal, nota servis juga dibatalkan (rollback).
+      if (paid > 0) {
+        await txn.insert('cash_transactions', {
+          'transaction_type': 'income',
+          'category': 'Servis',
+          'description': 'DP servis $orderNumber',
+          'amount': paid,
+          'reference_type': 'service_order',
+          'reference_id': serviceOrderId,
+          'transaction_date': now.toIso8601String(),
+        });
+      }
+
+      return serviceOrderId;
     });
   }
 
@@ -329,7 +345,7 @@ class ServiceRepository {
     return db.transaction((txn) async {
       final result = await txn.query(
         'service_orders',
-        columns: ['total_cost', 'down_payment'],
+        columns: ['order_number', 'total_cost', 'down_payment'],
         where: 'id = ?',
         whereArgs: [id],
         limit: 1,
@@ -339,6 +355,7 @@ class ServiceRepository {
         throw StateError('Nota servis tidak ditemukan.');
       }
 
+      final orderNumber = result.first['order_number']?.toString() ?? 'ID-$id';
       final total = result.first['total_cost'] as int? ?? 0;
       final paid = result.first['down_payment'] as int? ?? 0;
       final remaining = total - paid;
@@ -348,8 +365,9 @@ class ServiceRepository {
       }
 
       final newPaid = paid + amount;
+      final now = DateTime.now();
 
-      return txn.update(
+      final updatedRows = await txn.update(
         'service_orders',
         {
           'down_payment': newPaid,
@@ -358,6 +376,19 @@ class ServiceRepository {
         where: 'id = ?',
         whereArgs: [id],
       );
+
+      // Pembayaran lanjutan juga masuk ke kas, terhubung ke nota servis.
+      await txn.insert('cash_transactions', {
+        'transaction_type': 'income',
+        'category': 'Servis',
+        'description': 'Pembayaran servis $orderNumber',
+        'amount': amount,
+        'reference_type': 'service_order',
+        'reference_id': id,
+        'transaction_date': now.toIso8601String(),
+      });
+
+      return updatedRows;
     });
   }
 
