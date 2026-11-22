@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:bengkelku/features/services/data/service_repository.dart';
+import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 
 void main() {
   group('Service status workflow', () {
