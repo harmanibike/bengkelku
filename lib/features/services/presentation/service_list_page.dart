@@ -295,7 +295,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
       }
 
       try {
-        await _repository.updateServiceOrder(
+        await _repository.updateServiceDirectCosts(
           id: id,
           directPartsCost: amount(parts),
           otherDirectCost: amount(other),
