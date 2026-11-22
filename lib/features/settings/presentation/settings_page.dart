@@ -1,8 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../business/presentation/business_profile_page.dart';
-import '../../purchases/presentation/purchase_cost_settings_page.dart';
-import '../../services/presentation/service_pricing_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -53,25 +51,6 @@ class SettingsPage extends StatelessWidget {
             title: 'Profil Usaha',
             subtitle: 'Nama, alamat, kontak, logo, dan identitas usaha',
             page: const BusinessProfilePage(),
-          ),
-          const SizedBox(height: 10),
-          const Text('Harga dan Biaya', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 8),
-          _item(
-            context: context,
-            icon: Icons.price_change_rounded,
-            color: const Color(0xFF1565C0),
-            title: 'Harga Jasa',
-            subtitle: 'Daftar layanan dan pengaturan harga servis',
-            page: const ServicePricingPage(),
-          ),
-          _item(
-            context: context,
-            icon: Icons.inventory_rounded,
-            color: const Color(0xFF546E7A),
-            title: 'Harga Beli',
-            subtitle: 'Metode perhitungan dan pembaruan harga pokok',
-            page: const PurchaseCostSettingsPage(),
           ),
         ],
       ),
