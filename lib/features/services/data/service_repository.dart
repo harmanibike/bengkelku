@@ -129,6 +129,16 @@ class ServiceRepository {
         'changed_at': now.toIso8601String(),
       });
 
+      // Rekam biaya awal agar riwayat biaya lengkap sejak nota dibuat.
+      await txn.insert('service_direct_cost_history', {
+        'service_order_id': serviceOrderId,
+        'old_direct_parts_cost': 0,
+        'new_direct_parts_cost': directParts,
+        'old_other_direct_cost': 0,
+        'new_other_direct_cost': otherDirect,
+        'changed_at': now.toIso8601String(),
+      });
+
       // DP dicatat sebagai kas masuk dalam transaksi database yang sama.
       // Jika pencatatan kas gagal, nota servis juga dibatalkan (rollback).
       if (paid > 0) {
@@ -239,8 +249,6 @@ class ServiceRepository {
     int? estimatedCost,
     int? laborCost,
     int? partsCost,
-    int? directPartsCost,
-    int? otherDirectCost,
     int? discount,
     String? mechanicName,
     String? notes,
@@ -290,12 +298,6 @@ class ServiceRepository {
           'estimated_cost': estimated,
           'labor_cost': labor,
           'parts_cost': parts,
-          'direct_parts_cost': _safeAmount(
-            directPartsCost ?? (existing['direct_parts_cost'] as int? ?? 0),
-          ),
-          'other_direct_cost': _safeAmount(
-            otherDirectCost ?? (existing['other_direct_cost'] as int? ?? 0),
-          ),
           'discount': safeDiscount,
           'total_cost': total,
           'remaining_payment': total - paid,
