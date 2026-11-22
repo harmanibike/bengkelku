@@ -108,7 +108,7 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
   }
 
   Widget _master() => Column(children: [
-    Padding(padding: const EdgeInsets.all(10), child: TextField(controller: _search, onChanged: (_) => _load(), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Cari nama/kategori jasa', isDense: true, border: OutlineInputBorder())),
+    Padding(padding: const EdgeInsets.all(10), child: TextField(controller: _search, onChanged: (_) => _load(), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Cari nama/kategori jasa', isDense: true, border: OutlineInputBorder()))),
     Expanded(child: _services.isEmpty ? const Center(child: Text('Belum ada master jasa. Tekan + untuk menambahkan.')) : ListView.builder(padding: const EdgeInsets.all(10), itemCount: _services.length, itemBuilder: (ctx, i) {
       final x = _services[i];
       final active = (x['is_active'] as int? ?? 1) == 1;
