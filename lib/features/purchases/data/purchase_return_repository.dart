@@ -433,6 +433,19 @@ class PurchaseReturnRepository {
         where: 'purchase_return_id = ?',
         whereArgs: [returnId],
       );
+      final allocationByItem = <int, int>{};
+      for (final allocation in allocations) {
+        final itemId = (allocation['return_item_id'] as num?)?.toInt();
+        final quantity = (allocation['quantity'] as num?)?.toInt() ?? 0;
+        if (itemId != null) allocationByItem[itemId] = (allocationByItem[itemId] ?? 0) + quantity;
+      }
+      for (final item in returnItems) {
+        final itemId = (item['id'] as num?)?.toInt();
+        final expected = (item['quantity'] as num?)?.toInt() ?? 0;
+        if (itemId == null || (allocationByItem[itemId] ?? 0) != expected) {
+          throw StateError('Alokasi batch retur tidak lengkap. Pembatalan otomatis dihentikan untuk menjaga stok.');
+        }
+      }
       final byProduct = <int, int>{};
       for (final item in returnItems) {
         final productId = (item['product_id'] as num?)?.toInt();
