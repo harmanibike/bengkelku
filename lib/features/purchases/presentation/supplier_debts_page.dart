@@ -1,0 +1,125 @@
+import 'package:material_ui/material_ui.dart';
+
+import '../data/supplier_repository.dart';
+import 'supplier_detail_page.dart';
+
+class SupplierDebtsPage extends StatefulWidget {
+  const SupplierDebtsPage({super.key});
+
+  @override
+  State<SupplierDebtsPage> createState() => _SupplierDebtsPageState();
+}
+
+class _SupplierDebtsPageState extends State<SupplierDebtsPage> {
+  final _repository = SupplierRepository();
+  late Future<List<Map<String, Object?>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _repository.getSuppliersWithDebt();
+  }
+
+  Future<void> _refresh() async {
+    final next = _repository.getSuppliersWithDebt();
+    setState(() => _future = next);
+    await next;
+  }
+
+  String _money(Object? value) {
+    final amount = value is num ? value.toInt() : 0;
+    final digits = amount.toString();
+    final out = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) out.write('.');
+      out.write(digits[i]);
+    }
+    return 'Rp$out';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Utang Pemasok'),
+        actions: [IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh))],
+      ),
+      body: FutureBuilder<List<Map<String, Object?>>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) return Center(child: Text('Gagal memuat utang: ${snapshot.error}'));
+          final rows = snapshot.data ?? [];
+          final totalDebt = rows.fold<int>(0, (sum, row) => sum + ((row['remaining_amount'] as num?)?.toInt() ?? 0));
+          final totalInvoices = rows.fold<int>(0, (sum, row) => sum + ((row['invoice_count'] as num?)?.toInt() ?? 0));
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+              children: [
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.account_balance_wallet_outlined, color: Color(0xFFE65100), size: 28),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Total utang pemasok', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              const SizedBox(height: 3),
+                              Text(_money(totalDebt), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
+                              Text('${rows.length} pemasok • $totalInvoices faktur belum lunas', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(2, 14, 2, 7),
+                  child: Text('Daftar Utang per Pemasok', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                ),
+                if (rows.isEmpty)
+                  const Card(child: Padding(padding: EdgeInsets.all(14), child: Text('Tidak ada utang pemasok. Semua faktur sudah lunas.', style: TextStyle(fontSize: 12))))
+                else
+                  ...rows.map((row) => Card(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    child: ListTile(
+                      dense: true,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => SupplierDetailPage(supplier: {
+                          'id': row['supplier_id'],
+                          'name': row['supplier_name'],
+                          'phone': row['phone'],
+                        }),
+                      )),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                      leading: const CircleAvatar(radius: 18, child: Icon(Icons.local_shipping_outlined, size: 19)),
+                      title: Text(row['supplier_name'] as String? ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      subtitle: Text('${row['invoice_count']} faktur • Sudah dibayar ${_money(row['paid_amount'])}',
+                        style: const TextStyle(fontSize: 10)),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(_money(row['remaining_amount']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
+                          const Text('Sisa utang', style: TextStyle(fontSize: 9, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  )),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
