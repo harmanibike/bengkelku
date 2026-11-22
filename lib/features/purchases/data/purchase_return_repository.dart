@@ -95,11 +95,11 @@ class PurchaseReturnRepository {
     final db = await _db;
     await db.transaction((txn) async {
       final rows = await txn.rawQuery('''
-        SELECT pr.id AS return_id, pr.return_number, pr.total_amount,
+        SELECT pr.id AS return_id, pr.return_number, pr.status, pr.total_amount,
           pr.credit_applied, pr.refund_received,
           source.supplier_id,
           target.id AS target_id, target.invoice_number, target.supplier_id AS target_supplier_id,
-          target.total, target.paid, target.return_credit
+          target.total, target.paid, target.return_credit, target.status
         FROM purchase_returns pr
         JOIN purchases source ON source.id = pr.purchase_id
         JOIN purchases target ON target.id = ?
@@ -159,7 +159,7 @@ class PurchaseReturnRepository {
     final db = await _db;
     await db.transaction((txn) async {
       final rows = await txn.rawQuery('''
-        SELECT pr.id, pr.return_number, pr.purchase_id, pr.total_amount,
+        SELECT pr.id, pr.return_number, pr.status, pr.purchase_id, pr.total_amount,
           pr.credit_applied, pr.refund_received,
           p.supplier_id, p.invoice_number, p.total, p.paid, p.return_credit
         FROM purchase_returns pr
