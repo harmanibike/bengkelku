@@ -91,7 +91,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: phoneController,
                         keyboardType: TextInputType.phone,
@@ -101,7 +101,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: addressController,
                         maxLines: 2,
@@ -111,7 +111,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -121,7 +121,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: notesController,
                         maxLines: 2,
@@ -343,7 +343,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: TextField(
               controller: _searchController,
               onChanged: (_) => _refresh(),
@@ -399,7 +399,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
                             size: 64,
                             color: Colors.grey.shade400,
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           const Text(
                             'Belum ada data pelanggan',
                             style: TextStyle(
