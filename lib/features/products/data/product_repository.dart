@@ -13,7 +13,9 @@ class ProductRepository {
     final query = keyword.trim();
     final where = <String>[];
     final args = <Object?>[];
-    if (!includeInactive) where.add('is_active = 1');
+    if (!includeInactive) {
+      where.add('is_active = 1');
+    }
     if (query.isNotEmpty) {
       where.add('(name LIKE ? OR sku LIKE ? OR barcode LIKE ? OR category LIKE ? OR brand LIKE ?)');
       final term = '%$query%';
@@ -125,7 +127,9 @@ class ProductRepository {
         whereArgs: [productId],
         limit: 1,
       );
-      if (rows.isEmpty) throw StateError('Produk tidak ditemukan atau sudah dinonaktifkan.');
+      if (rows.isEmpty) {
+        throw StateError('Produk tidak ditemukan atau sudah dinonaktifkan.');
+      }
       if ((rows.first['track_stock'] as int? ?? 1) != 1) {
         throw StateError('Pelacakan stok produk ini sedang dinonaktifkan.');
       }
