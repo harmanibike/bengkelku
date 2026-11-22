@@ -54,6 +54,122 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
     return '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
   }
 
+
+  Future<void> _showPurchaseLedgerDetail(int purchaseId) async {
+    try {
+      final data = await _repository.getPurchaseLedgerDetail(purchaseId);
+      if (!mounted) return;
+      final invoice = data['invoice'] as Map<String, Object?>;
+      final items = data['items'] as List<Map<String, Object?>>;
+      final payments = data['payments'] as List<Map<String, Object?>>;
+      final returns = data['returns'] as List<Map<String, Object?>>;
+      final credits = data['credit_applications'] as List<Map<String, Object?>>;
+      final total = (invoice['total'] as num? ?? 0).toInt();
+      final paid = (invoice['paid'] as num? ?? 0).toInt();
+      final credit = (invoice['return_credit'] as num? ?? 0).toInt();
+      final cancelled = invoice['status']?.toString() == 'cancelled';
+      final remaining = cancelled ? 0 : (total - paid - credit).clamp(0, 1 << 62).toInt();
+
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Faktur ${invoice['invoice_number'] ?? '-'}'),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Pemasok: ${invoice['supplier_name'] ?? '-'}'),
+                  Text('Tanggal: ${_date(invoice['purchase_date'])}'),
+                  if (cancelled)
+                    const Text('STATUS: DIBATALKAN', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  _ledgerAmount('Subtotal', invoice['subtotal']),
+                  _ledgerAmount('Diskon', invoice['discount']),
+                  _ledgerAmount('Total faktur', total, bold: true),
+                  _ledgerAmount('Pembayaran tercatat', paid),
+                  _ledgerAmount('Kredit retur diterapkan', credit),
+                  _ledgerAmount('Sisa utang', remaining, bold: true),
+                  const Divider(),
+                  const Text('Rincian barang', style: TextStyle(fontWeight: FontWeight.bold)),
+                  if (items.isEmpty) const Text('Tidak ada rincian barang.'),
+                  ...items.map((item) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: Text('${item['product_name']}\n${item['quantity']} × ${_money(item['unit_cost'])}', style: const TextStyle(fontSize: 12))),
+                        Text(_money(item['subtotal']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  )),
+                  const Divider(),
+                  const Text('Riwayat pembayaran', style: TextStyle(fontWeight: FontWeight.bold)),
+                  if (payments.isEmpty) const Text('Belum ada pembayaran tercatat.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ...payments.map((payment) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text('${_date(payment['payment_date'])} • ${payment['payment_method'] ?? 'Metode tidak dicatat'}', style: const TextStyle(fontSize: 11))),
+                        Text(_money(payment['amount']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  )),
+                  const Divider(),
+                  const Text('Riwayat retur', style: TextStyle(fontWeight: FontWeight.bold)),
+                  if (returns.isEmpty) const Text('Belum ada retur.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ...returns.map((entry) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${entry['return_number'] ?? 'Retur'} • ${_date(entry['return_date'])}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        Text('Nilai ${_money(entry['total_amount'])} • Kredit ${_money(entry['credit_applied'])} • Uang kembali ${_money(entry['refund_received'])}${entry['status'] == 'cancelled' ? ' • Dibatalkan' : ''}', style: const TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  )),
+                  const Divider(),
+                  const Text('Kredit retur yang diterapkan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  if (credits.isEmpty) const Text('Belum ada kredit retur yang diterapkan ke faktur ini.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  ...credits.map((entry) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text('${entry['return_number']} • ${_date(entry['created_at'])}', style: const TextStyle(fontSize: 11))),
+                        Text(_money(entry['amount']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  )),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup')),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat rincian faktur: $error')),
+        );
+      }
+    }
+  }
+
+  Widget _ledgerAmount(String label, Object? value, {bool bold = false}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      children: [
+        Expanded(child: Text(label, style: TextStyle(fontSize: 12, fontWeight: bold ? FontWeight.bold : FontWeight.normal))),
+        Text(_money(value), style: TextStyle(fontSize: 12, fontWeight: bold ? FontWeight.bold : FontWeight.w500)),
+      ],
+    ),
+  );
+
   Widget _metric(String label, Object? value, {bool emphasize = false}) {
     return Expanded(
       child: Container(
@@ -178,6 +294,7 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 6),
                       child: ListTile(
+                        onTap: () => _showPurchaseLedgerDetail(row['id'] as int),
                         dense: true,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 2),
                         leading: const Icon(Icons.receipt_long_outlined, size: 21),
