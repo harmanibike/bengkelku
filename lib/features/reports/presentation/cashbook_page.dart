@@ -50,7 +50,6 @@ class _CashbookPageState extends State<CashbookPage> {
 
   Future<void> _addEntry() async {
     final formKey=GlobalKey<FormState>();
-    final category=TextEditingController();
     final description=TextEditingController();
     final amount=TextEditingController();
     var type='expense';
