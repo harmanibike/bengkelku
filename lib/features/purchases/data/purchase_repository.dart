@@ -293,6 +293,14 @@ class PurchaseRepository {
           byProduct[productId] = (byProduct[productId] ?? 0) + qty;
         }
       }
+      for (final batch in batches) {
+        await txn.update(
+          'inventory_cost_batches',
+          {'quantity_remaining': 0, 'notes': 'Dibatalkan: $note'},
+          where: 'id = ?',
+          whereArgs: [batch['id']],
+        );
+      }
       for (final entry in byProduct.entries) {
         final productRows = await txn.query(
           'products',
@@ -363,14 +371,6 @@ class PurchaseRepository {
             }, where: 'id = ?', whereArgs: [entry.key]);
           }
         }
-      }
-      for (final batch in batches) {
-        await txn.update(
-          'inventory_cost_batches',
-          {'quantity_remaining': 0, 'notes': 'Dibatalkan: $note'},
-          where: 'id = ?',
-          whereArgs: [batch['id']],
-        );
       }
       await txn.update('purchases', {
         'status': 'cancelled',
