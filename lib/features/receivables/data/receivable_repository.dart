@@ -51,7 +51,7 @@ class ReceivableRepository {
         FROM sales s
         LEFT JOIN customers c ON c.id = s.customer_id
         WHERE s.total > s.paid
-          AND s.payment_status IN ('partial', 'unpaid')
+          AND s.payment_status != 'cancelled'
           AND (? = '' OR s.invoice_number LIKE ? OR COALESCE(c.name, '') LIKE ? OR COALESCE(c.phone, '') LIKE ?)
         ORDER BY s.transaction_date ASC, s.id ASC
       ''', [term, '%$term%', '%$term%', '%$term%']));
@@ -99,7 +99,7 @@ class ReceivableRepository {
       'receivable_type': type,
       'record_id': recordId,
       'phone': phone,
-      'sent_at': DateTime.now().toIso8601String(),
+      'opened_at': DateTime.now().toIso8601String(),
     });
   }
 
