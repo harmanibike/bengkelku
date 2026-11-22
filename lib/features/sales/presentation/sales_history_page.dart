@@ -206,6 +206,14 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
             OutlinedButton.icon(
               onPressed: () {
                 Navigator.pop(dialogContext);
+                ReceiptShareLauncher.showHistory(context, sourceType: 'sale', sourceId: id);
+              },
+              icon: const Icon(Icons.history),
+              label: const Text('Riwayat Nota'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
                 ReceiptShareLauncher.sale(context, id);
               },
               icon: const Icon(Icons.receipt_long_outlined),
