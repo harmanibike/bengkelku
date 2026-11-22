@@ -90,7 +90,7 @@ class _ReportsPageState extends State<ReportsPage> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 children: [
                   DropdownButtonFormField<String>(
                     value: _period,
@@ -106,7 +106,7 @@ class _ReportsPageState extends State<ReportsPage> {
                       _load();
                     },
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -127,7 +127,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   Text('Rincian Kas per Kategori', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   if (categories.isEmpty)
-                    const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Belum ada transaksi pada periode ini.')))
+                    const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Belum ada transaksi pada periode ini.')))
                   else
                     ...categories.map((row) {
                       final item = row as Map<String, Object?>;
@@ -143,7 +143,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   Text('Transaksi Terbaru', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   if (latest.isEmpty)
-                    const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Belum ada transaksi.')))
+                    const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Belum ada transaksi.')))
                   else
                     ...latest.map((row) {
                       final item = row as Map<String, Object?>;
@@ -157,7 +157,7 @@ class _ReportsPageState extends State<ReportsPage> {
                         ),
                       );
                     }),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text('Saldo bersih: ${_rupiah(income - expense)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
