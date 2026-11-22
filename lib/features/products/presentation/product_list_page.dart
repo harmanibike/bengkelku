@@ -1,0 +1,409 @@
+import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
+
+import '../data/product_repository.dart';
+
+class ProductListPage extends StatefulWidget {
+  const ProductListPage({super.key});
+
+  @override
+  State<ProductListPage> createState() => _ProductListPageState();
+}
+
+class _ProductListPageState extends State<ProductListPage> {
+  final ProductRepository _repository = ProductRepository();
+  final TextEditingController _searchController = TextEditingController();
+  late Future<List<Map<String, Object?>>> _productsFuture;
+  bool _showInactive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _loadProducts() {
+    _productsFuture = _repository.getProducts(
+      keyword: _searchController.text,
+      includeInactive: _showInactive,
+    );
+  }
+
+  void _refresh() => setState(_loadProducts);
+
+  String _rupiah(Object? value) {
+    final amount = value is num ? value.toInt() : 0;
+    final digits = amount.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    return 'Rp$buffer';
+  }
+
+  int _number(TextEditingController controller) =>
+      int.tryParse(controller.text.replaceAll('.', '').replaceAll(',', '').trim()) ?? 0;
+
+  Future<void> _showProductForm({Map<String, Object?>? product}) async {
+    final editing = product != null;
+    final sku = TextEditingController(text: product?['sku']?.toString() ?? '');
+    final barcode = TextEditingController(text: product?['barcode']?.toString() ?? '');
+    final name = TextEditingController(text: product?['name']?.toString() ?? '');
+    final category = TextEditingController(text: product?['category']?.toString() ?? '');
+    final brand = TextEditingController(text: product?['brand']?.toString() ?? '');
+    final unit = TextEditingController(text: product?['unit']?.toString() ?? 'pcs');
+    final purchase = TextEditingController(text: product?['purchase_price']?.toString() ?? '0');
+    final selling = TextEditingController(text: product?['selling_price']?.toString() ?? '0');
+    final wholesale = TextEditingController(text: product?['wholesale_price']?.toString() ?? '0');
+    final stock = TextEditingController(text: '0');
+    final minimum = TextEditingController(text: product?['minimum_stock']?.toString() ?? '0');
+    final description = TextEditingController(text: product?['description']?.toString() ?? '');
+    final formKey = GlobalKey<FormState>();
+    bool trackStock = (product?['track_stock'] as int? ?? 1) == 1;
+
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(editing ? 'Edit Produk' : 'Tambah Produk'),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Nama produk *', border: OutlineInputBorder()), validator: (v) => v == null || v.trim().isEmpty ? 'Nama wajib diisi' : null),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: sku, decoration: const InputDecoration(labelText: 'SKU / Kode produk', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: barcode, decoration: const InputDecoration(labelText: 'Barcode', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: category, decoration: const InputDecoration(labelText: 'Kategori', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: brand, decoration: const InputDecoration(labelText: 'Merek', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: unit, decoration: const InputDecoration(labelText: 'Satuan (pcs, set, botol...)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: purchase, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Harga beli (Rp)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: selling, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Harga jual (Rp)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: wholesale, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Harga grosir (Rp)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      if (!editing) TextFormField(controller: stock, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Stok awal', border: OutlineInputBorder())),
+                      if (!editing) const SizedBox(height: 10),
+                      TextFormField(controller: minimum, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Batas minimum stok', border: OutlineInputBorder())),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Pantau stok produk'),
+                        value: trackStock,
+                        onChanged: (v) => setDialogState(() => trackStock = v),
+                      ),
+                      TextFormField(controller: description, maxLines: 2, decoration: const InputDecoration(labelText: 'Keterangan', border: OutlineInputBorder())),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+              FilledButton.icon(
+                onPressed: () {
+                  if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true);
+                },
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Simpan'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (result != true || !mounted) return;
+      final values = {
+        'sku': sku.text, 'barcode': barcode.text, 'name': name.text,
+        'category': category.text, 'brand': brand.text, 'unit': unit.text,
+        'purchase': _number(purchase), 'selling': _number(selling),
+        'wholesale': _number(wholesale), 'minimum': _number(minimum),
+        'track': trackStock, 'description': description.text,
+      };
+      if (editing) {
+        await _repository.updateProduct(
+          id: product['id'] as int,
+          sku: values['sku'] as String,
+          barcode: values['barcode'] as String,
+          name: values['name'] as String,
+          category: values['category'] as String,
+          brand: values['brand'] as String,
+          unit: values['unit'] as String,
+          purchasePrice: values['purchase'] as int,
+          sellingPrice: values['selling'] as int,
+          wholesalePrice: values['wholesale'] as int,
+          minimumStock: values['minimum'] as int,
+          trackStock: values['track'] as bool,
+          description: values['description'] as String,
+        );
+      } else {
+        await _repository.addProduct(
+          sku: values['sku'] as String,
+          barcode: values['barcode'] as String,
+          name: values['name'] as String,
+          category: values['category'] as String,
+          brand: values['brand'] as String,
+          unit: values['unit'] as String,
+          purchasePrice: values['purchase'] as int,
+          sellingPrice: values['selling'] as int,
+          wholesalePrice: values['wholesale'] as int,
+          initialStock: values['track'] as bool ? _number(stock) : 0,
+          minimumStock: values['minimum'] as int,
+          trackStock: values['track'] as bool,
+          description: values['description'] as String,
+        );
+      }
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(editing ? 'Produk diperbarui.' : 'Produk ditambahkan.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan produk: $error')));
+    } finally {
+      for (final controller in [sku, barcode, name, category, brand, unit, purchase, selling, wholesale, stock, minimum, description]) {
+        controller.dispose();
+      }
+    }
+  }
+
+  Future<void> _adjustStock(Map<String, Object?> product) async {
+    final quantity = TextEditingController();
+    final notes = TextEditingController();
+    bool isIn = true;
+    try {
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text('Penyesuaian Stok: ' + (product['name']?.toString() ?? 'Produk')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Stok saat ini: ' + (product['stock']?.toString() ?? '0') + ' ' + (product['unit']?.toString() ?? 'pcs')),
+                const SizedBox(height: 12),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: true, label: Text('Stok Masuk'), icon: Icon(Icons.add)),
+                    ButtonSegment(value: false, label: Text('Stok Keluar'), icon: Icon(Icons.remove)),
+                  ],
+                  selected: {isIn},
+                  onSelectionChanged: (v) => setDialogState(() => isIn = v.first),
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: quantity, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder())),
+                const SizedBox(height: 10),
+                TextField(controller: notes, maxLines: 2, decoration: const InputDecoration(labelText: 'Catatan (opsional)', border: OutlineInputBorder())),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Simpan')),
+            ],
+          ),
+        ),
+      );
+      if (result != true || !mounted) return;
+      final qty = int.tryParse(quantity.text) ?? 0;
+      await _repository.adjustStock(
+        productId: product['id'] as int,
+        quantity: qty,
+        isStockIn: isIn,
+        notes: notes.text,
+      );
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stok berhasil diperbarui.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memperbarui stok: $error')));
+    } finally {
+      quantity.dispose();
+      notes.dispose();
+    }
+  }
+
+  Future<void> _showHistory(Map<String, Object?> product) async {
+    final history = await _repository.getStockHistory(product['id'] as int);
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Riwayat Stok - ' + (product['name']?.toString() ?? 'Produk')),
+        content: SizedBox(
+          width: 420,
+          child: history.isEmpty
+              ? const Text('Belum ada riwayat pergerakan stok.')
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: history.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final item = history[index];
+                    final incoming = item['movement_type'] == 'in';
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(incoming ? Icons.arrow_downward : Icons.arrow_upward, color: incoming ? Colors.green : Colors.red),
+                      title: Text((incoming ? '+' : '-') + (item['quantity']?.toString() ?? '0') + ' ' + (product['unit']?.toString() ?? 'pcs')),
+                      subtitle: Text('Sisa: ' + (item['stock_after']?.toString() ?? '-') + (item['notes'] == null ? '' : '\n' + item['notes'].toString())),
+                      trailing: Text(item['created_at']?.toString().substring(0, 10) ?? ''),
+                    );
+                  },
+                ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup'))],
+      ),
+    );
+  }
+
+  Future<void> _deactivate(Map<String, Object?> product) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nonaktifkan Produk?'),
+        content: Text('Produk ' + (product['name']?.toString() ?? '') + ' akan disembunyikan dari daftar aktif. Riwayat stok tetap disimpan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Nonaktifkan')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await _repository.deactivateProduct(product['id'] as int);
+      if (!mounted) return;
+      _refresh();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menonaktifkan produk: $error')));
+    }
+  }
+
+  Widget _productCard(Map<String, Object?> product) {
+    final stock = product['stock'] as int? ?? 0;
+    final minimum = product['minimum_stock'] as int? ?? 0;
+    final tracked = (product['track_stock'] as int? ?? 1) == 1;
+    final low = tracked && stock <= minimum;
+    final active = (product['is_active'] as int? ?? 1) == 1;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(child: Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary)),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(product['name']?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text([product['sku'], product['category']].where((v) => v != null && v.toString().isNotEmpty).join(' • '), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ])),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') _showProductForm(product: product);
+                    if (value == 'stock') _adjustStock(product);
+                    if (value == 'history') _showHistory(product);
+                    if (value == 'deactivate') _deactivate(product);
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'edit', child: Text('Edit produk')),
+                    if (tracked && active) const PopupMenuItem(value: 'stock', child: Text('Stok masuk/keluar')),
+                    const PopupMenuItem(value: 'history', child: Text('Riwayat stok')),
+                    if (active) const PopupMenuItem(value: 'deactivate', child: Text('Nonaktifkan')),
+                  ],
+                ),
+              ],
+            ),
+            const Divider(height: 18),
+            Row(children: [
+              Expanded(child: Text('Harga jual\n' + _rupiah(product['selling_price']), style: const TextStyle(fontSize: 12))),
+              Expanded(child: Text(tracked ? 'Stok\n' + stock.toString() + ' ' + (product['unit']?.toString() ?? 'pcs') : 'Stok tidak dipantau', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: low ? Colors.red : null))),
+              if (low) const Icon(Icons.warning_amber_rounded, color: Colors.red),
+              if (!active) const Chip(label: Text('Nonaktif')),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Produk & Stok'),
+        actions: [
+          IconButton(onPressed: _refresh, tooltip: 'Muat ulang', icon: const Icon(Icons.refresh)),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => _refresh(),
+              decoration: InputDecoration(
+                hintText: 'Cari nama, SKU, barcode, kategori...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(onPressed: () { _searchController.clear(); _refresh(); }, icon: const Icon(Icons.close)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            title: const Text('Tampilkan produk nonaktif'),
+            value: _showInactive,
+            onChanged: (value) => setState(() { _showInactive = value; _loadProducts(); }),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Map<String, Object?>>>(
+              future: _productsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                if (snapshot.hasError) return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('Gagal memuat produk:\n' + snapshot.error.toString(), textAlign: TextAlign.center)));
+                final products = snapshot.data ?? [];
+                if (products.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.inventory_2_outlined, size: 60),
+                  SizedBox(height: 12),
+                  Text('Belum ada produk', style: TextStyle(fontWeight: FontWeight.bold)),
+                  SizedBox(height: 5),
+                  Text('Tekan tombol Tambah untuk memasukkan produk dan stok awal.', textAlign: TextAlign.center),
+                ])));
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) => _productCard(products[index]),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showProductForm(),
+        icon: const Icon(Icons.add),
+        label: const Text('Tambah Produk'),
+      ),
+    );
+  }
+}
