@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 15;
+  static const int _databaseVersion = 16;
 
   Database? _database;
 
@@ -255,6 +255,8 @@ class AppDatabase {
         estimated_cost INTEGER NOT NULL DEFAULT 0,
         labor_cost INTEGER NOT NULL DEFAULT 0,
         parts_cost INTEGER NOT NULL DEFAULT 0,
+        direct_parts_cost INTEGER NOT NULL DEFAULT 0,
+        other_direct_cost INTEGER NOT NULL DEFAULT 0,
         discount INTEGER NOT NULL DEFAULT 0,
         total_cost INTEGER NOT NULL DEFAULT 0,
         down_payment INTEGER NOT NULL DEFAULT 0,
@@ -943,6 +945,13 @@ class AppDatabase {
       await db.execute('CREATE INDEX idx_sale_return_items_return ON sale_return_items(sale_return_id)');
       await db.execute('CREATE INDEX idx_sale_return_items_sale_item ON sale_return_items(sale_item_id)');
       await db.execute('CREATE INDEX idx_sale_return_batch_alloc_item ON sale_return_batch_allocations(sale_return_item_id)');
+    }
+
+    // Biaya langsung servis terpisah dari harga yang ditagihkan ke pelanggan.
+    // Migrasi hanya menambah kolom; seluruh nota servis lama tetap dipertahankan.
+    if (oldVersion < 16) {
+      await db.execute('ALTER TABLE service_orders ADD COLUMN direct_parts_cost INTEGER NOT NULL DEFAULT 0');
+      await db.execute('ALTER TABLE service_orders ADD COLUMN other_direct_cost INTEGER NOT NULL DEFAULT 0');
     }
 
     // Stok opname: menambah tabel sesi dan snapshot produk secara aditif.
