@@ -296,6 +296,37 @@ class ServiceRepository {
     );
   }
 
+  // Koreksi biaya modal tidak boleh mengubah harga tagihan, DP, atau sisa piutang.
+  Future<int> updateServiceDirectCosts({
+    required int id,
+    required int directPartsCost,
+    required int otherDirectCost,
+  }) async {
+    if (directPartsCost < 0 || otherDirectCost < 0) {
+      throw ArgumentError('Biaya langsung tidak boleh negatif.');
+    }
+    final db = await _db;
+    final existing = await db.query(
+      'service_orders',
+      columns: ['id'],
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (existing.isEmpty) {
+      throw StateError('Nota servis tidak ditemukan.');
+    }
+    return db.update(
+      'service_orders',
+      {
+        'direct_parts_cost': directPartsCost,
+        'other_direct_cost': otherDirectCost,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   // Perubahan status harus mengikuti alur kerja dan selalu tercatat.
   static const Map<String, List<String>> allowedStatusTransitions = {
     'waiting': ['checking', 'cancelled'],
