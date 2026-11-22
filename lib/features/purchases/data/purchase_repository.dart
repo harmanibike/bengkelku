@@ -100,13 +100,24 @@ class PurchaseRepository {
           final quantity = item['quantity'] as int;
           final after = before + quantity;
           final oldCost = products.first['purchase_price'] as int? ?? 0;
+          final batchTotals = await txn.rawQuery('''
+            SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
+              COALESCE(SUM(quantity_remaining * unit_cost), 0) AS value
+            FROM inventory_cost_batches
+            WHERE product_id = ? AND quantity_remaining > 0
+          ''', [productId]);
+          final batchQuantity = (batchTotals.first['quantity'] as num?)?.toInt() ?? 0;
+          final batchValue = (batchTotals.first['value'] as num?)?.toInt() ?? 0;
+          final existingStockValue = batchQuantity == before
+              ? batchValue
+              : before * oldCost;
           final lineDiscount = item['discount'] as int? ?? 0;
           final lineNetCost = ((quantity * (item['unit_cost'] as int) - lineDiscount) / quantity).round();
           int? nextPurchasePrice;
           if (costMethod == 'weighted_average') {
             nextPurchasePrice = after <= 0
                 ? lineNetCost
-                : ((before * oldCost + quantity * lineNetCost) / after).round();
+                : ((existingStockValue + quantity * lineNetCost) / after).round();
           } else if (costMethod == 'last_cost') {
             nextPurchasePrice = lineNetCost;
           } else if (costMethod == 'manual') {
