@@ -134,8 +134,10 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
             title: const Text('Detail Penjualan'),
           content: SizedBox(
             width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
+            child: DefaultTextStyle.merge(
+              style: const TextStyle(color: Color(0xFF202833)),
+              child: SingleChildScrollView(
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -180,6 +182,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                   const SizedBox(height: 8),
                   Text('Status: ${_statusLabel(sale['payment_status'])}'),
                 ],
+                ),
               ),
             ),
           ),
