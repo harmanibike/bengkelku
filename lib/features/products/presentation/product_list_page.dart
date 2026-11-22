@@ -362,6 +362,73 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
+  Future<void> _showCostBatches(Map<String, Object?> product) async {
+    final batches = await _repository.getCostBatches(product['id'] as int);
+    if (!mounted) return;
+    final remainingQty = batches.fold<int>(
+      0,
+      (sum, batch) => sum + ((batch['quantity_remaining'] as num?)?.toInt() ?? 0),
+    );
+    final remainingValue = batches.fold<int>(
+      0,
+      (sum, batch) => sum +
+          ((batch['quantity_remaining'] as num?)?.toInt() ?? 0) *
+              ((batch['unit_cost'] as num?)?.toInt() ?? 0),
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Batch biaya • ${product['name']}'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text('Sisa: $remainingQty unit', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                  Text(_rupiah(remainingValue), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const Divider(height: 16),
+              Flexible(
+                child: batches.isEmpty
+                    ? const Center(child: Text('Belum ada catatan batch biaya.', style: TextStyle(fontSize: 12)))
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: batches.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final batch = batches[index];
+                          final date = batch['received_at']?.toString() ?? '-';
+                          final qty = (batch['quantity_remaining'] as num?)?.toInt() ?? 0;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              batch['batch_code']?.toString() ??
+                                  batch['invoice_number']?.toString() ?? 'Batch',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: Text(
+                              'Masuk: ${date.length >= 10 ? date.substring(0, 10) : date} • Sisa $qty unit',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            trailing: Text(_rupiah(batch['unit_cost']), style: const TextStyle(fontSize: 11)),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup')),
+        ],
+      ),
+    );
+  }
+
   Future<void> _deactivate(Map<String, Object?> product) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -427,6 +494,9 @@ class _ProductListPageState extends State<ProductListPage> {
                     if (value == 'history') {
                       _showHistory(product);
                     }
+                    if (value == 'batches') {
+                      _showCostBatches(product);
+                    }
                     if (value == 'deactivate') {
                       _deactivate(product);
                     }
@@ -435,6 +505,7 @@ class _ProductListPageState extends State<ProductListPage> {
                     const PopupMenuItem(value: 'edit', child: Text('Edit produk')),
                     if (tracked && active) const PopupMenuItem(value: 'stock', child: Text('Stok masuk/keluar')),
                     const PopupMenuItem(value: 'history', child: Text('Riwayat stok')),
+                    if (tracked) const PopupMenuItem(value: 'batches', child: Text('Riwayat harga per batch')),
                     if (active) const PopupMenuItem(value: 'deactivate', child: Text('Nonaktifkan')),
                   ],
                 ),
