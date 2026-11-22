@@ -79,7 +79,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
       ]);
       if (!mounted) return;
       setState(() {
-        _sales = (results[0] as List<Map<String, Object?>>)
+        _sales = results[0]
             .where((sale) => sale['payment_status'] != 'cancelled')
             .toList();
         _returns = results[1] as List<Map<String, Object?>>;
@@ -123,7 +123,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
       ]);
       if (!mounted) return;
       final sale = results[0] as Map<String, Object?>?;
-      final items = results[1] as List<Map<String, Object?>>;
+      final items = results[1];
       for (final item in items) {
         final id = item['sale_item_id'] as int;
         _quantityControllers[id] = TextEditingController(text: '0');
