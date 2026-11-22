@@ -54,6 +54,9 @@ class _CashbookPageState extends State<CashbookPage> {
     final description=TextEditingController();
     final amount=TextEditingController();
     var type='expense';
+    const expenseCategories=['Operasional','Gaji Karyawan','Komisi Mekanik','Transportasi','Listrik dan Air','Sewa Tempat','Perawatan Peralatan','Perlengkapan','Biaya Lainnya'];
+    const incomeCategories=['Pendapatan Lainnya','Modal Tambahan','Pengembalian Dana','Pemasukan Lainnya'];
+    var selectedCategory=expenseCategories.first;
     final saved=await showDialog<bool>(context:context,builder:(dialogContext)=>StatefulBuilder(
       builder:(context,setDialogState)=>AlertDialog(
         title:const Text('Catat transaksi kas'),
@@ -67,9 +70,15 @@ class _CashbookPageState extends State<CashbookPage> {
                 DropdownMenuItem(value:'income',child:Text('Kas masuk')),
                 DropdownMenuItem(value:'expense',child:Text('Kas keluar')),
               ],
-              onChanged:(v){if(v!=null)setDialogState(()=>type=v);},
+              onChanged:(v){if(v!=null)setDialogState((){type=v;selectedCategory=v=='expense'?expenseCategories.first:incomeCategories.first;});},
             ),
-            TextFormField(controller:category,decoration:const InputDecoration(labelText:'Kategori'),validator:(v)=>v==null||v.trim().isEmpty?'Wajib diisi':null),
+            DropdownButtonFormField<String>(
+              initialValue:selectedCategory,
+              decoration:const InputDecoration(labelText:'Kategori'),
+              items:(type=='expense'?expenseCategories:incomeCategories)
+                  .map((value)=>DropdownMenuItem(value:value,child:Text(value))).toList(),
+              onChanged:(value){if(value!=null)setDialogState(()=>selectedCategory=value);},
+            ),
             TextFormField(controller:description,decoration:const InputDecoration(labelText:'Keterangan'),validator:(v)=>v==null||v.trim().isEmpty?'Wajib diisi':null),
             TextFormField(controller:amount,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Nominal (Rp)'),validator:(v){final n=int.tryParse(v?.replaceAll('.','').trim()??'');return n==null||n<=0?'Nominal tidak valid':null;}),
           ]),
@@ -85,7 +94,7 @@ class _CashbookPageState extends State<CashbookPage> {
     if(saved==true) {
       try {
         await _repo.addManualTransaction(
-          type:type,category:category.text,description:description.text,
+          type:type,category:selectedCategory,description:description.text,
           amount:int.parse(amount.text.replaceAll('.','').trim()));
         _refresh();
         if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Transaksi kas disimpan.')));
@@ -93,7 +102,7 @@ class _CashbookPageState extends State<CashbookPage> {
         if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));
       }
     }
-    category.dispose(); description.dispose(); amount.dispose();
+    description.dispose(); amount.dispose();
   }
 
   @override
