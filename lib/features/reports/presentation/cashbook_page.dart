@@ -48,6 +48,24 @@ class _CashbookPageState extends State<CashbookPage> {
     return '${amount<0?'-':''}Rp$buffer';
   }
 
+  String _sourceLabel(Map<String, Object?> row) {
+    final type = row['reference_type']?.toString();
+    final id = row['reference_id']?.toString();
+    final source = switch (type) {
+      'sale' => 'Penjualan',
+      'sale_payment' => 'Pelunasan piutang penjualan',
+      'sale_return' => 'Retur penjualan',
+      'service_order' => 'Pembayaran servis',
+      'purchase' => 'Pembelian pemasok',
+      'supplier_payment' => 'Pembayaran utang pemasok',
+      'purchase_return' => 'Retur pembelian',
+      'manual_cash' => 'Input manual',
+      null || '' => 'Sumber tidak tercatat',
+      _ => type,
+    };
+    return id == null || id.isEmpty ? 'Sumber: $source' : 'Sumber: $source • ID $id';
+  }
+
   Future<void> _addEntry() async {
     final formKey=GlobalKey<FormState>();
     final description=TextEditingController();
@@ -165,7 +183,7 @@ class _CashbookPageState extends State<CashbookPage> {
                 dense:true,
                 leading:Icon(incomeRow?Icons.south_west:Icons.north_east,color:incomeRow?Colors.green:Colors.red),
                 title:Text(row['description']?.toString() ?? row['category']?.toString() ?? 'Transaksi'),
-                subtitle:Text('${row['category'] ?? '-'} • ${row['transaction_date'] ?? ''}'),
+                subtitle:Text('${row['category'] ?? '-'} • ${row['transaction_date'] ?? ''}\n${_sourceLabel(row)}'),
                 trailing:Column(mainAxisAlignment:MainAxisAlignment.center,crossAxisAlignment:CrossAxisAlignment.end,children:[
                   Text('${incomeRow?'+':'-'}${_money(amount)}',style:TextStyle(fontWeight:FontWeight.w600,color:incomeRow?Colors.green:Colors.red,fontSize:12)),
                   Text('Saldo ${_money(balance)}',style:const TextStyle(fontSize:10,color:Colors.grey)),
