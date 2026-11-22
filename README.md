@@ -86,7 +86,7 @@ Dokumen ini menjadi acuan resmi pengembangan BengkelKu POS. Status fitur harus d
 - [x] SKU/barcode, kategori, merek, harga modal, harga jual, dan stok.
 - [x] Stok masuk/keluar dan riwayat pergerakan stok.
 - [x] Peringatan stok menipis.
-- [ ] Foto produk: ambil dari kamera atau galeri, simpan offline, dan tampilkan pada daftar produk serta halaman kasir (implementasi menunggu verifikasi build dan pengujian).
+- [x] Foto produk: ambil dari kamera atau galeri, simpan offline, dan tampilkan pada daftar produk serta halaman kasir (build release, analisis, tes otomatis, dan verifikasi tanda tangan APK berhasil; uji perangkat fisik tetap diperlukan).
 - [ ] Tambah, edit, dan arsip/hapus produk dengan perlindungan riwayat transaksi.
 - [ ] Harga jual grosir.
 - [ ] Penyesuaian stok dan stok opname.
