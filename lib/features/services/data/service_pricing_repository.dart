@@ -68,6 +68,32 @@ class ServicePricingRepository {
     });
   }
 
+  Future<void> deleteService(int id) async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      final rows = await txn.query(
+        'service_catalog',
+        columns: ['id'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isEmpty) return;
+      // Hapus riwayat harga terkait agar foreign key RESTRICT tidak menghalangi.
+      // Rincian nota servis lama tersimpan di service_order_items secara terpisah.
+      await txn.delete(
+        'service_price_history',
+        where: 'service_id = ?',
+        whereArgs: [id],
+      );
+      await txn.delete(
+        'service_catalog',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
+  }
+
   Future<void> setActive(int id, bool active) async {
     final db = await _db;
     await db.update('service_catalog', {'is_active': active ? 1 : 0, 'updated_at': DateTime.now().toIso8601String()}, where: 'id = ?', whereArgs: [id]);
