@@ -59,6 +59,9 @@ class SaleRepository {
 
     final db = await _db;
     return db.transaction((txn) async {
+      final settingRows = await txn.query('app_settings', columns: ['setting_value'], where: 'setting_key = ?', whereArgs: ['purchase_cost_method'], limit: 1);
+      final configuredMethod = settingRows.isEmpty ? 'weighted_average' : settingRows.first['setting_value']?.toString();
+      final useBatchCost = configuredMethod == 'per_batch';
       var subtotal = 0;
       final checkedItems = <Map<String, Object?>>[];
 
@@ -128,7 +131,7 @@ class SaleRepository {
         final quantity = item['quantity'] as int;
         final unitPrice = item['unit_price'] as int;
         final lineTotal = item['subtotal'] as int;
-        await txn.insert('sale_items', {
+        final saleItemId = await txn.insert('sale_items', {
           'sale_id': saleId,
           'product_id': product['id'],
           'product_name': product['name'],
@@ -140,6 +143,17 @@ class SaleRepository {
         });
 
         if (item['tracks_stock'] == true) {
+          if (useBatchCost) {
+            final batchCost = await _consumeCostBatches(
+              txn,
+              productId: product['id'] as int,
+              saleId: saleId,
+              saleItemId: saleItemId,
+              quantity: quantity,
+            );
+            await txn.update('sale_items', {'purchase_price': batchCost},
+              where: 'id = ?', whereArgs: [saleItemId]);
+          }
           final before = item['stock_before'] as int;
           final after = before - quantity;
           await txn.update('products', {
@@ -173,6 +187,49 @@ class SaleRepository {
       }
       return saleId;
     });
+  }
+
+  Future<int> _consumeCostBatches(
+    Transaction txn, {
+    required int productId,
+    required int saleId,
+    required int saleItemId,
+    required int quantity,
+  }) async {
+    final batches = await txn.query(
+      'inventory_cost_batches',
+      where: 'product_id = ? AND quantity_remaining > 0',
+      whereArgs: [productId],
+      orderBy: 'received_at ASC, id ASC',
+    );
+    var remaining = quantity;
+    var totalCost = 0;
+    for (final batch in batches) {
+      if (remaining <= 0) break;
+      final available = batch['quantity_remaining'] as int? ?? 0;
+      if (available <= 0) continue;
+      final take = available < remaining ? available : remaining;
+      final unitCost = batch['unit_cost'] as int? ?? 0;
+      await txn.update('inventory_cost_batches', {
+        'quantity_remaining': available - take,
+      }, where: 'id = ?', whereArgs: [batch['id']]);
+      await txn.insert('sale_batch_allocations', {
+        'sale_id': saleId,
+        'sale_item_id': saleItemId,
+        'batch_id': batch['id'],
+        'quantity': take,
+        'unit_cost': unitCost,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      totalCost += take * unitCost;
+      remaining -= take;
+    }
+    if (remaining > 0) {
+      throw StateError(
+        'Saldo batch biaya produk tidak mencukupi. Kekurangan $remaining unit. Periksa stok batch sebelum mengaktifkan metode per batch.',
+      );
+    }
+    return (totalCost / quantity).round();
   }
 
   /// Mencatat pembayaran susulan untuk penjualan yang masih memiliki piutang.
@@ -248,6 +305,21 @@ class SaleRepository {
         orderBy: 'id ASC',
       );
       final now = DateTime.now().toIso8601String();
+      final batchAllocations = await txn.query(
+        'sale_batch_allocations',
+        where: 'sale_id = ?',
+        whereArgs: [id],
+      );
+      for (final allocation in batchAllocations) {
+        final batchId = allocation['batch_id'] as int;
+        final used = allocation['quantity'] as int? ?? 0;
+        if (used > 0) {
+          await txn.rawUpdate(
+            'UPDATE inventory_cost_batches SET quantity_remaining = quantity_remaining + ? WHERE id = ?',
+            [used, batchId],
+          );
+        }
+      }
 
       for (final movement in movements) {
         final productId = movement['product_id'] as int;
