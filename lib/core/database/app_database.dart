@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;
 
   Database? _database;
 
@@ -368,6 +368,24 @@ class AppDatabase {
         FROM service_orders
       ''');
     }
+    // Log pengingat piutang WhatsApp. Migrasi hanya menambah tabel;
+    // seluruh data transaksi dan pelanggan lama tetap dipertahankan.
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE receivable_reminder_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          receivable_type TEXT NOT NULL,
+          record_id INTEGER NOT NULL,
+          phone TEXT NOT NULL,
+          sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_receivable_reminder_record
+        ON receivable_reminder_logs(receivable_type, record_id, sent_at)
+      ''');
+    }
+
   }
 
   Future<void> close() async {
