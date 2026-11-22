@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../data/sale_repository.dart';
+import '../../customers/data/customer_repository.dart';
 
 class CashierPage extends StatefulWidget {
   const CashierPage({super.key});
@@ -14,6 +15,7 @@ class CashierPage extends StatefulWidget {
 
 class _CashierPageState extends State<CashierPage> {
   final SaleRepository _repository = SaleRepository();
+  final CustomerRepository _customerRepository = CustomerRepository();
   final TextEditingController _search = TextEditingController();
   final TextEditingController _paid = TextEditingController();
   List<Map<String, Object?>> _products = [];
@@ -100,6 +102,35 @@ class _CashierPageState extends State<CashierPage> {
     }
   }
 
+  Future<int?> _chooseCustomer() async {
+    final customers = await _customerRepository.getCustomers();
+    if (!mounted) return null;
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pilih pelanggan untuk piutang'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: customers.isEmpty
+              ? const Text('Belum ada data pelanggan. Tambahkan pelanggan terlebih dahulu.')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: customers.length,
+                  itemBuilder: (context, index) {
+                    final customer = customers[index];
+                    return ListTile(
+                      title: Text(customer['name']?.toString() ?? '-'),
+                      subtitle: Text(customer['phone']?.toString() ?? 'Tanpa nomor WhatsApp'),
+                      onTap: () => Navigator.pop(dialogContext, customer['id'] as int),
+                    );
+                  },
+                ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal'))],
+      ),
+    );
+  }
+
   Future<void> _checkout() async {
     if (_cart.isEmpty) return;
     _paid.text = _total.toString();
@@ -131,9 +162,14 @@ class _CashierPageState extends State<CashierPage> {
       );
       if (confirmed != true || !mounted) return;
       final paid = int.tryParse(paymentController.text) ?? 0;
-      if (paid < _total) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Uang diterima masih kurang.')));
+      if (paid > _total) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Uang diterima tidak boleh melebihi total.')));
         return;
+      }
+      int? customerId;
+      if (paid < _total) {
+        customerId = await _chooseCustomer();
+        if (customerId == null || !mounted) return;
       }
       setState(() => _saving = true);
       final id = await _repository.checkout(
@@ -143,6 +179,7 @@ class _CashierPageState extends State<CashierPage> {
           'unit_price': item['unit_price'],
         }).toList(),
         paid: paid,
+        customerId: customerId,
       );
       if (!mounted) return;
       setState(() {
