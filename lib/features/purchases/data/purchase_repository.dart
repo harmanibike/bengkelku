@@ -111,8 +111,11 @@ class PurchaseRepository {
           final existingStockValue = batchQuantity == before
               ? batchValue
               : before * oldCost;
-          final lineDiscount = item['discount'] as int? ?? 0;
-          final lineNetCost = ((quantity * (item['unit_cost'] as int) - lineDiscount) / quantity).round();
+          final lineTotal = item['subtotal'] as int? ?? 0;
+          final allocatedInvoiceDiscount = subtotal > 0
+              ? (discount * lineTotal / subtotal).round()
+              : 0;
+          final lineNetCost = ((lineTotal - allocatedInvoiceDiscount) / quantity).round();
           int? nextPurchasePrice;
           if (costMethod == 'weighted_average') {
             nextPurchasePrice = after <= 0
