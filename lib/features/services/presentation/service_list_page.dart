@@ -181,6 +181,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
     if (!mounted || detail == null) return;
 
     final status = detail['service_status']?.toString() ?? 'waiting';
+    final statusHistory = await _repository.getServiceStatusHistory(id);
+    if (!mounted) return;
     final action = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -211,6 +213,41 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 _detailLine('Sudah dibayar', _rupiah(detail['down_payment'])),
                 _detailLine('Sisa tagihan', _rupiah(detail['remaining_payment'])),
                 _detailLine('Status', _statusLabels[status] ?? status),
+                if (statusHistory.isNotEmpty) ...[
+                  const Divider(),
+                  const Text('Riwayat Status',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  ...statusHistory.map((entry) {
+                    final next = entry['new_status']?.toString() ?? 'waiting';
+                    final previous = entry['old_status']?.toString();
+                    final label = previous == null
+                        ? 'Servis diterima'
+                        : '${_statusLabels[previous] ?? previous} → ${_statusLabels[next] ?? next}';
+                    final note = entry['note']?.toString();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 7),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.history, size: 16, color: Colors.grey),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                Text(_dateLabel(entry['changed_at']), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                if (note != null && note.isNotEmpty)
+                                  Text(note, style: const TextStyle(fontSize: 11)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
                 if ((detail['notes']?.toString() ?? '').isNotEmpty)
                   _detailLine('Catatan', detail['notes']),
                 const Divider(),
