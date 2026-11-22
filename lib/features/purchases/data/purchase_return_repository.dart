@@ -65,24 +65,21 @@ class PurchaseReturnRepository {
       final row = rows.first;
       final alreadyCredit = (row['credit_applied'] as num?)?.toInt() ?? 0;
       final alreadyRefund = (row['refund_received'] as num?)?.toInt() ?? 0;
-      if (alreadyCredit > 0 || alreadyRefund > 0) {
-        throw StateError('Retur ini sudah pernah diselesaikan. Buat catatan penyelesaian baru melalui pemasok bila diperlukan.');
-      }
       final total = (row['total_amount'] as num?)?.toInt() ?? 0;
-      if (creditApplied + refundReceived > total) {
+      if (alreadyCredit + alreadyRefund + creditApplied + refundReceived > total) {
         throw StateError('Kredit dan uang kembali tidak boleh melebihi nilai retur Rp$total.');
       }
       final purchaseTotal = (row['total'] as num?)?.toInt() ?? 0;
       final paid = (row['paid'] as num?)?.toInt() ?? 0;
       final priorCredit = (row['return_credit'] as num?)?.toInt() ?? 0;
       final outstanding = purchaseTotal - paid - priorCredit;
-      if (creditApplied > outstanding) {
+      if (creditApplied > (outstanding < 0 ? 0 : outstanding)) {
         throw StateError('Kredit retur melebihi sisa utang faktur Rp${outstanding < 0 ? 0 : outstanding}.');
       }
       final now = DateTime.now().toIso8601String();
       await txn.update('purchase_returns', {
-        'credit_applied': creditApplied,
-        'refund_received': refundReceived,
+        'credit_applied': alreadyCredit + creditApplied,
+        'refund_received': alreadyRefund + refundReceived,
       }, where: 'id = ?', whereArgs: [returnId]);
       if (creditApplied > 0) {
         final nextCredit = priorCredit + creditApplied;
