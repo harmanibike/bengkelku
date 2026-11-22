@@ -115,6 +115,14 @@ class ServiceRepository {
         'before_photo_path': _nullableText(beforePhotoPath),
       });
 
+      await txn.insert('service_status_history', {
+        'service_order_id': serviceOrderId,
+        'old_status': null,
+        'new_status': 'waiting',
+        'note': 'Servis diterima',
+        'changed_at': now.toIso8601String(),
+      });
+
       // DP dicatat sebagai kas masuk dalam transaksi database yang sama.
       // Jika pencatatan kas gagal, nota servis juga dibatalkan (rollback).
       if (paid > 0) {
@@ -278,29 +286,77 @@ class ServiceRepository {
     );
   }
 
-  // Mengubah status pengerjaan.
+  // Perubahan status harus mengikuti alur kerja dan selalu tercatat.
+  static const Map<String, List<String>> allowedStatusTransitions = {
+    'waiting': ['checking', 'cancelled'],
+    'checking': ['waiting', 'in_progress', 'cancelled'],
+    'in_progress': ['checking', 'completed', 'cancelled'],
+    'completed': ['in_progress', 'delivered'],
+    'delivered': [],
+    'cancelled': [],
+  };
+
   Future<int> updateServiceStatus({
     required int id,
     required String status,
+    String? note,
   }) async {
     if (!serviceStatuses.contains(status)) {
       throw ArgumentError('Status servis tidak valid.');
     }
 
     final db = await _db;
-    final data = <String, Object?>{
-      'service_status': status,
-    };
+    return db.transaction((txn) async {
+      final rows = await txn.query(
+        'service_orders',
+        columns: ['service_status'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isEmpty) throw StateError('Nota servis tidak ditemukan.');
 
-    if (status == 'completed') {
-      data['completed_at'] = DateTime.now().toIso8601String();
-    }
+      final current = rows.first['service_status']?.toString() ?? 'waiting';
+      if (current == status) return 0;
+      final allowed = allowedStatusTransitions[current] ?? const <String>[];
+      if (!allowed.contains(status)) {
+        throw StateError(
+          'Perubahan status dari "$current" ke "$status" tidak diizinkan.',
+        );
+      }
 
-    return db.update(
-      'service_orders',
-      data,
-      where: 'id = ?',
+      final now = DateTime.now().toIso8601String();
+      final data = <String, Object?>{'service_status': status};
+      if (status == 'completed') data['completed_at'] = now;
+
+      final updated = await txn.update(
+        'service_orders',
+        data,
+        where: 'id = ? AND service_status = ?',
+        whereArgs: [id, current],
+      );
+      if (updated != 1) {
+        throw StateError('Status servis berubah. Muat ulang lalu coba lagi.');
+      }
+
+      await txn.insert('service_status_history', {
+        'service_order_id': id,
+        'old_status': current,
+        'new_status': status,
+        'note': _nullableText(note),
+        'changed_at': now,
+      });
+      return updated;
+    });
+  }
+
+  Future<List<Map<String, Object?>>> getServiceStatusHistory(int id) async {
+    final db = await _db;
+    return db.query(
+      'service_status_history',
+      where: 'service_order_id = ?',
       whereArgs: [id],
+      orderBy: 'id ASC',
     );
   }
 
