@@ -191,6 +191,32 @@ jobs:
           print("Android Lint EasterEgg dan StopShip dinonaktifkan.")
           PY
 
+      - name: Disable crashing lint tasks in all Android modules
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/build.gradle.kts")
+          source = path.read_text()
+
+          marker = "// BengkelKu: workaround for Android Lint CommentDetector crash"
+          block = """
+          // BengkelKu: workaround for Android Lint CommentDetector crash
+          subprojects {
+              tasks.configureEach {
+                  if (name.startsWith("lintVital")) {
+                      enabled = false
+                  }
+              }
+          }
+          """
+
+          if marker not in source:
+              path.write_text(source.rstrip() + "\n\n" + block)
+
+          print("Semua tugas lintVital pada modul Android dinonaktifkan.")
+          PY
+
       - name: Build signed APK
         run: flutter build apk --release
 
