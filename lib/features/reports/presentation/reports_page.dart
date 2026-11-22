@@ -119,6 +119,8 @@ class _ReportsPageState extends State<ReportsPage> {
                       _metric('Kas Keluar', _rupiah(expense), Icons.trending_down, Colors.red),
                       _metric('Penjualan Bersih', _rupiah((_summary['net_sales_amount'] as num?)?.toInt() ?? 0), Icons.shopping_cart, Colors.orange),
                       _metric('Retur Penjualan', _rupiah((_summary['sales_return_amount'] as num?)?.toInt() ?? 0), Icons.assignment_return, Colors.deepOrange),
+                      _metric('HPP Bersih Barang', _rupiah((_summary['net_cogs_amount'] as num?)?.toInt() ?? 0), Icons.inventory_2, Colors.blueGrey),
+                      _metric('Laba Kotor Barang', _rupiah((_summary['gross_profit_amount'] as num?)?.toInt() ?? 0), Icons.account_balance_wallet, Colors.green),
                       _metric('Servis Masuk', '${_summary['service_count'] ?? 0} nota', Icons.build, Colors.blue),
                       _metric('Stok Menipis', '${_summary['low_stock'] ?? 0} produk', Icons.inventory, Colors.deepOrange),
                       _metric('Transaksi Kas', '${_summary['transaction_count'] ?? 0}', Icons.receipt_long, Colors.purple),
