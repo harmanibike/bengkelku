@@ -128,17 +128,18 @@ class PurchaseRepository {
     final db = await _db;
     await db.transaction((txn) async {
       final rows = await txn.query('purchases',
-        columns: ['supplier_id', 'invoice_number', 'total', 'paid'],
+        columns: ['supplier_id', 'invoice_number', 'total', 'paid', 'return_credit'],
         where: 'id = ?', whereArgs: [purchaseId], limit: 1);
       if (rows.isEmpty) throw StateError('Faktur pembelian tidak ditemukan.');
       final row = rows.first;
       final total = row['total'] as int? ?? 0;
       final paid = row['paid'] as int? ?? 0;
-      final remaining = total - paid;
+      final returnCredit = row['return_credit'] as int? ?? 0;
+      final remaining = total - paid - returnCredit;
       if (amount > remaining) throw StateError('Pembayaran melebihi sisa utang Rp$remaining.');
       final nextPaid = paid + amount;
       await txn.update('purchases', {
-        'paid': nextPaid, 'payment_status': nextPaid == total ? 'paid' : 'partial',
+        'paid': nextPaid, 'payment_status': nextPaid + returnCredit >= total ? 'paid' : nextPaid == 0 ? 'unpaid' : 'partial',
       }, where: 'id = ?', whereArgs: [purchaseId]);
       await txn.insert('supplier_payments', {
         'supplier_id': row['supplier_id'], 'purchase_id': purchaseId, 'amount': amount,
@@ -157,9 +158,10 @@ class PurchaseRepository {
     return db.rawQuery('''
       SELECT s.id AS supplier_id, s.name AS supplier_name, COUNT(p.id) AS invoice_count,
         SUM(p.total) AS total_amount, SUM(p.paid) AS paid_amount,
-        SUM(p.total - p.paid) AS remaining_amount
+        SUM(p.return_credit) AS return_credit,
+        SUM(MAX(p.total - p.paid - p.return_credit, 0)) AS remaining_amount
       FROM purchases p JOIN suppliers s ON s.id = p.supplier_id
-      WHERE p.total > p.paid GROUP BY s.id, s.name ORDER BY remaining_amount DESC
+      WHERE p.total > p.paid + p.return_credit GROUP BY s.id, s.name ORDER BY remaining_amount DESC
     ''');
   }
 
