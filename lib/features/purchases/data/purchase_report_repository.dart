@@ -16,7 +16,8 @@ class PurchaseReportRepository {
       SELECT COUNT(*) AS count,
         COALESCE(SUM(total), 0) AS total_amount,
         COALESCE(SUM(paid), 0) AS recorded_paid,
-        COALESCE(SUM(total - paid), 0) AS outstanding
+        COALESCE(SUM(return_credit), 0) AS return_credit,
+        COALESCE(SUM(MAX(total - paid - return_credit, 0)), 0) AS outstanding
       FROM purchases
       WHERE purchase_date >= ? AND purchase_date < ?
     ''', [from, until]);
@@ -34,7 +35,8 @@ class PurchaseReportRepository {
       SELECT s.id AS supplier_id, s.name AS supplier_name,
         COUNT(p.id) AS invoice_count, COALESCE(SUM(p.total), 0) AS total_amount,
         COALESCE(SUM(p.paid), 0) AS paid_amount,
-        COALESCE(SUM(p.total - p.paid), 0) AS outstanding
+        COALESCE(SUM(p.return_credit), 0) AS return_credit,
+        COALESCE(SUM(MAX(p.total - p.paid - p.return_credit, 0)), 0) AS outstanding
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
       WHERE p.purchase_date >= ? AND p.purchase_date < ?
@@ -43,8 +45,8 @@ class PurchaseReportRepository {
       LIMIT 20
     ''', [from, until]);
     final latest = await db.rawQuery('''
-      SELECT p.id, p.invoice_number, p.purchase_date, p.total, p.paid,
-        (p.total - p.paid) AS outstanding, s.name AS supplier_name
+      SELECT p.id, p.invoice_number, p.purchase_date, p.total, p.paid, p.return_credit,
+        MAX(p.total - p.paid - p.return_credit, 0) AS outstanding, s.name AS supplier_name
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
       WHERE p.purchase_date >= ? AND p.purchase_date < ?
@@ -55,6 +57,7 @@ class PurchaseReportRepository {
       'purchase_count': purchases.first['count'] ?? 0,
       'purchase_total': purchases.first['total_amount'] ?? 0,
       'recorded_paid': purchases.first['recorded_paid'] ?? 0,
+      'return_credit': purchases.first['return_credit'] ?? 0,
       'outstanding': purchases.first['outstanding'] ?? 0,
       'return_count': returns.first['count'] ?? 0,
       'return_amount': returns.first['amount'] ?? 0,
