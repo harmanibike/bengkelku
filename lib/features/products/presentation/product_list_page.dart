@@ -391,7 +391,8 @@ class _ProductListPageState extends State<ProductListPage> {
                 ],
               ),
               const Divider(height: 16),
-              Flexible(
+              SizedBox(
+                height: 320,
                 child: batches.isEmpty
                     ? const Center(child: Text('Belum ada catatan batch biaya.', style: TextStyle(fontSize: 12)))
                     : ListView.separated(
