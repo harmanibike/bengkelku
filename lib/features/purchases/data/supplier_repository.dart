@@ -38,7 +38,7 @@ class SupplierRepository {
 
   Future<int> countPurchases(int supplierId) async {
     final db = await _db;
-    final rows = await db.rawQuery('SELECT COUNT(*) AS total FROM purchases WHERE supplier_id = ? AND status = 'active'', [supplierId]);
+    final rows = await db.rawQuery("SELECT COUNT(*) AS total FROM purchases WHERE supplier_id = ? AND status = 'active'", [supplierId]);
     return Sqflite.firstIntValue(rows) ?? 0;
   }
 
@@ -53,7 +53,7 @@ class SupplierRepository {
         COALESCE((SELECT SUM(pr.total_amount - pr.credit_applied - pr.refund_received)
           FROM purchase_returns pr JOIN purchases source ON source.id = pr.purchase_id
           WHERE source.supplier_id = purchases.supplier_id AND pr.status = 'active'), 0) AS available_return_credit
-      FROM purchases WHERE supplier_id = ?
+      FROM purchases WHERE supplier_id = ? AND status = 'active'
     ''', [supplierId]);
     return rows.first;
   }
