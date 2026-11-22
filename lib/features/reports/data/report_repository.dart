@@ -26,6 +26,12 @@ class ReportRepository {
         AND COALESCE(payment_status, 'paid') != 'cancelled'
     ''', [from, until]);
 
+    final saleReturns = await db.rawQuery('''
+      SELECT COUNT(*) AS total, COALESCE(SUM(total_amount), 0) AS amount
+      FROM sale_returns
+      WHERE return_date >= ? AND return_date < ?
+    ''', [from, until]);
+
     final services = await db.rawQuery('''
       SELECT COUNT(*) AS total
       FROM service_orders WHERE received_at >= ? AND received_at < ?
@@ -59,7 +65,7 @@ class ReportRepository {
       'expense': cash.first['expense'] as int? ?? 0,
       'transaction_count': cash.first['transaction_count'] as int? ?? 0,
       'sales_count': sales.first['total'] as int? ?? 0,
-      'sales_amount': sales.first['amount'] as int? ?? 0,
+      'sales_amount': sales.first['amount'] as int? ?? 0,\n      'sales_return_count': saleReturns.first['total'] as int? ?? 0,\n      'sales_return_amount': saleReturns.first['amount'] as int? ?? 0,\n      'net_sales_amount': (sales.first['amount'] as int? ?? 0) - (saleReturns.first['amount'] as int? ?? 0),
       'service_count': services.first['total'] as int? ?? 0,
       'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
