@@ -339,8 +339,6 @@ class AppDatabase {
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE products ADD COLUMN image_path TEXT');
     }
-  }
-
 
     // Riwayat status servis. Backfill satu status awal untuk nota lama
     // tanpa mengubah atau menghapus data transaksi yang sudah ada.
@@ -370,6 +368,7 @@ class AppDatabase {
         FROM service_orders
       ''');
     }
+  }
 
   Future<void> close() async {
     if (_database != null && _database!.isOpen) {
