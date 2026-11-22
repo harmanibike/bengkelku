@@ -46,7 +46,6 @@ class PurchaseReturnRepository {
     required int returnId,
     required int creditApplied,
     required int refundReceived,
-    String? notes,
   }) async {
     if (creditApplied < 0 || refundReceived < 0) {
       throw ArgumentError('Nilai penyelesaian tidak boleh negatif.');
@@ -84,7 +83,6 @@ class PurchaseReturnRepository {
       await txn.update('purchase_returns', {
         'credit_applied': creditApplied,
         'refund_received': refundReceived,
-        'notes': _nullable(notes) ?? row['return_number'],
       }, where: 'id = ?', whereArgs: [returnId]);
       if (creditApplied > 0) {
         final nextCredit = priorCredit + creditApplied;
