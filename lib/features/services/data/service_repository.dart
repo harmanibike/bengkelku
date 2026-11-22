@@ -325,13 +325,8 @@ class ServiceRepository {
         );
       }
 
-      final remaining = rows.first['remaining_payment'] as int? ?? 0;
-      if (status == 'delivered' && remaining > 0) {
-        throw StateError(
-          'Sepeda belum dapat diserahkan karena masih ada sisa tagihan.',
-        );
-      }
-
+      // Pengambilan sepeda tidak mensyaratkan tagihan lunas.
+      // Status pekerjaan/pengambilan terpisah dari status pembayaran.
       final now = DateTime.now().toIso8601String();
       final data = <String, Object?>{'service_status': status};
       if (status == 'completed') data['completed_at'] = now;
@@ -381,6 +376,34 @@ class ServiceRepository {
       });
       return updated;
     });
+  }
+
+  /// Daftar servis yang masih memiliki piutang, termasuk sepeda yang sudah diambil.
+  Future<List<Map<String, Object?>>> getOutstandingServiceOrders({
+    String keyword = '',
+  }) async {
+    final db = await _db;
+    final term = keyword.trim();
+    return db.rawQuery('''
+      SELECT
+        s.*,
+        c.name AS customer_name,
+        c.phone AS customer_phone,
+        b.brand AS bicycle_brand,
+        b.model AS bicycle_model
+      FROM service_orders s
+      LEFT JOIN customers c ON c.id = s.customer_id
+      LEFT JOIN bicycles b ON b.id = s.bicycle_id
+      WHERE s.remaining_payment > 0
+        AND s.service_status != 'cancelled'
+        AND (
+          ? = ''
+          OR s.order_number LIKE ?
+          OR COALESCE(c.name, '') LIKE ?
+          OR COALESCE(c.phone, '') LIKE ?
+        )
+      ORDER BY s.received_at ASC, s.id ASC
+    ''', [term, '%$term%', '%$term%', '%$term%']);
   }
 
   Future<List<Map<String, Object?>>> getServiceStatusHistory(int id) async {
@@ -446,8 +469,8 @@ class ServiceRepository {
 
       final orderNumber = result.first['order_number']?.toString() ?? 'ID-$id';
       final serviceStatus = result.first['service_status']?.toString() ?? 'waiting';
-      if (serviceStatus == 'cancelled' || serviceStatus == 'delivered') {
-        throw StateError('Pembayaran tidak dapat ditambahkan pada servis yang sudah ditutup.');
+      if (serviceStatus == 'cancelled') {
+        throw StateError('Pembayaran tidak dapat ditambahkan pada servis yang dibatalkan.');
       }
       final total = result.first['total_cost'] as int? ?? 0;
       final paid = result.first['down_payment'] as int? ?? 0;
