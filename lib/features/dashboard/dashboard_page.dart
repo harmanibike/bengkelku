@@ -380,12 +380,12 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white, size: 25),
+            child: Icon(icon, color: Colors.white, size: 23),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -419,19 +419,25 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         const Text('Ringkasan Hari Ini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF263238))),
         const SizedBox(height: 8),
-        GridView.count(
-          crossAxisCount: 2,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 560 ? 3 : 2;
+            final ratio = constraints.maxWidth >= 380 ? 2.15 : 1.9;
+            return GridView.count(
+          crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 2.2,
+          crossAxisSpacing: 7,
+          mainAxisSpacing: 7,
+          childAspectRatio: ratio,
           children: [
             _statCard(title: 'Penjualan', value: value('sales_amount', currency: true), suffix: '${value('sales_count')} transaksi', icon: Icons.trending_up_rounded, colors: const [Color(0xFF43A047), Color(0xFF81C784)]),
             _statCard(title: 'Kas Masuk', value: value('income', currency: true), suffix: 'penerimaan hari ini', icon: Icons.receipt_long_rounded, colors: const [Color(0xFF1E88E5), Color(0xFF64B5F6)]),
             _statCard(title: 'Stok Menipis', value: value('low_stock'), suffix: 'produk', icon: Icons.warning_amber_rounded, colors: const [Color(0xFFFB8C00), Color(0xFFFFB74D)]),
             _statCard(title: 'Pengeluaran', value: value('expense', currency: true), suffix: 'hari ini', icon: Icons.money_off_csred_rounded, colors: const [Color(0xFFE53935), Color(0xFFE57373)]),
           ],
+            );
+          },
         ),
         if (failed)
           Align(
@@ -467,10 +473,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 BoxShadow(color: colors.first.withValues(alpha: 0.2), blurRadius: 9, offset: const Offset(0, 4)),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 25),
+            child: Icon(icon, color: Colors.white, size: 22),
           ),
-          const SizedBox(height: 4),
-          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
+          const SizedBox(height: 3),
+          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, height: 1.12, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
         ],
       ),
     );
@@ -482,13 +488,17 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         const Text('Menu Utama', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF263238))),
         const SizedBox(height: 8),
-        GridView.count(
-          crossAxisCount: 3,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 560 ? 4 : 3;
+            final ratio = constraints.maxWidth >= 560 ? 1.12 : 1.18;
+            return GridView.count(
+          crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 7,
-          mainAxisSpacing: 8,
-          childAspectRatio: 1.05,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+          childAspectRatio: ratio,
           children: [
             _menuTile(title: 'Kasir', icon: Icons.shopping_cart_rounded, colors: const [Color(0xFF26A69A), Color(0xFF66BB6A)], onTap: _openCashier),
             _menuTile(title: 'Riwayat Penjualan', icon: Icons.receipt_long_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openSalesHistory),
@@ -513,6 +523,8 @@ class _DashboardPageState extends State<DashboardPage> {
             _menuTile(title: 'Harga Jasa', icon: Icons.price_change_rounded, colors: const [Color(0xFF1565C0), Color(0xFF42A5F5)], onTap: _openServicePricing),
             _menuTile(title: 'Profil Usaha', icon: Icons.storefront_rounded, colors: const [Color(0xFF00695C), Color(0xFF4DB6AC)], onTap: _openBusinessProfile),
           ],
+            );
+          },
         ),
       ],
     );
