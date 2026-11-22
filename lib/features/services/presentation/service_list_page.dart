@@ -1,7 +1,9 @@
+
 import 'package:material_ui/material_ui.dart';
 
 import '../data/service_repository.dart';
 import 'service_intake_page.dart';
+import 'service_photo_helper.dart';
 
 class ServiceListPage extends StatefulWidget {
   const ServiceListPage({super.key});
@@ -16,7 +18,6 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
   String? _statusFilter;
   late Future<List<Map<String, Object?>>> _ordersFuture;
-
   static const Map<String, String> _statusLabels = {
     'waiting': 'Menunggu',
     'checking': 'Pemeriksaan',
@@ -45,18 +46,14 @@ class _ServiceListPageState extends State<ServiceListPage> {
     );
   }
 
-  void _refresh() {
-    setState(_loadOrders);
-  }
+  void _refresh() => setState(_loadOrders);
 
   String _rupiah(Object? value) {
     final amount = value is num ? value.toInt() : 0;
     final digits = amount.toString();
     final buffer = StringBuffer();
     for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) {
-        buffer.write('.');
-      }
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
       buffer.write(digits[i]);
     }
     return 'Rp$buffer';
@@ -91,9 +88,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
   Future<void> _openIntake() async {
     final saved = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const ServiceIntakePage(),
-      ),
+      MaterialPageRoute(builder: (_) => const ServiceIntakePage()),
     );
     if (saved == true && mounted) _refresh();
   }
@@ -102,7 +97,6 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final id = order['id'] as int;
     final current = order['service_status']?.toString() ?? 'waiting';
     String selected = current;
-
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -115,12 +109,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
             border: OutlineInputBorder(),
           ),
           items: _statusLabels.entries
-              .map(
-                (entry) => DropdownMenuItem(
-                  value: entry.key,
-                  child: Text(entry.value),
-                ),
-              )
+              .map((entry) => DropdownMenuItem(
+                    value: entry.key,
+                    child: Text(entry.value),
+                  ))
               .toList(),
           onChanged: (value) {
             if (value != null) selected = value;
@@ -138,9 +130,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
         ],
       ),
     );
-
     if (result == null || !mounted) return;
-
     try {
       await _repository.updateServiceStatus(id: id, status: result);
       if (!mounted) return;
@@ -156,22 +146,47 @@ class _ServiceListPageState extends State<ServiceListPage> {
     }
   }
 
+  Future<void> _pickServicePhoto(int id, {required bool before}) async {
+    try {
+      final path = await ServicePhotoHelper.pickAndSave(context);
+      if (path == null || !mounted) return;
+      await _repository.updateServicePhotos(
+        id: id,
+        beforePhotoPath: before ? path : null,
+        afterPhotoPath: before ? null : path,
+      );
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(before
+              ? 'Foto sebelum servis berhasil disimpan.'
+              : 'Foto sesudah servis berhasil disimpan.'),
+        ),
+      );
+      // Tampilkan kembali detail agar foto terbaru langsung terlihat.
+      final updatedOrder = <String, Object?>{...{'id': id}};
+      await _showDetail(updatedOrder);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan foto: $error')),
+      );
+    }
+  }
+
   Future<void> _showDetail(Map<String, Object?> order) async {
     final id = order['id'] as int;
     final detail = await _repository.getServiceOrderById(id);
     if (!mounted || detail == null) return;
 
     final status = detail['service_status']?.toString() ?? 'waiting';
-    final total = detail['total_cost'];
-    final paid = detail['down_payment'];
-    final remaining = detail['remaining_payment'];
-
-    final changeStatus = await showDialog<bool>(
+    final action = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(detail['order_number']?.toString() ?? 'Detail Servis'),
         content: SizedBox(
-          width: 420,
+          width: 440,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,14 +196,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 _detailLine('Telepon', detail['customer_phone']),
                 _detailLine(
                   'Sepeda',
-                  '${detail['bicycle_brand'] ?? ''} '
-                      '${detail['bicycle_model'] ?? ''}',
+                  '${detail['bicycle_brand'] ?? ''} ${detail['bicycle_model'] ?? ''}',
                 ),
                 _detailLine('Nomor rangka', detail['bicycle_serial_number']),
-                _detailLine(
-                  'Tanggal masuk',
-                  _dateLabel(detail['received_at']),
-                ),
+                _detailLine('Tanggal masuk', _dateLabel(detail['received_at'])),
                 _detailLine('Keluhan', detail['complaint']),
                 _detailLine('Diagnosis', detail['diagnosis']),
                 _detailLine('Mekanik', detail['mechanic_name']),
@@ -196,20 +207,50 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 _detailLine('Jasa servis', _rupiah(detail['labor_cost'])),
                 _detailLine('Sparepart', _rupiah(detail['parts_cost'])),
                 _detailLine('Diskon', _rupiah(detail['discount'])),
-                _detailLine('Total', _rupiah(total)),
-                _detailLine('Sudah dibayar', _rupiah(paid)),
-                _detailLine('Sisa tagihan', _rupiah(remaining)),
-                _detailLine(
-                  'Status',
-                  _statusLabels[status] ?? status,
-                ),
+                _detailLine('Total', _rupiah(detail['total_cost'])),
+                _detailLine('Sudah dibayar', _rupiah(detail['down_payment'])),
+                _detailLine('Sisa tagihan', _rupiah(detail['remaining_payment'])),
+                _detailLine('Status', _statusLabels[status] ?? status),
                 if ((detail['notes']?.toString() ?? '').isNotEmpty)
                   _detailLine('Catatan', detail['notes']),
+                const Divider(),
+                const Text('Dokumentasi Servis',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                const Text(
-                  'Foto sebelum/sesudah servis dapat ditambahkan pada tahap '
-                  'fitur dokumentasi servis.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                const Text('Foto sebelum servis',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 5),
+                ServicePhotoHelper.preview(
+                  detail['before_photo_path']?.toString(),
+                  height: 145,
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'before'),
+                    icon: const Icon(Icons.add_a_photo_outlined),
+                    label: Text(detail['before_photo_path'] == null
+                        ? 'Tambah foto sebelum'
+                        : 'Ganti foto sebelum'),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text('Foto sesudah servis',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 5),
+                ServicePhotoHelper.preview(
+                  detail['after_photo_path']?.toString(),
+                  height: 145,
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'after'),
+                    icon: const Icon(Icons.add_a_photo_outlined),
+                    label: Text(detail['after_photo_path'] == null
+                        ? 'Tambah foto sesudah'
+                        : 'Ganti foto sesudah'),
+                  ),
                 ),
               ],
             ),
@@ -221,15 +262,21 @@ class _ServiceListPageState extends State<ServiceListPage> {
             child: const Text('Tutup'),
           ),
           FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, true),
+            onPressed: () => Navigator.pop(dialogContext, 'status'),
             icon: const Icon(Icons.edit_outlined),
             label: const Text('Ubah Status'),
           ),
         ],
       ),
     );
-    if (changeStatus == true && mounted) {
-      _changeStatus(order);
+
+    if (!mounted) return;
+    if (action == 'status') {
+      await _changeStatus(detail);
+    } else if (action == 'before') {
+      await _pickServicePhoto(id, before: true);
+    } else if (action == 'after') {
+      await _pickServicePhoto(id, before: false);
     }
   }
 
@@ -243,18 +290,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
         children: [
           SizedBox(
             width: 112,
-            child: Text(
-              label,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-            ),
+            child: Text(label,
+                style: const TextStyle(color: Colors.grey, fontSize: 12)),
           ),
           const Text(': '),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
         ],
       ),
     );
@@ -283,16 +323,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      number,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                    child: Text(number,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                     decoration: BoxDecoration(
                       color: _statusColor(status).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
@@ -309,50 +344,31 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 ],
               ),
               const SizedBox(height: 9),
-              Text(
-                customer,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
+              Text(customer, style: const TextStyle(fontWeight: FontWeight.w600)),
               if (bicycle.isNotEmpty)
-                Text(
-                  bicycle,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+                Text(bicycle,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
               if (complaint.isNotEmpty) ...[
                 const SizedBox(height: 7),
-                Text(
-                  complaint,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(complaint, maxLines: 2, overflow: TextOverflow.ellipsis),
               ],
               const Divider(height: 18),
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      _dateLabel(order['received_at']),
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
+                    child: Text(_dateLabel(order['received_at']),
+                        style: const TextStyle(fontSize: 11, color: Colors.grey)),
                   ),
-                  Text(
-                    _rupiah(order['total_cost']),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
+                  Text(_rupiah(order['total_cost']),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       if (value == 'status') _changeStatus(order);
                       if (value == 'detail') _showDetail(order);
                     },
                     itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'detail',
-                        child: Text('Lihat detail'),
-                      ),
-                      PopupMenuItem(
-                        value: 'status',
-                        child: Text('Ubah status'),
-                      ),
+                      PopupMenuItem(value: 'detail', child: Text('Lihat detail')),
+                      PopupMenuItem(value: 'status', child: Text('Ubah status')),
                     ],
                   ),
                 ],
@@ -394,9 +410,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   },
                   icon: const Icon(Icons.close),
                 ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
@@ -424,10 +438,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'Gagal memuat daftar servis:\n${snapshot.error}',
-                        textAlign: TextAlign.center,
-                      ),
+                      child: Text('Gagal memuat daftar servis:\n${snapshot.error}',
+                          textAlign: TextAlign.center),
                     ),
                   );
                 }
@@ -441,15 +453,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
                         children: [
                           Icon(Icons.build_circle_outlined, size: 60),
                           SizedBox(height: 12),
-                          Text(
-                            'Belum ada data servis',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          Text('Belum ada data servis',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                           SizedBox(height: 5),
-                          Text(
-                            'Tekan tombol + untuk mencatat sepeda yang masuk.',
-                            textAlign: TextAlign.center,
-                          ),
+                          Text('Tekan tombol + untuk mencatat sepeda yang masuk.',
+                              textAlign: TextAlign.center),
                         ],
                       ),
                     ),
@@ -458,8 +466,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 return ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
                   itemCount: orders.length,
-                  itemBuilder: (context, index) =>
-                      _buildOrderCard(orders[index]),
+                  itemBuilder: (context, index) => _buildOrderCard(orders[index]),
                 );
               },
             ),
