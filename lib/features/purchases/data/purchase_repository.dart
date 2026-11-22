@@ -72,6 +72,9 @@ class PurchaseRepository {
     final db = await _db;
     return db.transaction((txn) async {
       final supplier = await txn.query('suppliers', columns: ['id'], where: 'id = ?', whereArgs: [supplierId], limit: 1);
+      final settingRows = await txn.query('app_settings', columns: ['setting_value'], where: 'setting_key = ?', whereArgs: ['purchase_cost_method'], limit: 1);
+      final configuredMethod = settingRows.isEmpty ? 'weighted_average' : settingRows.first['setting_value']?.toString();
+      final costMethod = const ['weighted_average', 'last_cost', 'manual', 'per_batch'].contains(configuredMethod) ? configuredMethod! : 'weighted_average';
       if (supplier.isEmpty) throw StateError('Pemasok tidak ditemukan.');
 
       final purchaseId = await txn.insert('purchases', {
@@ -83,11 +86,11 @@ class PurchaseRepository {
       });
 
       for (final item in normalized) {
-        await txn.insert('purchase_items', {...item, 'purchase_id': purchaseId});
+        final purchaseItemId = await txn.insert('purchase_items', {...item, 'purchase_id': purchaseId});
         final productId = item['product_id'] as int?;
         if (productId == null) continue;
         final products = await txn.query('products',
-          columns: ['stock', 'track_stock', 'is_active'],
+          columns: ['stock', 'track_stock', 'is_active', 'purchase_price'],
           where: 'id = ?', whereArgs: [productId], limit: 1);
         if (products.isEmpty || (products.first['is_active'] as int? ?? 0) != 1) {
           throw StateError('Produk pembelian tidak ditemukan atau tidak aktif.');
@@ -96,10 +99,38 @@ class PurchaseRepository {
           final before = products.first['stock'] as int? ?? 0;
           final quantity = item['quantity'] as int;
           final after = before + quantity;
+          final oldCost = products.first['purchase_price'] as int? ?? 0;
+          final lineDiscount = item['discount'] as int? ?? 0;
+          final lineNetCost = ((quantity * (item['unit_cost'] as int) - lineDiscount) / quantity).round();
+          int? nextPurchasePrice;
+          if (costMethod == 'weighted_average') {
+            nextPurchasePrice = after <= 0
+                ? lineNetCost
+                : ((before * oldCost + quantity * lineNetCost) / after).round();
+          } else if (costMethod == 'last_cost') {
+            nextPurchasePrice = lineNetCost;
+          } else if (costMethod == 'manual') {
+            nextPurchasePrice = null;
+          } else if (costMethod == 'per_batch') {
+            // Harga master tidak disamaratakan; HPP diambil dari batch FIFO saat penjualan.
+            nextPurchasePrice = null;
+          }
           await txn.update('products', {
-            'stock': after, 'purchase_price': item['unit_cost'],
+            'stock': after,
+            if (nextPurchasePrice != null) 'purchase_price': nextPurchasePrice,
             'updated_at': DateTime.now().toIso8601String(),
           }, where: 'id = ?', whereArgs: [productId]);
+          await txn.insert('inventory_cost_batches', {
+            'product_id': productId,
+            'purchase_id': purchaseId,
+            'purchase_item_id': purchaseItemId,
+            'batch_code': invoice,
+            'quantity_received': quantity,
+            'quantity_remaining': quantity,
+            'unit_cost': lineNetCost,
+            'received_at': (purchaseDate ?? DateTime.now()).toIso8601String(),
+            'notes': 'Pembelian $invoice',
+          });
           await txn.insert('stock_movements', {
             'product_id': productId, 'movement_type': 'in', 'quantity': quantity,
             'stock_before': before, 'stock_after': after, 'reference_type': 'purchase',
