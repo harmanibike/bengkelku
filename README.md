@@ -56,7 +56,7 @@ Dokumen ini menjadi acuan resmi pengembangan BengkelKu POS. Status fitur harus d
 - [ ] Keluhan pelanggan, hasil pemeriksaan, dan diagnosis mekanik.
 - [ ] Estimasi biaya servis.
 - [ ] Master jasa servis dengan contoh awal tambal ban, setel velg, pengecatan, rem, transmisi, dan perawatan; data contoh dapat dipakai, diedit, dinonaktifkan, atau dihapus.
-- [ ] Profil usaha: nama, alamat, telepon, WhatsApp, email, website, nomor pajak, logo, dan catatan bawah nota.
+- [ ] Profil usaha: nama, alamat, telepon, WhatsApp, email, website, nomor pajak, logo, dan catatan bawah nota; identitas tampil pada detail nota penjualan dan servis.
 - [ ] Harga standar otomatis dengan opsi perubahan manual khusus admin.
 - [ ] Riwayat perubahan harga jasa beserta alasan dan waktu perubahan.
 - [ ] Biaya jasa mekanik dan biaya spare part.
