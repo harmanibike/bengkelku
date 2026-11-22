@@ -410,6 +410,53 @@ class AppDatabase {
     ''');
     batch.execute('CREATE INDEX idx_sale_batch_allocations_sale ON sale_batch_allocations(sale_id, sale_item_id)');
 
+    // Retur penjualan untuk instalasi baru.
+    batch.execute('''
+      CREATE TABLE sale_returns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sale_id INTEGER NOT NULL,
+        return_number TEXT NOT NULL UNIQUE,
+        total_amount INTEGER NOT NULL DEFAULT 0 CHECK(total_amount >= 0),
+        refunded_amount INTEGER NOT NULL DEFAULT 0 CHECK(refunded_amount >= 0),
+        notes TEXT,
+        return_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('''
+      CREATE TABLE sale_return_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sale_return_id INTEGER NOT NULL,
+        sale_item_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL CHECK(quantity > 0),
+        unit_price INTEGER NOT NULL DEFAULT 0,
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        subtotal INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (sale_return_id) REFERENCES sale_returns(id) ON DELETE RESTRICT,
+        FOREIGN KEY (sale_item_id) REFERENCES sale_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+      )
+    ''');
+    batch.execute('''
+      CREATE TABLE sale_return_batch_allocations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sale_return_item_id INTEGER NOT NULL,
+        batch_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL CHECK(quantity > 0),
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sale_return_item_id) REFERENCES sale_return_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (batch_id) REFERENCES inventory_cost_batches(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_sale_returns_sale ON sale_returns(sale_id, return_date, id)');
+    batch.execute('CREATE INDEX idx_sale_return_items_return ON sale_return_items(sale_return_id)');
+    batch.execute('CREATE INDEX idx_sale_return_items_sale_item ON sale_return_items(sale_item_id)');
+    batch.execute('CREATE INDEX idx_sale_return_batch_alloc_item ON sale_return_batch_allocations(sale_return_item_id)');
+
     // Kas masuk dan keluar.
     batch.execute('''
       CREATE TABLE cash_transactions (
