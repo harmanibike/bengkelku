@@ -189,9 +189,9 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(_money(row['total']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                            Text(remaining == 0 ? 'Lunas' : 'Sisa ${_money(remaining)}',
-                              style: TextStyle(fontSize: 10, color: remaining == 0 ? Colors.green : Colors.deepOrange)),
-                            Text(status == 'partial' ? 'Sebagian' : status == 'unpaid' ? 'Belum lunas' : '',
+                            Text(cancelled ? 'Dibatalkan' : remaining == 0 ? 'Lunas' : 'Sisa ${_money(remaining)}',
+                              style: TextStyle(fontSize: 10, color: cancelled ? Colors.grey : remaining == 0 ? Colors.green : Colors.deepOrange)),
+                            Text(cancelled ? 'Tidak dihitung sebagai utang' : status == 'partial' ? 'Sebagian' : status == 'unpaid' ? 'Belum lunas' : '',
                               style: const TextStyle(fontSize: 9, color: Colors.grey)),
                           ],
                         ),
