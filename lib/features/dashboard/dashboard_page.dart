@@ -522,35 +522,43 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F5F8),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<Map<String, Object?>>(
-          future: _summaryFuture,
-          builder: (context, snapshot) {
-            return CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(child: _header()),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(10, 9, 10, 14),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _shopCard(),
-                      const SizedBox(height: 10),
-                      _cashCard(snapshot),
-                      const SizedBox(height: 10),
-                      _startCashierCard(),
-                      const SizedBox(height: 12),
-                      _summary(snapshot),
-                      const SizedBox(height: 18),
-                      _menu(),
-                    ]),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+      body: Column(
+        children: [
+          // Header berada di luar area scroll agar selalu diam di bagian atas.
+          _header(),
+          // Hanya konten utama yang bergerak saat pengguna menggulir.
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: FutureBuilder<Map<String, Object?>>(
+                future: _summaryFuture,
+                builder: (context, snapshot) {
+                  return CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(10, 9, 10, 14),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            _shopCard(),
+                            const SizedBox(height: 10),
+                            _cashCard(snapshot),
+                            const SizedBox(height: 10),
+                            _startCashierCard(),
+                            const SizedBox(height: 12),
+                            _summary(snapshot),
+                            const SizedBox(height: 18),
+                            _menu(),
+                          ]),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
