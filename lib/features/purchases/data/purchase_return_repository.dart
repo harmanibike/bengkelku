@@ -11,7 +11,7 @@ class PurchaseReturnRepository {
       SELECT p.id, p.invoice_number, p.purchase_date, s.name AS supplier_name
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
-      WHERE EXISTS (SELECT 1 FROM purchase_items pi WHERE pi.purchase_id = p.id)
+      WHERE p.status = 'active' AND EXISTS (SELECT 1 FROM purchase_items pi WHERE pi.purchase_id = p.id)
       ORDER BY p.purchase_date DESC, p.id DESC
     ''');
   }
@@ -24,7 +24,7 @@ class PurchaseReturnRepository {
         COALESCE((SELECT SUM(pri.quantity)
           FROM purchase_return_items pri
           JOIN purchase_returns pr ON pr.id = pri.purchase_return_id
-          WHERE pri.purchase_item_id = pi.id), 0) AS returned_quantity
+          WHERE pri.purchase_item_id = pi.id AND pr.status = 'active'), 0) AS returned_quantity
       FROM purchase_items pi
       WHERE pi.purchase_id = ?
       ORDER BY pi.id
@@ -52,7 +52,7 @@ class PurchaseReturnRepository {
       FROM purchase_returns pr
       JOIN purchases p ON p.id = pr.purchase_id
       JOIN suppliers s ON s.id = p.supplier_id
-      WHERE pr.total_amount > pr.credit_applied + pr.refund_received
+      WHERE pr.status = 'active' AND pr.total_amount > pr.credit_applied + pr.refund_received
       ORDER BY pr.return_date ASC, pr.id ASC
     ''');
   }
@@ -70,7 +70,7 @@ class PurchaseReturnRepository {
         JOIN purchases source ON source.id = source_return.purchase_id
         WHERE source_return.id = ?
       )
-        AND p.total > p.paid + p.return_credit
+        AND p.status = 'active' AND p.total > p.paid + p.return_credit
       ORDER BY p.purchase_date ASC, p.id ASC
     ''', [returnId]);
   }
@@ -108,6 +108,7 @@ class PurchaseReturnRepository {
       ''', [purchaseId, returnId]);
       if (rows.isEmpty) throw StateError('Retur atau faktur tujuan tidak ditemukan.');
       final row = rows.first;
+      if (row['status']?.toString() == 'cancelled') throw StateError('Retur sudah dibatalkan.');
       final supplierId = (row['supplier_id'] as num?)?.toInt();
       final targetSupplierId = (row['target_supplier_id'] as num?)?.toInt();
       if (supplierId == null || supplierId != targetSupplierId) {
@@ -168,6 +169,7 @@ class PurchaseReturnRepository {
       ''', [returnId]);
       if (rows.isEmpty) throw StateError('Data retur tidak ditemukan.');
       final row = rows.first;
+      if (row['status']?.toString() == 'cancelled') throw StateError('Retur sudah dibatalkan.');
       final alreadyCredit = (row['credit_applied'] as num?)?.toInt() ?? 0;
       final alreadyRefund = (row['refund_received'] as num?)?.toInt() ?? 0;
       final total = (row['total_amount'] as num?)?.toInt() ?? 0;
@@ -234,8 +236,9 @@ class PurchaseReturnRepository {
     final db = await _db;
     return db.transaction((txn) async {
       final purchase = await txn.query('purchases',
-        columns: ['id', 'invoice_number'], where: 'id = ?', whereArgs: [purchaseId], limit: 1);
+        columns: ['id', 'invoice_number', 'status'], where: 'id = ?', whereArgs: [purchaseId], limit: 1);
       if (purchase.isEmpty) throw StateError('Faktur pembelian tidak ditemukan.');
+      if (purchase.first['status']?.toString() == 'cancelled') throw StateError('Faktur pembelian sudah dibatalkan.');
 
       var total = 0;
       final selected = <Map<String, Object?>>[];
@@ -251,7 +254,7 @@ class PurchaseReturnRepository {
           SELECT COALESCE(SUM(pri.quantity), 0) AS total
           FROM purchase_return_items pri
           JOIN purchase_returns pr ON pr.id = pri.purchase_return_id
-          WHERE pri.purchase_item_id = ?
+          WHERE pri.purchase_item_id = ? AND pr.status = 'active'
         ''', [entry.key]);
         final alreadyReturned = returnedRows.first['total'] as int? ?? 0;
         final available = purchased - alreadyReturned;
@@ -281,7 +284,7 @@ class PurchaseReturnRepository {
       });
 
       for (final item in selected) {
-        await txn.insert('purchase_return_items', {
+        final returnItemId = await txn.insert('purchase_return_items', {
           ...item,
           'purchase_return_id': returnId,
         });
@@ -320,6 +323,14 @@ class PurchaseReturnRepository {
           await txn.update('inventory_cost_batches', {
             'quantity_remaining': availableBatch - take,
           }, where: 'id = ?', whereArgs: [batch['id']]);
+          await txn.insert('purchase_return_batch_allocations', {
+            'return_id': returnId,
+            'return_item_id': returnItemId,
+            'batch_id': batch['id'],
+            'quantity': take,
+            'unit_cost': batch['unit_cost'] ?? 0,
+            'created_at': DateTime.now().toIso8601String(),
+          });
           batchRemaining -= take;
         }
         if (batchRemaining > 0) {
@@ -366,6 +377,139 @@ class PurchaseReturnRepository {
         });
       }
       return returnId;
+    });
+  }
+
+  Future<void> cancelReturn({
+    required int returnId,
+    required String reason,
+  }) async {
+    final note = reason.trim();
+    if (note.isEmpty) throw ArgumentError('Alasan pembatalan wajib diisi.');
+    final db = await _db;
+    await db.transaction((txn) async {
+      final rows = await txn.rawQuery('''
+        SELECT pr.*, p.invoice_number
+        FROM purchase_returns pr
+        JOIN purchases p ON p.id = pr.purchase_id
+        WHERE pr.id = ?
+        LIMIT 1
+      ''', [returnId]);
+      if (rows.isEmpty) throw StateError('Retur pembelian tidak ditemukan.');
+      final row = rows.first;
+      if (row['status']?.toString() == 'cancelled') {
+        throw StateError('Retur ini sudah dibatalkan sebelumnya.');
+      }
+      final credit = (row['credit_applied'] as num?)?.toInt() ?? 0;
+      final refund = (row['refund_received'] as num?)?.toInt() ?? 0;
+      if (credit > 0 || refund > 0) {
+        throw StateError(
+          'Retur sudah diselesaikan dengan kredit atau uang kembali. Batalkan/selesaikan pembalikan tersebut terlebih dahulu.',
+        );
+      }
+      final applications = await txn.query(
+        'supplier_return_credit_applications',
+        columns: ['id'],
+        where: 'return_id = ?',
+        whereArgs: [returnId],
+        limit: 1,
+      );
+      if (applications.isNotEmpty) {
+        throw StateError('Riwayat pemakaian kredit retur ditemukan. Retur tidak dapat dibatalkan otomatis.');
+      }
+      final allocations = await txn.query(
+        'purchase_return_batch_allocations',
+        where: 'return_id = ?',
+        whereArgs: [returnId],
+        orderBy: 'id ASC',
+      );
+      if (allocations.isEmpty) {
+        throw StateError(
+          'Retur ini dibuat sebelum pencatatan alokasi batch tersedia. Pembatalan otomatis tidak aman; stok perlu diaudit terlebih dahulu.',
+        );
+      }
+      final returnItems = await txn.query(
+        'purchase_return_items',
+        where: 'purchase_return_id = ?',
+        whereArgs: [returnId],
+      );
+      final byProduct = <int, int>{};
+      for (final item in returnItems) {
+        final productId = (item['product_id'] as num?)?.toInt();
+        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+        if (productId != null && quantity > 0) {
+          byProduct[productId] = (byProduct[productId] ?? 0) + quantity;
+        }
+      }
+      for (final entry in byProduct.entries) {
+        final products = await txn.query(
+          'products',
+          columns: ['stock', 'track_stock'],
+          where: 'id = ?',
+          whereArgs: [entry.key],
+          limit: 1,
+        );
+        if (products.isEmpty) throw StateError('Produk retur tidak ditemukan.');
+        if ((products.first['track_stock'] as num?)?.toInt() != 1) continue;
+        final before = (products.first['stock'] as num?)?.toInt() ?? 0;
+        final after = before + entry.value;
+        await txn.update('products', {
+          'stock': after,
+          'updated_at': DateTime.now().toIso8601String(),
+        }, where: 'id = ?', whereArgs: [entry.key]);
+        await txn.insert('stock_movements', {
+          'product_id': entry.key,
+          'movement_type': 'in',
+          'quantity': entry.value,
+          'stock_before': before,
+          'stock_after': after,
+          'reference_type': 'purchase_return_cancel',
+          'reference_id': returnId,
+          'notes': 'Pembatalan retur ${row['return_number']}: $note',
+        });
+      }
+      for (final allocation in allocations) {
+        final batchId = (allocation['batch_id'] as num?)?.toInt();
+        final quantity = (allocation['quantity'] as num?)?.toInt() ?? 0;
+        if (batchId == null || quantity <= 0) continue;
+        final updated = await txn.rawUpdate(
+          'UPDATE inventory_cost_batches SET quantity_remaining = quantity_remaining + ? WHERE id = ?',
+          [quantity, batchId],
+        );
+        if (updated != 1) throw StateError('Batch asal retur tidak ditemukan; transaksi dibatalkan.');
+      }
+      final settingRows = await txn.query(
+        'app_settings',
+        columns: ['setting_value'],
+        where: 'setting_key = ?',
+        whereArgs: ['purchase_cost_method'],
+        limit: 1,
+      );
+      final method = settingRows.isEmpty
+          ? 'weighted_average'
+          : settingRows.first['setting_value']?.toString();
+      if (method == 'weighted_average') {
+        for (final productId in byProduct.keys) {
+          final totals = await txn.rawQuery('''
+            SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
+              COALESCE(SUM(quantity_remaining * unit_cost), 0) AS value
+            FROM inventory_cost_batches
+            WHERE product_id = ? AND quantity_remaining > 0
+          ''', [productId]);
+          final quantity = (totals.first['quantity'] as num?)?.toInt() ?? 0;
+          final value = (totals.first['value'] as num?)?.toInt() ?? 0;
+          if (quantity > 0) {
+            await txn.update('products', {
+              'purchase_price': (value / quantity).round(),
+            }, where: 'id = ?', whereArgs: [productId]);
+          }
+        }
+      }
+      await txn.update('purchase_returns', {
+        'status': 'cancelled',
+        'cancelled_at': DateTime.now().toIso8601String(),
+        'cancel_reason': note,
+      }, where: 'id = ?', whereArgs: [returnId]);
     });
   }
 
