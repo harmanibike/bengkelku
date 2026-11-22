@@ -43,7 +43,8 @@ class AppTheme {
         ),
       ),
       dialogTheme: DialogThemeData(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        constraints: const BoxConstraints(maxWidth: 560),
         titleTextStyle: const TextStyle(
           color: Color(0xFF263238),
           fontSize: 17,
