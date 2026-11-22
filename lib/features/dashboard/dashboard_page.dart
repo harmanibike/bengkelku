@@ -495,6 +495,7 @@ class _DashboardPageState extends State<DashboardPage> {
             _menuTile(title: 'Servis', icon: Icons.build_rounded, colors: const [Color(0xFFE91E63), Color(0xFFF06292)], onTap: _openServices),
             _menuTile(title: 'Stok', icon: Icons.bar_chart_rounded, colors: const [Color(0xFF039BE5), Color(0xFF4FC3F7)], onTap: _openProducts),
             _menuTile(title: 'Audit', icon: Icons.history_rounded, colors: const [Color(0xFF00796B), Color(0xFF4DB6AC)], onTap: _openStockMovements),
+            
             _menuTile(title: 'Opname', icon: Icons.fact_check_rounded, colors: const [Color(0xFF5E35B1), Color(0xFF9575CD)], onTap: _openStockOpname),
             _menuTile(title: 'Pelanggan', icon: Icons.people_alt_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openCustomers),
             _menuTile(title: 'Sepeda', icon: Icons.pedal_bike_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openBicycles),
