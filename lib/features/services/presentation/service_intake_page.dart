@@ -282,7 +282,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.people_outline, size: 56),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         const Text(
                           'Belum ada pelanggan',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -292,7 +292,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           'Tambahkan data pelanggan dan sepeda terlebih dahulu.',
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         FilledButton(
                           onPressed: () => Navigator.pop(context),
                           child: const Text('Kembali'),
@@ -338,7 +338,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         validator: (value) =>
                             value == null ? 'Pilih pelanggan' : null,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
                         initialValue: _selectedBicycleId,
                         isExpanded: true,
@@ -387,7 +387,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                                 ? 'Keluhan wajib diisi'
                                 : null,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: _diagnosisController,
                         maxLines: 2,
@@ -401,7 +401,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                       _beforePhotoSection(),
                       _sectionTitle('Estimasi & pembayaran', Icons.payments_outlined),
                       _moneyField('Estimasi biaya', _estimateController),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
@@ -413,7 +413,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
@@ -425,7 +425,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -457,7 +457,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextFormField(
                         controller: _notesController,
                         maxLines: 2,
