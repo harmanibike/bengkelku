@@ -309,7 +309,7 @@ class ServiceRepository {
     return db.transaction((txn) async {
       final rows = await txn.query(
         'service_orders',
-        columns: ['service_status'],
+        columns: ['service_status', 'remaining_payment', 'order_number'],
         where: 'id = ?',
         whereArgs: [id],
         limit: 1,
@@ -325,6 +325,13 @@ class ServiceRepository {
         );
       }
 
+      final remaining = rows.first['remaining_payment'] as int? ?? 0;
+      if (status == 'delivered' && remaining > 0) {
+        throw StateError(
+          'Sepeda belum dapat diserahkan karena masih ada sisa tagihan.',
+        );
+      }
+
       final now = DateTime.now().toIso8601String();
       final data = <String, Object?>{'service_status': status};
       if (status == 'completed') data['completed_at'] = now;
@@ -337,6 +344,32 @@ class ServiceRepository {
       );
       if (updated != 1) {
         throw StateError('Status servis berubah. Muat ulang lalu coba lagi.');
+      }
+
+      if (status == 'cancelled') {
+        final paidRows = await txn.rawQuery(
+          '''
+          SELECT COALESCE(SUM(amount), 0) AS total_paid
+          FROM cash_transactions
+          WHERE reference_type = 'service_order'
+            AND reference_id = ?
+            AND transaction_type = 'income'
+          ''',
+          [id],
+        );
+        final refund = Sqflite.firstIntValue(paidRows) ?? 0;
+        if (refund > 0) {
+          await txn.insert('cash_transactions', {
+            'transaction_type': 'expense',
+            'category': 'Pembatalan Servis',
+            'description':
+                'Pengembalian pembayaran servis ${rows.first['order_number'] ?? id}',
+            'amount': refund,
+            'reference_type': 'service_order_cancellation',
+            'reference_id': id,
+            'transaction_date': now,
+          });
+        }
       }
 
       await txn.insert('service_status_history', {
@@ -401,7 +434,7 @@ class ServiceRepository {
     return db.transaction((txn) async {
       final result = await txn.query(
         'service_orders',
-        columns: ['order_number', 'total_cost', 'down_payment'],
+        columns: ['order_number', 'total_cost', 'down_payment', 'service_status'],
         where: 'id = ?',
         whereArgs: [id],
         limit: 1,
@@ -412,6 +445,10 @@ class ServiceRepository {
       }
 
       final orderNumber = result.first['order_number']?.toString() ?? 'ID-$id';
+      final serviceStatus = result.first['service_status']?.toString() ?? 'waiting';
+      if (serviceStatus == 'cancelled' || serviceStatus == 'delivered') {
+        throw StateError('Pembayaran tidak dapat ditambahkan pada servis yang sudah ditutup.');
+      }
       final total = result.first['total_cost'] as int? ?? 0;
       final paid = result.first['down_payment'] as int? ?? 0;
       final remaining = total - paid;
