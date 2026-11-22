@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 5;
+  static const int _databaseVersion = 6;
 
   Database? _database;
 
@@ -118,6 +118,57 @@ class AppDatabase {
         updated_at TEXT
       )
     ''');
+
+    // Faktur pembelian dari pemasok.
+    batch.execute('''
+      CREATE TABLE purchases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_number TEXT NOT NULL UNIQUE,
+        supplier_id INTEGER,
+        subtotal INTEGER NOT NULL DEFAULT 0,
+        discount INTEGER NOT NULL DEFAULT 0,
+        total INTEGER NOT NULL DEFAULT 0,
+        paid INTEGER NOT NULL DEFAULT 0,
+        payment_status TEXT NOT NULL DEFAULT 'unpaid',
+        purchase_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+      )
+    ''');
+
+    batch.execute('''
+      CREATE TABLE purchase_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        purchase_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        discount INTEGER NOT NULL DEFAULT 0,
+        subtotal INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+      )
+    ''');
+
+    batch.execute('''
+      CREATE TABLE supplier_payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        supplier_id INTEGER,
+        purchase_id INTEGER,
+        amount INTEGER NOT NULL,
+        payment_method TEXT,
+        payment_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT,
+        FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE SET NULL
+      )
+    ''');
+
+    batch.execute('CREATE INDEX idx_purchases_supplier ON purchases(supplier_id, purchase_date)');
+    batch.execute('CREATE INDEX idx_purchase_items_purchase ON purchase_items(purchase_id)');
+    batch.execute('CREATE INDEX idx_supplier_payments_purchase ON supplier_payments(purchase_id, payment_date)');
 
     // Perintah kerja servis.
     batch.execute('''
@@ -399,6 +450,57 @@ class AppDatabase {
         CREATE INDEX idx_receivable_reminder_record
         ON receivable_reminder_logs(receivable_type, record_id, opened_at)
       ''');
+    }
+
+    // Pembelian, rincian barang, dan pembayaran utang pemasok.
+    // Hanya menambah tabel/index; transaksi lama tidak disentuh.
+    if (oldVersion < 6) {
+      await db.execute('''
+        CREATE TABLE purchases (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          invoice_number TEXT NOT NULL UNIQUE,
+          supplier_id INTEGER,
+          subtotal INTEGER NOT NULL DEFAULT 0,
+          discount INTEGER NOT NULL DEFAULT 0,
+          total INTEGER NOT NULL DEFAULT 0,
+          paid INTEGER NOT NULL DEFAULT 0,
+          payment_status TEXT NOT NULL DEFAULT 'unpaid',
+          purchase_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE purchase_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          purchase_id INTEGER NOT NULL,
+          product_id INTEGER,
+          product_name TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          unit_cost INTEGER NOT NULL DEFAULT 0,
+          discount INTEGER NOT NULL DEFAULT 0,
+          subtotal INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE supplier_payments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          supplier_id INTEGER,
+          purchase_id INTEGER,
+          amount INTEGER NOT NULL,
+          payment_method TEXT,
+          payment_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          notes TEXT,
+          FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+          FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_purchases_supplier ON purchases(supplier_id, purchase_date)');
+      await db.execute('CREATE INDEX idx_purchase_items_purchase ON purchase_items(purchase_id)');
+      await db.execute('CREATE INDEX idx_supplier_payments_purchase ON supplier_payments(purchase_id, payment_date)');
     }
 
   }
