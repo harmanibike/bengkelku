@@ -118,6 +118,58 @@ class SupplierRepository {
     ''', [supplierId]);
   }
 
+
+  /// Rincian ledger satu faktur: item, pembayaran, retur, dan pemakaian kredit.
+  Future<Map<String, Object?>> getPurchaseLedgerDetail(int purchaseId) async {
+    final db = await _db;
+    final invoices = await db.rawQuery('''
+      SELECT p.*, s.name AS supplier_name
+      FROM purchases p
+      LEFT JOIN suppliers s ON s.id = p.supplier_id
+      WHERE p.id = ?
+      LIMIT 1
+    ''', [purchaseId]);
+    if (invoices.isEmpty) throw StateError('Faktur pembelian tidak ditemukan.');
+
+    final items = await db.query(
+      'purchase_items',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+      orderBy: 'id ASC',
+    );
+    final payments = await db.query(
+      'supplier_payments',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+      orderBy: 'datetime(payment_date) ASC, id ASC',
+    );
+    final returns = await db.rawQuery('''
+      SELECT pr.*,
+        COALESCE((SELECT SUM(pri.quantity) FROM purchase_return_items pri
+          WHERE pri.purchase_return_id = pr.id), 0) AS item_count
+      FROM purchase_returns pr
+      WHERE pr.purchase_id = ?
+      ORDER BY datetime(pr.return_date) ASC, pr.id ASC
+    ''', [purchaseId]);
+    final creditApplications = await db.rawQuery('''
+      SELECT a.amount, a.created_at, pr.return_number,
+        target.invoice_number AS target_invoice
+      FROM supplier_return_credit_applications a
+      JOIN purchase_returns pr ON pr.id = a.return_id
+      JOIN purchases target ON target.id = a.purchase_id
+      WHERE a.purchase_id = ?
+      ORDER BY datetime(a.created_at) ASC, a.id ASC
+    ''', [purchaseId]);
+
+    return {
+      'invoice': invoices.first,
+      'items': items,
+      'payments': payments,
+      'returns': returns,
+      'credit_applications': creditApplications,
+    };
+  }
+
   String? _nullable(String? value) {
     final text = value?.trim();
     return text == null || text.isEmpty ? null : text;
