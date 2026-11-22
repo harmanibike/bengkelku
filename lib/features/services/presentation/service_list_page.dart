@@ -324,6 +324,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
     final status = detail['service_status']?.toString() ?? 'waiting';
     final statusHistory = await _repository.getServiceStatusHistory(id);
+    final directCostHistory = await _repository.getServiceDirectCostHistory(id);
     final businessProfile = await BusinessProfileRepository().getProfile();
     if (!mounted) return;
     final action = await showDialog<String>(
@@ -401,6 +402,26 @@ class _ServiceListPageState extends State<ServiceListPage> {
                       ),
                     );
                   }),
+                ],
+                if (directCostHistory.isNotEmpty) ...[
+                  const Divider(),
+                  const Text('Riwayat Biaya Modal',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  ...directCostHistory.map((entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_dateLabel(entry['changed_at']),
+                                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            Text('Modal sparepart: ${_rupiah(entry['old_direct_parts_cost'])} → ${_rupiah(entry['new_direct_parts_cost'])}',
+                                style: const TextStyle(fontSize: 12)),
+                            Text('Biaya langsung lain: ${_rupiah(entry['old_other_direct_cost'])} → ${_rupiah(entry['new_other_direct_cost'])}',
+                                style: const TextStyle(fontSize: 12)),
+                          ],
+                        ),
+                      )),
                 ],
                 if ((detail['notes']?.toString() ?? '').isNotEmpty)
                   _detailLine('Catatan', detail['notes']),
