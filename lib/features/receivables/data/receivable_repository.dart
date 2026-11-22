@@ -69,6 +69,61 @@ class ReceivableRepository {
     return rows;
   }
 
+  Future<Map<String, Object?>>? _unused() async => null;
+
+  Future<Map<String, Object?>> getReceivableDetail({
+    required String type,
+    required int recordId,
+  }) async {
+    final db = await _db;
+    if (type == 'service') {
+      final rows = await db.rawQuery('''
+        SELECT s.*, c.name AS customer_name, c.phone AS customer_phone
+        FROM service_orders s
+        LEFT JOIN customers c ON c.id = s.customer_id
+        WHERE s.id = ? LIMIT 1
+      ''', [recordId]);
+      if (rows.isEmpty) throw StateError('Nota servis tidak ditemukan.');
+      final payments = await db.query(
+        'cash_transactions',
+        where: "reference_type = 'service_order' AND reference_id = ? AND transaction_type = 'income'",
+        whereArgs: [recordId],
+        orderBy: 'datetime(transaction_date) ASC, id ASC',
+      );
+      return {'record': rows.first, 'payments': payments, 'returns': <Map<String, Object?>>[]};
+    }
+    if (type == 'sale') {
+      final rows = await db.rawQuery('''
+        SELECT s.*, c.name AS customer_name, c.phone AS customer_phone,
+          COALESCE(ret.returned_amount, 0) AS returned_amount,
+          COALESCE(ret.refunded_amount, 0) AS refunded_amount
+        FROM sales s
+        LEFT JOIN customers c ON c.id = s.customer_id
+        LEFT JOIN (
+          SELECT sale_id, SUM(total_amount) AS returned_amount,
+            SUM(refunded_amount) AS refunded_amount
+          FROM sale_returns GROUP BY sale_id
+        ) ret ON ret.sale_id = s.id
+        WHERE s.id = ? LIMIT 1
+      ''', [recordId]);
+      if (rows.isEmpty) throw StateError('Nota penjualan tidak ditemukan.');
+      final payments = await db.query(
+        'cash_transactions',
+        where: "reference_type = 'sale' AND reference_id = ? AND transaction_type = 'income'",
+        whereArgs: [recordId],
+        orderBy: 'datetime(transaction_date) ASC, id ASC',
+      );
+      final returns = await db.query(
+        'sale_returns',
+        where: 'sale_id = ?',
+        whereArgs: [recordId],
+        orderBy: 'datetime(return_date) ASC, id ASC',
+      );
+      return {'record': rows.first, 'payments': payments, 'returns': returns};
+    }
+    throw ArgumentError('Jenis piutang tidak valid.');
+  }
+
   Future<String> getTemplate() async {
     final db = await _db;
     final rows = await db.query(
