@@ -61,10 +61,11 @@ class SupplierRepository {
         COUNT(p.id) AS invoice_count,
         COALESCE(SUM(p.total), 0) AS total_amount,
         COALESCE(SUM(p.paid), 0) AS paid_amount,
-        COALESCE(SUM(p.total - p.paid), 0) AS remaining_amount
+        COALESCE(SUM(p.return_credit), 0) AS return_credit,
+        COALESCE(SUM(MAX(p.total - p.paid - p.return_credit, 0)), 0) AS remaining_amount
       FROM suppliers s
       JOIN purchases p ON p.supplier_id = s.id
-      WHERE p.total > p.paid
+      WHERE p.total > p.paid + p.return_credit
       GROUP BY s.id, s.name, s.phone
       ORDER BY remaining_amount DESC, s.name COLLATE NOCASE ASC
     ''');
@@ -74,8 +75,8 @@ class SupplierRepository {
     final db = await _db;
     return db.rawQuery('''
       SELECT p.id, p.invoice_number, p.purchase_date, p.subtotal, p.discount,
-        p.total, p.paid, p.payment_status,
-        (p.total - p.paid) AS remaining_amount,
+        p.total, p.paid, p.return_credit, p.payment_status,
+        MAX(p.total - p.paid - p.return_credit, 0) AS remaining_amount,
         (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id) AS item_count
       FROM purchases p
       WHERE p.supplier_id = ?
