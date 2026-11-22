@@ -133,10 +133,6 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const CashbookPage()));
   }
 
-  void _openReceivables() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ReceivablesPage()));
-  }
-
   void _openSuppliers() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const SuppliersPage()));
   }
