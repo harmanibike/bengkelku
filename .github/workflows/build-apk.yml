@@ -64,7 +64,7 @@ jobs:
               additions.append("        mavenCentral()")
 
           if additions:
-              source = source[:insert_at] + "\\n" + "\\n".join(additions) + source[insert_at:]
+              source = source[:insert_at] + "\n" + "\n".join(additions) + source[insert_at:]
               path.write_text(source)
 
           print("Gradle plugin repositories siap: Google dan Maven Central.")
