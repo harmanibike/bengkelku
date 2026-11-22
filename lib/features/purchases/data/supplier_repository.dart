@@ -79,8 +79,14 @@ class SupplierRepository {
     final db = await _db;
     return db.rawQuery('''
       SELECT p.id, p.invoice_number, p.purchase_date, p.subtotal, p.discount,
-        p.total, p.paid, p.return_credit, p.payment_status,
-        MAX(p.total - p.paid - p.return_credit, 0) AS remaining_amount,
+        p.total, p.paid, p.return_credit, p.payment_status, p.status,
+        CASE WHEN p.status = 'active'
+          THEN MAX(p.total - p.paid - p.return_credit, 0)
+          ELSE 0 END AS remaining_amount,
+        COALESCE((SELECT SUM(pr.total_amount) FROM purchase_returns pr
+          WHERE pr.purchase_id = p.id AND pr.status = 'active'), 0) AS returned_amount,
+        COALESCE((SELECT SUM(sp.amount) FROM supplier_payments sp
+          WHERE sp.purchase_id = p.id), 0) AS payment_history_amount,
         (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id) AS item_count
       FROM purchases p
       WHERE p.supplier_id = ?
