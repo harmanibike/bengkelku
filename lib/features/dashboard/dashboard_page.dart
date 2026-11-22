@@ -11,6 +11,7 @@ import '../purchases/presentation/supplier_debts_page.dart';
 import '../purchases/presentation/purchase_reports_page.dart';
 import '../purchases/presentation/purchase_cost_settings_page.dart';
 import '../services/presentation/service_pricing_page.dart';
+import '../business/presentation/business_profile_page.dart';
 import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
 import '../receivables/presentation/receivables_page.dart';
@@ -128,6 +129,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _openPurchaseReports() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchaseReportsPage()));
+  }
+
+  void _openBusinessProfile() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const BusinessProfilePage()));
   }
 
   void _openServicePricing() {
@@ -488,6 +493,7 @@ class _DashboardPageState extends State<DashboardPage> {
             _menuTile(title: 'Laporan Pembelian', icon: Icons.assessment_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openPurchaseReports),
             _menuTile(title: 'Harga Beli', icon: Icons.settings_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openPurchaseCostSettings),
             _menuTile(title: 'Harga Jasa', icon: Icons.price_change_rounded, colors: const [Color(0xFF1565C0), Color(0xFF42A5F5)], onTap: _openServicePricing),
+            _menuTile(title: 'Profil Usaha', icon: Icons.storefront_rounded, colors: const [Color(0xFF00695C), Color(0xFF4DB6AC)], onTap: _openBusinessProfile),
           ],
         ),
       ],
