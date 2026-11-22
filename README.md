@@ -63,7 +63,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Riwayat penjualan menampilkan status pembayaran dan sisa tagihan.
 - [x] Pembatalan transaksi dengan pemulihan stok dan pembalikan penerimaan kas yang tercatat.
 - [ ] Barcode scanner, harga grosir, diskon, pajak, transfer, QRIS, dan pembayaran campuran.
-- [ ] Retur penjualan dengan pembalikan stok/kas dan jejak audit.
+- [x] Retur penjualan dengan pembalikan stok, pengembalian dana, penyesuaian piutang, dan jejak audit.
 - [ ] Cetak struk dan berbagi bukti transaksi.
 
 ## 6. Produk dan inventaris
@@ -77,7 +77,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Arsip produk dan penghapusan aman dengan perlindungan riwayat transaksi.
 - [ ] Harga jual grosir dan beberapa tingkat harga.
 - [ ] Stok opname/penyesuaian stok dengan alasan, persetujuan, dan audit.
-- [ ] Retur penjualan dan retur lain yang memengaruhi stok.
+- [x] Retur penjualan dengan pengembalian stok dan pencatatan retur.
 - [ ] Cetak label harga dan barcode.
 
 ## 7. Pembelian dan pemasok
