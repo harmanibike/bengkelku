@@ -32,6 +32,13 @@ class BengkelKuApp extends StatelessWidget {
       title: 'BengkelKu POS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      // Sisakan area aman di atas tombol navigasi Android untuk semua halaman,
+      // sehingga footer aplikasi tidak tertutup system navigation bar.
+      builder: (context, child) => SafeArea(
+        top: false,
+        bottom: true,
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: const DashboardPage(),
     );
   }
