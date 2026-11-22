@@ -72,12 +72,13 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 
 - [x] Fondasi data produk dan inventaris.
 - [x] SKU/barcode, kategori, merek, harga modal, harga jual, dan stok.
+- [x] Pengaturan metode pembaruan harga beli ditempatkan di dalam menu Produk.
 - [x] Foto produk dari kamera/galeri, penyimpanan offline, dan tampilan pada daftar produk serta kasir.
 - [x] Riwayat pergerakan stok masuk/keluar.
 - [x] Halaman Audit Stok dengan pencarian, filter masuk/keluar, sumber transaksi, waktu, dan perubahan stok.
 - [x] Peringatan/indikator stok menipis yang tersedia pada modul produk.
 - [ ] Arsip produk dan penghapusan aman dengan perlindungan riwayat transaksi.
-- [ ] Harga jual grosir dan beberapa tingkat harga.
+- [ ] Harga bertingkat (eceran, grosir, reseller, dan harga khusus), termasuk aturan minimal kuantitas dan pemilihan otomatis di kasir.
 - [x] Stok opname: snapshot stok, input hitung fisik, validasi perubahan stok selama penghitungan, penerapan selisih, dan audit pergerakan stok.
 - [x] Retur penjualan dengan pengembalian stok dan pencatatan retur.
 - [ ] Cetak label harga dan barcode.
@@ -143,7 +144,6 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 ## 12. Pengaturan aplikasi
 
 - [x] Profil usaha dan logo.
-- [x] Pengaturan metode update harga beli.
 - [x] Pengaturan harga jasa dan PIN admin untuk override harga.
 - [x] Pengaturan metode pembayaran yang aktif pada kasir.
 - [ ] Pengaturan pajak, mata uang, nomor nota, printer, diskon, dan akun pengguna.
