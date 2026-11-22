@@ -187,12 +187,23 @@ class PurchaseReturnRepository {
         'refund_received': alreadyRefund + refundReceived,
       }, where: 'id = ?', whereArgs: [returnId]);
       if (creditApplied > 0) {
+        final supplierId = (row['supplier_id'] as num?)?.toInt();
+        if (supplierId == null) {
+          throw StateError('Faktur retur tidak memiliki data pemasok untuk mencatat kredit.');
+        }
         final nextCredit = priorCredit + creditApplied;
         final nextOutstanding = purchaseTotal - paid - nextCredit;
         await txn.update('purchases', {
           'return_credit': nextCredit,
           'payment_status': nextOutstanding <= 0 ? 'paid' : paid == 0 ? 'unpaid' : 'partial',
         }, where: 'id = ?', whereArgs: [row['purchase_id']]);
+        await txn.insert('supplier_return_credit_applications', {
+          'return_id': returnId,
+          'purchase_id': row['purchase_id'],
+          'supplier_id': supplierId,
+          'amount': creditApplied,
+          'created_at': now,
+        });
       }
       if (refundReceived > 0) {
         await txn.insert('cash_transactions', {
