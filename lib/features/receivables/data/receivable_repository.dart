@@ -107,7 +107,7 @@ class ReceivableRepository {
       if (rows.isEmpty) throw StateError('Nota penjualan tidak ditemukan.');
       final payments = await db.query(
         'cash_transactions',
-        where: "reference_type = 'sale' AND reference_id = ? AND transaction_type = 'income'",
+        where: "reference_type IN ('sale', 'sale_payment') AND reference_id = ? AND transaction_type = 'income'",
         whereArgs: [recordId],
         orderBy: 'datetime(transaction_date) ASC, id ASC',
       );
