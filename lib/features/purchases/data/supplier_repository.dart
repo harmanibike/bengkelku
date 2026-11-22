@@ -49,7 +49,10 @@ class SupplierRepository {
         COALESCE(SUM(total), 0) AS total_amount,
         COALESCE(SUM(paid), 0) AS paid_amount,
         COALESCE(SUM(return_credit), 0) AS return_credit,
-        COALESCE(SUM(MAX(total - paid - return_credit, 0)), 0) AS remaining_amount
+        COALESCE(SUM(MAX(total - paid - return_credit, 0)), 0) AS remaining_amount,
+        COALESCE((SELECT SUM(pr.total_amount - pr.credit_applied - pr.refund_received)
+          FROM purchase_returns pr JOIN purchases source ON source.id = pr.purchase_id
+          WHERE source.supplier_id = purchases.supplier_id), 0) AS available_return_credit
       FROM purchases WHERE supplier_id = ?
     ''', [supplierId]);
     return rows.first;
@@ -82,6 +85,19 @@ class SupplierRepository {
       FROM purchases p
       WHERE p.supplier_id = ?
       ORDER BY p.purchase_date DESC, p.id DESC
+    ''', [supplierId]);
+  }
+
+  Future<List<Map<String, Object?>>> getSupplierCreditApplications(int supplierId) async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT a.id, a.amount, a.created_at, pr.return_number,
+        target.invoice_number AS target_invoice
+      FROM supplier_return_credit_applications a
+      JOIN purchase_returns pr ON pr.id = a.return_id
+      JOIN purchases target ON target.id = a.purchase_id
+      WHERE a.supplier_id = ?
+      ORDER BY a.created_at DESC, a.id DESC
     ''', [supplierId]);
   }
 
