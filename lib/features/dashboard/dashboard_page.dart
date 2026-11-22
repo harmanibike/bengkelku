@@ -91,7 +91,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _header() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 18),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF536DFE), Color(0xFF7B1FA2)],
@@ -105,22 +105,22 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white24),
               ),
-              child: const Icon(Icons.pedal_bike, color: Colors.white, size: 30),
+              child: const Icon(Icons.pedal_bike, color: Colors.white, size: 26),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 9),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('BengkelKu', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.bold)),
-                  Text('POS • Manajemen Bengkel Sepeda', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text('BengkelKu', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('POS • Manajemen Bengkel Sepeda', style: TextStyle(color: Colors.white70, fontSize: 10)),
                 ],
               ),
             ),
@@ -129,12 +129,12 @@ class _DashboardPageState extends State<DashboardPage> {
               children: [
                 Text(
                   TimeOfDay.now().format(context),
-                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                 ),
-                Text(_todayLabel(), style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                Text(_todayLabel(), style: const TextStyle(color: Colors.white70, fontSize: 9)),
               ],
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 4),
             Material(
               color: Colors.white.withValues(alpha: 0.18),
               shape: const CircleBorder(),
@@ -158,26 +158,26 @@ class _DashboardPageState extends State<DashboardPage> {
         side: const BorderSide(color: Color(0xFFE9E9EF)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: const Color(0xFFE8EAF6),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(13),
               ),
-              child: const Icon(Icons.storefront_rounded, color: Color(0xFF5C6BC0), size: 29),
+              child: const Icon(Icons.storefront_rounded, color: Color(0xFF5C6BC0), size: 24),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: 10),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  SizedBox(height: 3),
-                  Text('Kelola servis, produk, dan transaksi', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  SizedBox(height: 2),
+                  Text('Kelola servis, produk, dan transaksi', style: TextStyle(color: Colors.grey, fontSize: 10),
                 ],
               ),
             ),
@@ -196,14 +196,14 @@ class _DashboardPageState extends State<DashboardPage> {
     final expense = loading ? '--' : failed ? '--' : _rupiah(_number(data, 'expense'));
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(19),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF6200EA), Color(0xFF9C27B0)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(17),
         boxShadow: [
           BoxShadow(color: const Color(0xFF7B1FA2).withValues(alpha: 0.22), blurRadius: 15, offset: const Offset(0, 7)),
         ],
@@ -211,19 +211,19 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Row(
         children: [
           Container(
-            width: 58,
-            height: 58,
+            width: 46,
+            height: 46,
             decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), shape: BoxShape.circle),
             child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 30),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Kas Masuk Hari Ini', style: TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 4),
-                Text(income, style: const TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.bold)),
+                Text(income, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 5),
                 Text('Pengeluaran: $expense', style: const TextStyle(color: Colors.white70, fontSize: 11)),
               ],
@@ -243,7 +243,7 @@ class _DashboardPageState extends State<DashboardPage> {
         borderRadius: BorderRadius.circular(22),
         child: Ink(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)],
@@ -259,12 +259,12 @@ class _DashboardPageState extends State<DashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
-                radius: 27,
+                radius: 22,
                 backgroundColor: Color(0x33FFFFFF),
                 child: Icon(Icons.point_of_sale_rounded, color: Colors.white, size: 29),
               ),
-              SizedBox(height: 15),
-              Text('Mulai Transaksi', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+              SizedBox(height: 9),
+              Text('Mulai Transaksi', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
               SizedBox(height: 4),
               Row(
                 children: [
@@ -288,7 +288,7 @@ class _DashboardPageState extends State<DashboardPage> {
     required List<Color> colors,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(19),
@@ -299,8 +299,8 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
             child: Icon(icon, color: Colors.white, size: 25),
           ),
@@ -309,11 +309,11 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                const SizedBox(height: 3),
+                Text(title, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                const SizedBox(height: 2),
                 Text(value, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (suffix.isNotEmpty)
-                  Text(suffix, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                  Text(suffix, style: const TextStyle(color: Colors.white70, fontSize: 9)),
               ],
             ),
           ),
@@ -344,7 +344,7 @@ class _DashboardPageState extends State<DashboardPage> {
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 1.8,
+          childAspectRatio: 2.05,
           children: [
             _statCard(title: 'Penjualan', value: value('sales_amount', currency: true), suffix: '${value('sales_count')} transaksi', icon: Icons.trending_up_rounded, colors: const [Color(0xFF43A047), Color(0xFF81C784)]),
             _statCard(title: 'Kas Masuk', value: value('income', currency: true), suffix: 'penerimaan hari ini', icon: Icons.receipt_long_rounded, colors: const [Color(0xFF1E88E5), Color(0xFF64B5F6)]),
@@ -377,19 +377,19 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         children: [
           Container(
-            width: 76,
-            height: 76,
+            width: 62,
+            height: 62,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(21),
+              borderRadius: BorderRadius.circular(17),
               boxShadow: [
                 BoxShadow(color: colors.first.withValues(alpha: 0.2), blurRadius: 9, offset: const Offset(0, 4)),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 34),
+            child: Icon(icon, color: Colors.white, size: 28),
           ),
-          const SizedBox(height: 8),
-          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
+          const SizedBox(height: 5),
+          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
         ],
       ),
     );
@@ -400,14 +400,14 @@ class _DashboardPageState extends State<DashboardPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Menu Utama', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF263238))),
-        const SizedBox(height: 17),
+        const SizedBox(height: 11),
         GridView.count(
           crossAxisCount: 3,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 20,
-          childAspectRatio: 0.92,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 13,
+          childAspectRatio: 0.95,
           children: [
             _menuTile(title: 'Kasir', icon: Icons.shopping_cart_rounded, colors: const [Color(0xFF26A69A), Color(0xFF66BB6A)], onTap: _openCashier),
             _menuTile(title: 'Produk', icon: Icons.inventory_2_rounded, colors: const [Color(0xFFEF8D32), Color(0xFFFFB74D)], onTap: _openProducts),
@@ -438,17 +438,17 @@ class _DashboardPageState extends State<DashboardPage> {
               slivers: [
                 SliverToBoxAdapter(child: _header()),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       _shopCard(),
-                      const SizedBox(height: 15),
+                      const SizedBox(height: 10),
                       _cashCard(snapshot),
-                      const SizedBox(height: 15),
+                      const SizedBox(height: 10),
                       _startCashierCard(),
-                      const SizedBox(height: 26),
+                      const SizedBox(height: 18),
                       _summary(snapshot),
-                      const SizedBox(height: 27),
+                      const SizedBox(height: 18),
                       _menu(),
                     ]),
                   ),
