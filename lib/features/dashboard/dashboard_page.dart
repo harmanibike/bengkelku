@@ -5,10 +5,53 @@ import '../bicycles/presentation/bicycle_list_page.dart';
 import '../services/presentation/service_list_page.dart';
 import '../products/presentation/product_list_page.dart';
 import '../sales/presentation/cashier_page.dart';
+import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  final ReportRepository _reportRepository = ReportRepository();
+  late Future<Map<String, Object?>> _summaryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _summaryFuture = _loadTodaySummary();
+  }
+
+  Future<Map<String, Object?>> _loadTodaySummary() {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    return _reportRepository.getSummary(
+      start: start,
+      end: start.add(const Duration(days: 1)),
+    );
+  }
+
+  void _refreshSummary() {
+    setState(() => _summaryFuture = _loadTodaySummary());
+  }
+
+  int _number(Map<String, Object?>? data, String key) {
+    final value = data?[key];
+    return value is num ? value.toInt() : 0;
+  }
+
+  String _rupiah(int amount) {
+    final digits = amount.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    return 'Rp$buffer';
+  }
 
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -40,6 +83,42 @@ class DashboardPage extends StatelessWidget {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsPage()));
   }
 
+  Widget _summaryCards(AsyncSnapshot<Map<String, Object?>> snapshot) {
+    final data = snapshot.data;
+    final loading = snapshot.connectionState == ConnectionState.waiting;
+    final failed = snapshot.hasError;
+    final income = loading ? '…' : failed ? '--' : _rupiah(_number(data, 'income'));
+    final services = loading ? '…' : failed ? '--' : '${_number(data, 'service_count')}';
+    final sales = loading ? '…' : failed ? '--' : '${_number(data, 'sales_count')}';
+    final lowStock = loading ? '…' : failed ? '--' : '${_number(data, 'low_stock')}';
+
+    return Column(
+      children: [
+        Row(children: [
+          Expanded(child: _SummaryCard(title: 'Pendapatan Hari Ini', value: income, icon: Icons.payments_outlined, color: Colors.green)),
+          const SizedBox(width: 12),
+          Expanded(child: _SummaryCard(title: 'Servis Masuk', value: services, icon: Icons.build_outlined, color: Colors.blue)),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _SummaryCard(title: 'Penjualan', value: sales, icon: Icons.shopping_cart_outlined, color: Colors.orange)),
+          const SizedBox(width: 12),
+          Expanded(child: _SummaryCard(title: 'Stok Menipis', value: lowStock, icon: Icons.inventory_2_outlined, color: Colors.red)),
+        ]),
+        if (failed)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                const Expanded(child: Text('Ringkasan belum dapat dimuat.', style: TextStyle(color: Colors.red, fontSize: 12))),
+                TextButton(onPressed: _refreshSummary, child: const Text('Coba lagi')),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,6 +131,11 @@ class DashboardPage extends StatelessWidget {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Perbarui ringkasan',
+            onPressed: _refreshSummary,
+            icon: const Icon(Icons.refresh),
+          ),
           IconButton(
             onPressed: () => _showComingSoon(context, 'Notifikasi'),
             icon: const Icon(Icons.notifications_outlined),
@@ -68,17 +152,10 @@ class DashboardPage extends StatelessWidget {
               const SizedBox(height: 4),
               const Text('Ringkasan aktivitas bengkel dan toko hari ini.', style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 20),
-              const Row(children: [
-                Expanded(child: _SummaryCard(title: 'Pendapatan', value: 'Rp0', icon: Icons.payments_outlined, color: Colors.green)),
-                SizedBox(width: 12),
-                Expanded(child: _SummaryCard(title: 'Servis Masuk', value: '0', icon: Icons.build_outlined, color: Colors.blue)),
-              ]),
-              const SizedBox(height: 12),
-              const Row(children: [
-                Expanded(child: _SummaryCard(title: 'Penjualan', value: '0', icon: Icons.shopping_cart_outlined, color: Colors.orange)),
-                SizedBox(width: 12),
-                Expanded(child: _SummaryCard(title: 'Stok Menipis', value: '0', icon: Icons.inventory_2_outlined, color: Colors.red)),
-              ]),
+              FutureBuilder<Map<String, Object?>>(
+                future: _summaryFuture,
+                builder: (context, snapshot) => _summaryCards(snapshot),
+              ),
               const SizedBox(height: 24),
               const Text('Menu Utama', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 12),
