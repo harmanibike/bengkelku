@@ -117,6 +117,7 @@ class _ReportsPageState extends State<ReportsPage> {
                     children: [
                       _metric('Kas Masuk', _rupiah(income), Icons.trending_up, Colors.green),
                       _metric('Kas Keluar', _rupiah(expense), Icons.trending_down, Colors.red),
+                      _metric('Arus Kas Bersih', _rupiah((_summary['net_cash_flow'] as num?)?.toInt() ?? (income - expense)), Icons.account_balance, (income - expense) >= 0 ? Colors.green : Colors.red),
                       _metric('Penjualan Bersih', _rupiah((_summary['net_sales_amount'] as num?)?.toInt() ?? 0), Icons.shopping_cart, Colors.orange),
                       _metric('Retur Penjualan', _rupiah((_summary['sales_return_amount'] as num?)?.toInt() ?? 0), Icons.assignment_return, Colors.deepOrange),
                       _metric('HPP Bersih Barang', _rupiah((_summary['net_cogs_amount'] as num?)?.toInt() ?? 0), Icons.inventory_2, Colors.blueGrey),
