@@ -88,7 +88,7 @@ class _OpnameDetailPage extends StatefulWidget {
 }
 
 class _OpnameDetailPageState extends State<_OpnameDetailPage> {
-  late final List<Map<String,Object?>> _items;
+  late List<Map<String,Object?>> _items;
   final Map<int,TextEditingController> _controllers={};
   bool _busy=false;
 
@@ -112,7 +112,8 @@ class _OpnameDetailPageState extends State<_OpnameDetailPage> {
     }
     try {
       await widget.repo.setCount(id,qty);
-      if(mounted) setState(() {});
+      final refreshed=await widget.repo.getItems(widget.sessionId);
+      if(mounted) setState(() => _items=refreshed);
     } catch(e) {
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));
     }
