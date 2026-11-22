@@ -119,7 +119,9 @@ class _ProductListPageState extends State<ProductListPage> {
               TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
               FilledButton.icon(
                 onPressed: () {
-                  if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true);
+                  if (formKey.currentState!.validate()) {
+                    Navigator.pop(dialogContext, true);
+                  }
                 },
                 icon: const Icon(Icons.save_outlined),
                 label: const Text('Simpan'),
@@ -318,10 +320,18 @@ class _ProductListPageState extends State<ProductListPage> {
                 ])),
                 PopupMenuButton<String>(
                   onSelected: (value) {
-                    if (value == 'edit') _showProductForm(product: product);
-                    if (value == 'stock') _adjustStock(product);
-                    if (value == 'history') _showHistory(product);
-                    if (value == 'deactivate') _deactivate(product);
+                    if (value == 'edit') {
+                      _showProductForm(product: product);
+                    }
+                    if (value == 'stock') {
+                      _adjustStock(product);
+                    }
+                    if (value == 'history') {
+                      _showHistory(product);
+                    }
+                    if (value == 'deactivate') {
+                      _deactivate(product);
+                    }
                   },
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: 'edit', child: Text('Edit produk')),
