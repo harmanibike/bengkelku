@@ -174,6 +174,122 @@ class ReceiptDocumentService {
     return doc.save();
   }
 
+
+  static Future<Uint8List> buildServiceIntakeReceipt({
+    required Map<String, Object?> service,
+    required Map<String, String> profile,
+  }) async {
+    final logo = await _logo(profile);
+    final doc = pw.Document();
+    final bicycle = [
+      _text(service['bicycle_brand']),
+      _text(service['bicycle_model']),
+      _text(service['bicycle_type']),
+    ].where((part) => part.isNotEmpty).join(' ');
+    final height = 440.0 + (_text(service['notes']).isNotEmpty ? 35 : 0);
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
+      build: (context) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          _header(profile, logo),
+          _center('BUKTI PENERIMAAN SEPEDA', bold: true, size: 11),
+          _center('DOKUMEN SAAT SEPEDA MASUK BENGKEL', size: 7),
+          pw.SizedBox(height: 7),
+          _line('No. Dokumen', '${_text(service['order_number'])}-TERIMA'),
+          _line('No. Servis', _text(service['order_number'])),
+          _line('Tanggal diterima', dateLabel(service['received_at'])),
+          pw.Divider(),
+          _center('DATA PELANGGAN', bold: true),
+          _line('Nama', _text(service['customer_name'])),
+          _line('Telepon', _text(service['customer_phone'])),
+          _line('Alamat', _text(service['customer_address'])),
+          pw.Divider(),
+          _center('IDENTITAS SEPEDA', bold: true),
+          _line('Sepeda', bicycle),
+          _line('Warna', _text(service['bicycle_color'])),
+          _line('Ukuran frame', _text(service['bicycle_frame_size'])),
+          _line('Nomor rangka', _text(service['bicycle_serial_number'])),
+          pw.Divider(),
+          _center('KONDISI / KELUHAN SAAT DITERIMA', bold: true),
+          _line('Keluhan', _text(service['complaint'])),
+          if (_text(service['diagnosis']).isNotEmpty)
+            _line('Pemeriksaan awal', _text(service['diagnosis'])),
+          if (_text(service['before_photo_path']).isNotEmpty)
+            _line('Dokumentasi foto', 'Foto kondisi awal tersimpan di aplikasi'),
+          if (_text(service['mechanic_name']).isNotEmpty)
+            _line('Mekanik', _text(service['mechanic_name'])),
+          if (_text(service['notes']).isNotEmpty)
+            _line('Catatan', _text(service['notes'])),
+          pw.Divider(),
+          _line('Estimasi biaya', rupiah(service['estimated_cost'])),
+          _line('Status servis', _text(service['service_status'])),
+          pw.SizedBox(height: 12),
+          _center('Dokumen ini merupakan bukti penerimaan sepeda, bukan bukti pelunasan.', size: 7),
+          pw.SizedBox(height: 10),
+          _center(_text(profile['business_footer_note']).isEmpty
+              ? 'Simpan dokumen ini untuk pengambilan sepeda.'
+              : _text(profile['business_footer_note']), size: 8),
+        ],
+      ),
+    ));
+    return doc.save();
+  }
+
+  static Future<Uint8List> buildServiceFinalPaymentReceipt({
+    required Map<String, Object?> service,
+    required List<Map<String, Object?>> payments,
+    required Map<String, String> profile,
+  }) async {
+    final logo = await _logo(profile);
+    final doc = pw.Document();
+    final height = 390.0 + payments.length * 25.0;
+    final total = _int(service['total_cost']);
+    final remaining = _int(service['remaining_payment']);
+    final paid = (total - remaining).clamp(0, 1 << 62).toInt();
+    final bicycle = [
+      _text(service['bicycle_brand']),
+      _text(service['bicycle_model']),
+    ].where((part) => part.isNotEmpty).join(' ');
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
+      build: (context) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          _header(profile, logo),
+          _center('BUKTI PELUNASAN SERVIS', bold: true, size: 12),
+          _center('PEMBAYARAN TELAH LUNAS', bold: true, size: 8),
+          pw.SizedBox(height: 7),
+          _line('No. Dokumen', '${_text(service['order_number'])}-LUNAS'),
+          _line('No. Servis', _text(service['order_number'])),
+          _line('Tanggal masuk', dateLabel(service['received_at'])),
+          _line('Pelanggan', _text(service['customer_name'])),
+          if (_text(service['customer_phone']).isNotEmpty)
+            _line('Telepon', _text(service['customer_phone'])),
+          if (bicycle.isNotEmpty) _line('Sepeda', bicycle),
+          pw.Divider(),
+          _line('Total biaya servis', rupiah(total)),
+          _line('Total pembayaran diterima', rupiah(paid), bold: true),
+          _line('Sisa tagihan', rupiah(remaining), bold: true),
+          if (payments.isNotEmpty) ...[
+            pw.SizedBox(height: 7),
+            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+            ...payments.map((payment) => _line(
+              dateLabel(payment['transaction_date']),
+              rupiah(payment['amount']),
+            )),
+          ],
+          pw.Divider(),
+          _center('LUNAS - TIDAK ADA SISA TAGIHAN', bold: true, size: 9),
+          _center('Terima kasih atas kepercayaan Anda.', size: 8),
+          pw.SizedBox(height: 10),
+          _center(_text(profile['business_footer_note']), size: 8),
+        ],
+      ),
+    ));
+    return doc.save();
+  }
+
   static pw.Widget _header(Map<String, String> profile, pw.MemoryImage? logo) {
     final details = [
       _text(profile['business_address']),
