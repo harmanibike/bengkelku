@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 12;
+  static const int _databaseVersion = 13;
 
   Database? _database;
 
@@ -517,6 +517,7 @@ class AppDatabase {
     ''');
 
     await batch.commit(noResult: true);
+    await _seedDefaultServiceCatalog(db);
   }
 
   Future<void> _upgradeDatabase(
@@ -811,6 +812,51 @@ class AppDatabase {
       await db.insert('app_settings', {'setting_key': 'service_price_mode', 'setting_value': 'both'});
     }
 
+    // Isi master jasa contoh untuk database lama yang belum memiliki daftar jasa.
+    // Tidak menimpa jasa yang sudah dibuat atau diubah oleh pengguna.
+    if (oldVersion < 13) {
+      await _seedDefaultServiceCatalog(db);
+    }
+  }
+
+
+  Future<void> _seedDefaultServiceCatalog(DatabaseExecutor db) async {
+    final existing = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM service_catalog'),
+        ) ??
+        0;
+    if (existing > 0) return;
+
+    const services = <Map<String, Object>>[
+      {'name': 'Tambal ban dalam', 'category': 'Ban', 'description': 'Tambal kebocoran ban dalam', 'standard_price': 10000, 'sort_order': 10},
+      {'name': 'Ganti ban dalam', 'category': 'Ban', 'description': 'Penggantian ban dalam', 'standard_price': 15000, 'sort_order': 20},
+      {'name': 'Pasang ban luar', 'category': 'Ban', 'description': 'Pemasangan ban luar', 'standard_price': 15000, 'sort_order': 30},
+      {'name': 'Setel velg ringan', 'category': 'Roda', 'description': 'Penyetelan kelurusan velg ringan', 'standard_price': 20000, 'sort_order': 40},
+      {'name': 'Setel velg berat', 'category': 'Roda', 'description': 'Penyetelan velg dengan ketidakseimbangan lebih berat', 'standard_price': 35000, 'sort_order': 50},
+      {'name': 'Ganti jari-jari', 'category': 'Roda', 'description': 'Jasa penggantian jari-jari; komponen dihitung terpisah', 'standard_price': 25000, 'sort_order': 60},
+      {'name': 'Bongkar pasang roda', 'category': 'Roda', 'description': 'Jasa bongkar dan pasang roda', 'standard_price': 10000, 'sort_order': 70},
+      {'name': 'Cat rangka sepeda', 'category': 'Pengecatan', 'description': 'Jasa pengecatan rangka; bahan dan tingkat pengerjaan disesuaikan', 'standard_price': 150000, 'sort_order': 80},
+      {'name': 'Cat velg', 'category': 'Pengecatan', 'description': 'Jasa pengecatan velg', 'standard_price': 50000, 'sort_order': 90},
+      {'name': 'Cat garpu depan', 'category': 'Pengecatan', 'description': 'Jasa pengecatan garpu depan', 'standard_price': 40000, 'sort_order': 100},
+      {'name': 'Setel rem', 'category': 'Rem', 'description': 'Penyetelan rem depan atau belakang', 'standard_price': 15000, 'sort_order': 110},
+      {'name': 'Ganti kampas rem', 'category': 'Rem', 'description': 'Jasa pemasangan kampas rem; komponen dihitung terpisah', 'standard_price': 15000, 'sort_order': 120},
+      {'name': 'Setel operan gigi', 'category': 'Transmisi', 'description': 'Penyetelan perpindahan gigi', 'standard_price': 20000, 'sort_order': 130},
+      {'name': 'Cuci sepeda', 'category': 'Perawatan', 'description': 'Jasa pencucian sepeda', 'standard_price': 25000, 'sort_order': 140},
+      {'name': 'Servis ringan', 'category': 'Perawatan', 'description': 'Pemeriksaan dan penyetelan ringan', 'standard_price': 35000, 'sort_order': 150},
+      {'name': 'Servis lengkap', 'category': 'Perawatan', 'description': 'Pemeriksaan dan perawatan menyeluruh', 'standard_price': 75000, 'sort_order': 160},
+    ];
+
+    final now = DateTime.now().toIso8601String();
+    final batch = db.batch();
+    for (final service in services) {
+      batch.insert('service_catalog', {
+        ...service,
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      });
+    }
+    await batch.commit(noResult: true);
   }
 
   Future<void> close() async {
