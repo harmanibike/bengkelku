@@ -5,36 +5,64 @@ class AppTheme {
 
   static ThemeData get light {
     const primaryColor = Color(0xFF1565C0);
+    final baseTextTheme = ThemeData.light().textTheme;
 
     return ThemeData(
       useMaterial3: true,
+      visualDensity: VisualDensity.compact,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         brightness: Brightness.light,
       ),
       scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+      textTheme: baseTextTheme.copyWith(
+        titleLarge: baseTextTheme.titleLarge?.copyWith(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+        ),
+        titleMedium: baseTextTheme.titleMedium?.copyWith(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+        ),
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(fontSize: 14),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(fontSize: 13),
+        bodySmall: baseTextTheme.bodySmall?.copyWith(fontSize: 11),
+        labelLarge: baseTextTheme.labelLarge?.copyWith(fontSize: 13),
+        labelMedium: baseTextTheme.labelMedium?.copyWith(fontSize: 11),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         centerTitle: false,
         elevation: 0,
+        toolbarHeight: 54,
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 1,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 11,
+        ),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
         ),
       ),
