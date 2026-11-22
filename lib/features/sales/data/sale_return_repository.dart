@@ -199,8 +199,16 @@ class SaleReturnRepository {
           throw StateError('Produk untuk ${saleItem['product_name']} tidak ditemukan; retur dihentikan agar stok tidak salah.');
         }
         final product = productRows.first;
-        final tracksStock = (product['track_stock'] as int? ?? 1) == 1;
-        if (!tracksStock) continue;
+        final originalStockMovements = await txn.query(
+          'stock_movements',
+          columns: ['id'],
+          where: "reference_type = 'sale' AND reference_id = ? AND product_id = ? AND movement_type = 'out'",
+          whereArgs: [saleId, productId],
+          limit: 1,
+        );
+        // Gunakan jejak saat transaksi dibuat, bukan pengaturan stok produk saat ini.
+        // Ini tetap mengembalikan stok jika pelacakan stok produk diubah setelah penjualan.
+        if (originalStockMovements.isEmpty) continue;
 
         final originalAllocations = await txn.query(
           'sale_batch_allocations',
