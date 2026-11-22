@@ -484,6 +484,33 @@ class _ServiceListPageState extends State<ServiceListPage> {
             icon: const Icon(Icons.receipt_long_outlined),
             label: const Text('Nota / Bagikan'),
           ),
+          PopupMenuButton<String>(
+            tooltip: 'Dokumen servis',
+            onSelected: (value) => Navigator.pop(dialogContext, value),
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'service_intake_receipt',
+                child: Text('Bukti Penerimaan Sepeda'),
+              ),
+              if ((detail['remaining_payment'] as int? ?? 0) <= 0 &&
+                  status != 'cancelled')
+                const PopupMenuItem(
+                  value: 'service_final_payment_receipt',
+                  child: Text('Bukti Pelunasan'),
+                ),
+            ],
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.description_outlined, size: 18),
+                  SizedBox(width: 5),
+                  Text('Dokumen'),
+                ],
+              ),
+            ),
+          ),
           OutlinedButton.icon(
             onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
             icon: const Icon(Icons.edit_note_outlined),
@@ -508,6 +535,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
     if (!mounted) return;
     if (action == 'receipt') {
       await ReceiptShareLauncher.service(context, id);
+    } else if (action == 'service_intake_receipt') {
+      await ReceiptShareLauncher.serviceIntake(context, id);
+    } else if (action == 'service_final_payment_receipt') {
+      await ReceiptShareLauncher.serviceFinalPayment(context, id);
     } else if (action == 'receipt_history') {
       await ReceiptShareLauncher.showHistory(context, sourceType: 'service_order', sourceId: id);
     } else if (action == 'direct_costs') {
