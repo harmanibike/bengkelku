@@ -253,6 +253,88 @@ class _PurchasesPageState extends State<PurchasesPage> {
     cost.dispose();
   }
 
+  Future<void> _showDetails(Map<String, Object?> row) async {
+    final id = row['id'] as int;
+    final results = await Future.wait([
+      _purchases.getPurchaseItems(id),
+      _purchases.getPurchasePayments(id),
+    ]);
+    if (!mounted) return;
+    final items = results[0];
+    final payments = results[1];
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Faktur ${row['invoice_number']}'),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Pemasok: ${row['supplier_name'] ?? '-'}'),
+                const SizedBox(height: 8),
+                const Text('Barang dibeli', style: TextStyle(fontWeight: FontWeight.w600)),
+                ...items.map((item) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text('${item['product_name']} × ${item['quantity']}', style: const TextStyle(fontSize: 12))),
+                      Text(_money(item['subtotal']), style: const TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                )),
+                const Divider(),
+                _detailRow('Subtotal', row['subtotal']),
+                _detailRow('Diskon', row['discount']),
+                _detailRow('Total', row['total']),
+                _detailRow('Dibayar', row['paid']),
+                _detailRow('Sisa utang', (row['total'] as int? ?? 0) - (row['paid'] as int? ?? 0)),
+                const Divider(),
+                const Text('Riwayat pembayaran', style: TextStyle(fontWeight: FontWeight.w600)),
+                if (payments.isEmpty)
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 6), child: Text('Belum ada pembayaran.', style: TextStyle(fontSize: 12)))
+                else
+                  ...payments.map((payment) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text(payment['payment_date'] as String? ?? '-', style: const TextStyle(fontSize: 11))),
+                        Text(_money(payment['amount']), style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  )),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup')),
+          if ((row['total'] as int? ?? 0) > (row['paid'] as int? ?? 0))
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _addPayment(row);
+              },
+              child: const Text('Bayar Utang'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, Object? amount) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12)),
+        Text(_money(amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      ],
+    ),
+  );
+
   Future<void> _addPayment(Map<String, Object?> row) async {
     final total = row['total'] as int? ?? 0;
     final paid = row['paid'] as int? ?? 0;
@@ -344,6 +426,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           dense: true,
+                          onTap: () => _showDetails(row),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           leading: CircleAvatar(
                             radius: 19,
