@@ -160,12 +160,12 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
       _int(row['record_id']),
     );
     if (!mounted) return;
-    final date = last == null ? 'Belum pernah dibuka' : _date(last['sent_at']);
+    final date = last == null ? 'Belum pernah dibuka' : _date(last['opened_at']);
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Riwayat Pengingat'),
-        content: Text('Pengingat terakhir dibuka: $date\nNomor: ${last?['phone'] ?? '-'}'),
+        content: Text('WhatsApp terakhir dibuka: $date\nNomor: ${last?['phone'] ?? '-'}'),
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tutup'))],
       ),
     );
