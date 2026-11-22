@@ -66,7 +66,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Pilihan metode pembayaran tunai, transfer bank, QRIS, kartu debit, dan kartu kredit; metode aktif dapat diatur dan pilihan dicatat pada transaksi kasir.
 - [ ] Integrasi/verifikasi pembayaran digital otomatis, barcode scanner, harga grosir, diskon, pajak, dan pembayaran campuran.
 - [x] Retur penjualan dengan pembalikan stok, pengembalian dana, penyesuaian piutang, dan jejak audit.
-- [ ] Cetak struk dan berbagi bukti transaksi.
+- [ ] Cetak struk dan berbagi bukti transaksi (belum ada alur cetak fisik/PDF/berbagi yang terintegrasi).
 
 ## 6. Produk dan inventaris
 
@@ -78,7 +78,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Halaman Audit Stok dengan pencarian, filter masuk/keluar, sumber transaksi, waktu, dan perubahan stok.
 - [x] Peringatan/indikator stok menipis yang tersedia pada modul produk.
 - [ ] Arsip produk dan penghapusan aman dengan perlindungan riwayat transaksi.
-- [x] Harga bertingkat per produk: nama tingkat, minimal kuantitas, harga per unit, status aktif/nonaktif, dan pemilihan otomatis di kasir berdasarkan jumlah dalam satu baris.
+- [ ] Harga bertingkat per produk: nama tingkat, minimal kuantitas, harga per unit, status aktif/nonaktif, dan pemilihan otomatis di kasir berdasarkan jumlah dalam satu baris.
 - [x] Stok opname: snapshot stok, input hitung fisik, validasi perubahan stok selama penghitungan, penerapan selisih, dan audit pergerakan stok.
 - [x] Retur penjualan dengan pengembalian stok dan pencatatan retur.
 - [ ] Cetak label harga dan barcode.
