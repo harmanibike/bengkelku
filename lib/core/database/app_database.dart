@@ -610,6 +610,15 @@ class AppDatabase {
       ''');
       await db.execute('CREATE INDEX idx_return_credit_applications_return ON supplier_return_credit_applications(return_id, created_at)');
       await db.execute('CREATE INDEX idx_return_credit_applications_purchase ON supplier_return_credit_applications(purchase_id, created_at)');
+      await db.execute('''
+        INSERT INTO supplier_return_credit_applications
+          (return_id, purchase_id, supplier_id, amount, created_at)
+        SELECT pr.id, p.id, p.supplier_id, pr.credit_applied,
+          COALESCE(pr.created_at, CURRENT_TIMESTAMP)
+        FROM purchase_returns pr
+        JOIN purchases p ON p.id = pr.purchase_id
+        WHERE pr.credit_applied > 0 AND p.supplier_id IS NOT NULL
+      ''');
     }
 
 
