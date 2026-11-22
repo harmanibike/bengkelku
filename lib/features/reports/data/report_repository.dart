@@ -21,7 +21,9 @@ class ReportRepository {
 
     final sales = await db.rawQuery('''
       SELECT COUNT(*) AS total, COALESCE(SUM(total), 0) AS amount
-      FROM sales WHERE transaction_date >= ? AND transaction_date < ?
+      FROM sales
+      WHERE transaction_date >= ? AND transaction_date < ?
+        AND COALESCE(payment_status, 'paid') != 'cancelled'
     ''', [from, until]);
 
     final services = await db.rawQuery('''
