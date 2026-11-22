@@ -11,8 +11,8 @@ Future<void> main() async {
 
   // Area navigasi Android dibuat solid agar tombol Home/gesture tidak transparan.
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    systemNavigationBarColor: Color(0xFFF4F5F8),
-    systemNavigationBarDividerColor: Color(0xFFF4F5F8),
+    systemNavigationBarColor: Colors.white,
+    systemNavigationBarDividerColor: Colors.white,
     systemNavigationBarIconBrightness: Brightness.dark,
     systemNavigationBarContrastEnforced: false,
   ));
