@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../data/sale_repository.dart';
 import '../../customers/data/customer_repository.dart';
+import '../../settings/data/payment_methods_repository.dart';
 
 class CashierPage extends StatefulWidget {
   const CashierPage({super.key});
@@ -16,6 +17,8 @@ class CashierPage extends StatefulWidget {
 class _CashierPageState extends State<CashierPage> {
   final SaleRepository _repository = SaleRepository();
   final CustomerRepository _customerRepository = CustomerRepository();
+  final PaymentMethodsRepository _paymentMethodsRepository = PaymentMethodsRepository();
+  List<Map<String, String>> _paymentMethods = PaymentMethodsRepository.defaultMethods.map(Map<String, String>.from).toList();
   final TextEditingController _search = TextEditingController();
   final TextEditingController _paid = TextEditingController();
   List<Map<String, Object?>> _products = [];
@@ -30,6 +33,7 @@ class _CashierPageState extends State<CashierPage> {
   void initState() {
     super.initState();
     _loadProducts();
+    _loadPaymentMethods();
   }
 
   @override
@@ -47,6 +51,16 @@ class _CashierPageState extends State<CashierPage> {
       buffer.write(digits[i]);
     }
     return 'Rp$buffer';
+  }
+
+  Future<void> _loadPaymentMethods() async {
+    try {
+      final methods = await _paymentMethodsRepository.getMethods();
+      if (!mounted) return;
+      setState(() => _paymentMethods = methods);
+    } catch (_) {
+      // Metode default tetap tersedia jika pengaturan belum dapat dibaca.
+    }
   }
 
   Future<void> _loadProducts() async {
@@ -136,31 +150,54 @@ class _CashierPageState extends State<CashierPage> {
     _paid.text = _total.toString();
     final paymentController = TextEditingController(text: _paid.text);
     try {
-      final confirmed = await showDialog<bool>(
+      var selectedPaymentMethod = _paymentMethods.any((method) => method['code'] == 'cash')
+          ? 'cash'
+          : _paymentMethods.first['code']!;
+      final confirmedMethod = await showDialog<String>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Pembayaran'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Total: ${_rupiah(_total)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              const SizedBox(height: 8),
-              TextField(
-                controller: paymentController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(labelText: 'Uang diterima (Rp)', border: OutlineInputBorder()),
-              ),
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
+            title: const Text('Pembayaran'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Total: ${_rupiah(_total)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: selectedPaymentMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Metode pembayaran',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: _paymentMethods.map((method) => DropdownMenuItem(
+                    value: method['code'],
+                    child: Text(method['name']!),
+                  )).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => selectedPaymentMethod = value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: paymentController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(labelText: 'Uang diterima (Rp)', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, selectedPaymentMethod), child: const Text('Lanjut')),
             ],
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Bayar')),
-          ],
         ),
       );
-      if (confirmed != true || !mounted) return;
+      if (confirmedMethod == null || !mounted) return;
       final paid = int.tryParse(paymentController.text) ?? 0;
       int? customerId;
       if (paid < _total) {
@@ -175,6 +212,7 @@ class _CashierPageState extends State<CashierPage> {
           'unit_price': item['unit_price'],
         }).toList(),
         paid: paid,
+        paymentMethod: confirmedMethod,
         customerId: customerId,
       );
       if (!mounted) return;
