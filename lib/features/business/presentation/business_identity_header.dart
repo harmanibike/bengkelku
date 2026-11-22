@@ -67,6 +67,18 @@ class BusinessIdentityHeader extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if ((profile['business_footer_note'] ?? '').trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Text(
+                          profile['business_footer_note']!.trim(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
