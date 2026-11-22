@@ -457,6 +457,36 @@ class AppDatabase {
     batch.execute('CREATE INDEX idx_sale_return_items_sale_item ON sale_return_items(sale_item_id)');
     batch.execute('CREATE INDEX idx_sale_return_batch_alloc_item ON sale_return_batch_allocations(sale_return_item_id)');
 
+
+    // Sesi dan rincian stok opname untuk instalasi baru.
+    batch.execute('''
+      CREATE TABLE stock_opname_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        opname_number TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'draft',
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        applied_at TEXT
+      )
+    ''');
+    batch.execute('''
+      CREATE TABLE stock_opname_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER NOT NULL,
+        product_id INTEGER,
+        product_name TEXT NOT NULL,
+        sku TEXT,
+        unit TEXT NOT NULL DEFAULT 'pcs',
+        system_quantity INTEGER NOT NULL DEFAULT 0,
+        counted_quantity INTEGER,
+        variance INTEGER,
+        counted_at TEXT,
+        FOREIGN KEY (session_id) REFERENCES stock_opname_sessions(id) ON DELETE RESTRICT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_stock_opname_items_session ON stock_opname_items(session_id, product_name)');
+
     // Kas masuk dan keluar.
     batch.execute('''
       CREATE TABLE cash_transactions (
@@ -914,6 +944,38 @@ class AppDatabase {
       await db.execute('CREATE INDEX idx_sale_return_items_sale_item ON sale_return_items(sale_item_id)');
       await db.execute('CREATE INDEX idx_sale_return_batch_alloc_item ON sale_return_batch_allocations(sale_return_item_id)');
     }
+
+    // Stok opname: menambah tabel sesi dan snapshot produk secara aditif.
+    if (oldVersion < 15) {
+      await db.execute('''
+        CREATE TABLE stock_opname_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          opname_number TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL DEFAULT 'draft',
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          applied_at TEXT
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE stock_opname_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_id INTEGER NOT NULL,
+          product_id INTEGER,
+          product_name TEXT NOT NULL,
+          sku TEXT,
+          unit TEXT NOT NULL DEFAULT 'pcs',
+          system_quantity INTEGER NOT NULL DEFAULT 0,
+          counted_quantity INTEGER,
+          variance INTEGER,
+          counted_at TEXT,
+          FOREIGN KEY (session_id) REFERENCES stock_opname_sessions(id) ON DELETE RESTRICT,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_stock_opname_items_session ON stock_opname_items(session_id, product_name)');
+    }
+
   }
 
 
