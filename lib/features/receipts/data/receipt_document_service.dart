@@ -58,7 +58,9 @@ class ReceiptDocumentService {
 
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
-      build: (context) => pw.Column(
+      build: (context) => pw.Container(
+        color: PdfColors.white,
+        child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _header(profile, logo),
@@ -107,7 +109,7 @@ class ReceiptDocumentService {
           pw.SizedBox(height: 12),
           _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih atas kunjungan Anda.' : _text(profile['business_footer_note']), size: 8),
         ],
-      ),
+      )),
     ));
     return doc.save();
   }
@@ -130,7 +132,9 @@ class ReceiptDocumentService {
 
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
-      build: (context) => pw.Column(
+      build: (context) => pw.Container(
+        color: PdfColors.white,
+        child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _header(profile, logo),
@@ -169,7 +173,7 @@ class ReceiptDocumentService {
           pw.SizedBox(height: 12),
           _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : _text(profile['business_footer_note']), size: 8),
         ],
-      ),
+      )),
     ));
     return doc.save();
   }
@@ -189,7 +193,9 @@ class ReceiptDocumentService {
     final height = 440.0 + (_text(service['notes']).isNotEmpty ? 35 : 0);
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
-      build: (context) => pw.Column(
+      build: (context) => pw.Container(
+        color: PdfColors.white,
+        child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _header(profile, logo),
@@ -231,7 +237,7 @@ class ReceiptDocumentService {
               ? 'Simpan dokumen ini untuk pengambilan sepeda.'
               : _text(profile['business_footer_note']), size: 8),
         ],
-      ),
+      )),
     ));
     return doc.save();
   }
@@ -253,7 +259,9 @@ class ReceiptDocumentService {
     ].where((part) => part.isNotEmpty).join(' ');
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
-      build: (context) => pw.Column(
+      build: (context) => pw.Container(
+        color: PdfColors.white,
+        child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _header(profile, logo),
@@ -285,7 +293,7 @@ class ReceiptDocumentService {
           pw.SizedBox(height: 10),
           _center(_text(profile['business_footer_note']), size: 8),
         ],
-      ),
+      )),
     ));
     return doc.save();
   }
