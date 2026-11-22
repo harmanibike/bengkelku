@@ -348,7 +348,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                                   style: const TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 subtitle: Text(
-                                  '${_dateLabel(sale['transaction_date'])}\n${_statusLabel(status)}',
+                                  '${_dateLabel(sale['transaction_date'])}\n${_statusLabel(status)}${remaining > 0 && !cancelled ? '\nSisa: ${_rupiah(remaining)}' : ''}',
                                 ),
                                 isThreeLine: true,
                                 trailing: Text(
