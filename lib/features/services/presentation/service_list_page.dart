@@ -2,6 +2,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../data/service_repository.dart';
+import '../../business/data/business_profile_repository.dart';
+import '../../business/presentation/business_identity_header.dart';
 import 'service_intake_page.dart';
 import 'service_photo_helper.dart';
 
@@ -244,6 +246,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
     final status = detail['service_status']?.toString() ?? 'waiting';
     final statusHistory = await _repository.getServiceStatusHistory(id);
+    final businessProfile = await BusinessProfileRepository().getProfile();
     if (!mounted) return;
     final action = await showDialog<String>(
       context: context,
@@ -256,6 +259,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                BusinessIdentityHeader(profile: businessProfile),
                 _detailLine('Pelanggan', detail['customer_name']),
                 _detailLine('Telepon', detail['customer_phone']),
                 _detailLine(
