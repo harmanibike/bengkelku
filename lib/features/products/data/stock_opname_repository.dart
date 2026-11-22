@@ -87,6 +87,10 @@ class StockOpnameRepository {
           throw StateError('Produk ${item['product_name']} tidak lagi melacak stok.');
         }
         final before = product.first['stock'] as int? ?? 0;
+        final snapshotStock = item['system_quantity'] as int? ?? 0;
+        if (before != snapshotStock) {
+          throw StateError('Stok ${item['product_name']} berubah sejak sesi dibuat (awal $snapshotStock, sekarang $before). Buat sesi opname baru agar transaksi selama penghitungan tidak tertimpa.');
+        }
         final counted = item['counted_quantity'] as int;
         final delta = counted-before;
         if (delta == 0) continue;
