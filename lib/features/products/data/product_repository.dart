@@ -43,6 +43,7 @@ class ProductRepository {
     int minimumStock = 0,
     bool trackStock = true,
     String? description,
+    String? imagePath,
   }) async {
     final db = await _db;
     return db.transaction((txn) async {
@@ -60,6 +61,7 @@ class ProductRepository {
         'minimum_stock': minimumStock,
         'track_stock': trackStock ? 1 : 0,
         'description': _nullable(description),
+        'image_path': _nullable(imagePath),
         'is_active': 1,
       });
       if (trackStock && initialStock > 0) {
@@ -92,6 +94,7 @@ class ProductRepository {
     int minimumStock = 0,
     bool trackStock = true,
     String? description,
+    String? imagePath,
   }) async {
     final db = await _db;
     return db.update('products', {
@@ -107,6 +110,7 @@ class ProductRepository {
       'minimum_stock': minimumStock,
       'track_stock': trackStock ? 1 : 0,
       'description': _nullable(description),
+      'image_path': _nullable(imagePath),
       'updated_at': DateTime.now().toIso8601String(),
     }, where: 'id = ?', whereArgs: [id]);
   }
