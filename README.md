@@ -102,6 +102,7 @@ Dokumen ini menjadi acuan resmi pengembangan BengkelKu POS. Status fitur harus d
 - [ ] Pencatatan pembelian barang.
 - [ ] Penambahan stok otomatis.
 - [ ] Harga beli dan diskon pembelian.
+- [ ] Pengaturan metode update harga beli: rata-rata tertimbang, harga akhir, manual, dan per batch (FIFO), termasuk riwayat sisa batch.
 - [ ] Pembayaran pemasok dan utang pembelian.
 - [ ] Pelunasan utang.
 - [ ] Retur kepada pemasok.
