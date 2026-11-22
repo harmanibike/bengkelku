@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 13;
+  static const int _databaseVersion = 14;
 
   Database? _database;
 
@@ -816,6 +816,56 @@ class AppDatabase {
     // Tidak menimpa jasa yang sudah dibuat atau diubah oleh pengguna.
     if (oldVersion < 13) {
       await _seedDefaultServiceCatalog(db);
+    }
+
+    // Retur penjualan: catatan retur, item retur, dan pengembalian batch FIFO.
+    // Migrasi bersifat aditif dan tidak mengubah transaksi lama.
+    if (oldVersion < 14) {
+      await db.execute('''
+        CREATE TABLE sale_returns (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sale_id INTEGER NOT NULL,
+          return_number TEXT NOT NULL UNIQUE,
+          total_amount INTEGER NOT NULL DEFAULT 0 CHECK(total_amount >= 0),
+          refunded_amount INTEGER NOT NULL DEFAULT 0 CHECK(refunded_amount >= 0),
+          notes TEXT,
+          return_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE sale_return_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sale_return_id INTEGER NOT NULL,
+          sale_item_id INTEGER NOT NULL,
+          product_id INTEGER,
+          product_name TEXT NOT NULL,
+          quantity INTEGER NOT NULL CHECK(quantity > 0),
+          unit_price INTEGER NOT NULL DEFAULT 0,
+          unit_cost INTEGER NOT NULL DEFAULT 0,
+          subtotal INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (sale_return_id) REFERENCES sale_returns(id) ON DELETE RESTRICT,
+          FOREIGN KEY (sale_item_id) REFERENCES sale_items(id) ON DELETE RESTRICT,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE sale_return_batch_allocations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sale_return_item_id INTEGER NOT NULL,
+          batch_id INTEGER NOT NULL,
+          quantity INTEGER NOT NULL CHECK(quantity > 0),
+          unit_cost INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (sale_return_item_id) REFERENCES sale_return_items(id) ON DELETE RESTRICT,
+          FOREIGN KEY (batch_id) REFERENCES inventory_cost_batches(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_sale_returns_sale ON sale_returns(sale_id, return_date, id)');
+      await db.execute('CREATE INDEX idx_sale_return_items_return ON sale_return_items(sale_return_id)');
+      await db.execute('CREATE INDEX idx_sale_return_items_sale_item ON sale_return_items(sale_item_id)');
+      await db.execute('CREATE INDEX idx_sale_return_batch_alloc_item ON sale_return_batch_allocations(sale_return_item_id)');
     }
   }
 
