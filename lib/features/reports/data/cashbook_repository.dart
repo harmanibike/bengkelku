@@ -15,12 +15,12 @@ class CashbookRepository {
     final until = end.toIso8601String();
     final openingRows = await db.rawQuery('''
       SELECT COALESCE(SUM(CASE WHEN transaction_type='income' THEN amount ELSE -amount END),0) AS balance
-      FROM cash_transactions WHERE transaction_date < ?
+      FROM cash_transactions WHERE datetime(transaction_date) < datetime(?)
     ''', [from]);
     final rows = await db.rawQuery('''
       SELECT * FROM cash_transactions
-      WHERE transaction_date >= ? AND transaction_date < ?
-      ORDER BY transaction_date ASC, id ASC
+      WHERE datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
+      ORDER BY datetime(transaction_date) ASC, id ASC
     ''', [from, until]);
     var balance = (openingRows.first['balance'] as num?)?.toInt() ?? 0;
     var income = 0;
