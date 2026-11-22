@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 9;
+  static const int _databaseVersion = 10;
 
   Database? _database;
 
@@ -354,6 +354,40 @@ class AppDatabase {
       )
     ''');
 
+    batch.execute('''
+      CREATE TABLE inventory_cost_batches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        purchase_id INTEGER,
+        purchase_item_id INTEGER,
+        batch_code TEXT,
+        quantity_received INTEGER NOT NULL,
+        quantity_remaining INTEGER NOT NULL,
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        notes TEXT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE SET NULL,
+        FOREIGN KEY (purchase_item_id) REFERENCES purchase_items(id) ON DELETE SET NULL
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_inventory_cost_batches_product ON inventory_cost_batches(product_id, received_at, id)');
+    batch.execute('''
+      CREATE TABLE sale_batch_allocations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sale_id INTEGER NOT NULL,
+        sale_item_id INTEGER NOT NULL,
+        batch_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL CHECK(quantity > 0),
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+        FOREIGN KEY (sale_item_id) REFERENCES sale_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (batch_id) REFERENCES inventory_cost_batches(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_sale_batch_allocations_sale ON sale_batch_allocations(sale_id, sale_item_id)');
+
     // Kas masuk dan keluar.
     batch.execute('''
       CREATE TABLE cash_transactions (
@@ -591,6 +625,53 @@ class AppDatabase {
       await db.execute("ALTER TABLE purchases ADD COLUMN return_credit INTEGER NOT NULL DEFAULT 0");
       await db.execute("ALTER TABLE purchase_returns ADD COLUMN credit_applied INTEGER NOT NULL DEFAULT 0");
       await db.execute("ALTER TABLE purchase_returns ADD COLUMN refund_received INTEGER NOT NULL DEFAULT 0");
+    }
+
+    // Metode harga pokok dan pelacakan biaya persediaan per batch.
+    if (oldVersion < 10) {
+      await db.execute('''
+        CREATE TABLE inventory_cost_batches (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          product_id INTEGER NOT NULL,
+          purchase_id INTEGER,
+          purchase_item_id INTEGER,
+          batch_code TEXT,
+          quantity_received INTEGER NOT NULL,
+          quantity_remaining INTEGER NOT NULL,
+          unit_cost INTEGER NOT NULL DEFAULT 0,
+          received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          notes TEXT,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
+          FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE SET NULL,
+          FOREIGN KEY (purchase_item_id) REFERENCES purchase_items(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_inventory_cost_batches_product ON inventory_cost_batches(product_id, received_at, id)');
+      await db.execute('''
+        CREATE TABLE sale_batch_allocations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sale_id INTEGER NOT NULL,
+          sale_item_id INTEGER NOT NULL,
+          batch_id INTEGER NOT NULL,
+          quantity INTEGER NOT NULL CHECK(quantity > 0),
+          unit_cost INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+          FOREIGN KEY (sale_item_id) REFERENCES sale_items(id) ON DELETE CASCADE,
+          FOREIGN KEY (batch_id) REFERENCES inventory_cost_batches(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_sale_batch_allocations_sale ON sale_batch_allocations(sale_id, sale_item_id)');
+      // Stok yang sudah ada dicatat sebagai batch saldo awal agar dapat
+      // dipakai metode per batch tanpa mengubah kuantitas stok saat ini.
+      await db.execute('''
+        INSERT INTO inventory_cost_batches
+          (product_id, batch_code, quantity_received, quantity_remaining, unit_cost, received_at, notes)
+        SELECT id, 'OPENING-' || id, stock, stock, purchase_price,
+          COALESCE(created_at, CURRENT_TIMESTAMP), 'Saldo stok sebelum fitur batch'
+        FROM products
+        WHERE track_stock = 1 AND stock > 0
+      ''');
     }
 
     // Buku pemakaian kredit retur lintas faktur pemasok.
