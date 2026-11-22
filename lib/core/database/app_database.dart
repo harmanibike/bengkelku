@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 3;
 
   Database? _database;
 
@@ -313,6 +313,11 @@ class AppDatabase {
         ALTER TABLE service_orders
         ADD COLUMN after_photo_path TEXT
       ''');
+    }
+
+    // Tambahkan lokasi foto produk tanpa mengubah atau menghapus data lama.
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE products ADD COLUMN image_path TEXT');
     }
   }
 
