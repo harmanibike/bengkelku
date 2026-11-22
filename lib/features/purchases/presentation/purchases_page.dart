@@ -1,0 +1,383 @@
+import 'package:material_ui/material_ui.dart';
+
+import '../../products/data/product_repository.dart';
+import '../data/purchase_repository.dart';
+import '../data/supplier_repository.dart';
+
+class PurchasesPage extends StatefulWidget {
+  const PurchasesPage({super.key});
+
+  @override
+  State<PurchasesPage> createState() => _PurchasesPageState();
+}
+
+class _PurchasesPageState extends State<PurchasesPage> {
+  final _purchases = PurchaseRepository();
+  final _suppliers = SupplierRepository();
+  final _products = ProductRepository();
+  final _search = TextEditingController();
+  late Future<List<Map<String, Object?>>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _purchases.getPurchases();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  String _money(Object? value) {
+    final amount = value is num ? value.toInt() : 0;
+    final digits = amount.toString();
+    final out = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) out.write('.');
+      out.write(digits[i]);
+    }
+    return 'Rp$out';
+  }
+
+  Future<void> _reload() async {
+    final next = _purchases.getPurchases(keyword: _search.text);
+    setState(() => _future = next);
+    await next;
+  }
+
+  Future<void> _createPurchase() async {
+    final suppliers = await _suppliers.getSuppliers();
+    final products = await _products.getProducts();
+    if (!mounted) return;
+    if (suppliers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tambahkan data pemasok terlebih dahulu.')),
+      );
+      return;
+    }
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tambahkan produk terlebih dahulu.')),
+      );
+      return;
+    }
+    final invoice = TextEditingController(text: 'PB-${DateTime.now().millisecondsSinceEpoch}');
+    final discount = TextEditingController(text: '0');
+    final payment = TextEditingController(text: '0');
+    final notes = TextEditingController();
+    int? supplierId = suppliers.first['id'] as int;
+    int? productId = products.first['id'] as int;
+    final qty = TextEditingController(text: '1');
+    final cost = TextEditingController(text: (products.first['purchase_price'] as int? ?? 0).toString());
+    final items = <Map<String, Object?>>[];
+    String? errorText;
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final totalItems = items.fold<int>(0, (sum, item) => sum + (item['subtotal'] as int));
+          final grandTotal = totalItems - (int.tryParse(discount.text) ?? 0);
+          return AlertDialog(
+            title: const Text('Pembelian Baru'),
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(controller: invoice, decoration: const InputDecoration(labelText: 'Nomor faktur *')),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      value: supplierId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Pemasok *'),
+                      items: suppliers.map((s) => DropdownMenuItem<int>(
+                        value: s['id'] as int,
+                        child: Text(s['name'] as String? ?? '-'),
+                      )).toList(),
+                      onChanged: (v) => setDialogState(() => supplierId = v),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Tambah barang', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    DropdownButtonFormField<int>(
+                      value: productId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Produk'),
+                      items: products.map((p) => DropdownMenuItem<int>(
+                        value: p['id'] as int,
+                        child: Text(p['name'] as String? ?? '-', overflow: TextOverflow.ellipsis),
+                      )).toList(),
+                      onChanged: (v) {
+                        setDialogState(() {
+                          productId = v;
+                          final selected = products.firstWhere((p) => p['id'] == v);
+                          cost.text = (selected['purchase_price'] as int? ?? 0).toString();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: qty, keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Jumlah'))),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(controller: cost, keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Harga beli'))),
+                        IconButton(
+                          tooltip: 'Tambahkan barang',
+                          onPressed: () {
+                            final product = products.firstWhere((p) => p['id'] == productId);
+                            final q = int.tryParse(qty.text) ?? 0;
+                            final price = int.tryParse(cost.text) ?? -1;
+                            if (q <= 0 || price < 0) {
+                              setDialogState(() => errorText = 'Jumlah dan harga beli harus valid.');
+                              return;
+                            }
+                            final existing = items.indexWhere((i) => i['product_id'] == productId);
+                            if (existing >= 0) {
+                              final old = items[existing];
+                              final nextQty = (old['quantity'] as int) + q;
+                              old['quantity'] = nextQty;
+                              old['unit_cost'] = price;
+                              old['subtotal'] = nextQty * price;
+                            } else {
+                              items.add({
+                                'product_id': productId,
+                                'product_name': product['name'] as String,
+                                'quantity': q,
+                                'unit_cost': price,
+                                'discount': 0,
+                                'subtotal': q * price,
+                              });
+                            }
+                            errorText = null;
+                            setDialogState(() {});
+                          },
+                          icon: const Icon(Icons.add_circle_outline),
+                        ),
+                      ],
+                    ),
+                    if (items.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      ...items.asMap().entries.map((entry) {
+                        final item = entry.value;
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(item['product_name'] as String, style: const TextStyle(fontSize: 13)),
+                          subtitle: Text('${item['quantity']} × ${_money(item['unit_cost'])}'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_money(item['subtotal'])),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => setDialogState(() => items.removeAt(entry.key)),
+                                icon: const Icon(Icons.close, size: 18),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    const Divider(),
+                    TextField(controller: discount, keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Diskon pembelian')),
+                    const SizedBox(height: 8),
+                    Text('Total: ${_money(grandTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    TextField(controller: payment, keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Pembayaran awal')),
+                    const SizedBox(height: 8),
+                    TextField(controller: notes, maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Catatan')),
+                    if (errorText != null)
+                      Padding(padding: const EdgeInsets.only(top: 8),
+                        child: Text(errorText!, style: const TextStyle(color: Colors.red, fontSize: 12))),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+              FilledButton(
+                onPressed: () {
+                  final d = int.tryParse(discount.text) ?? -1;
+                  final paid = int.tryParse(payment.text) ?? -1;
+                  if (invoice.text.trim().isEmpty || supplierId == null || items.isEmpty ||
+                      d < 0 || paid < 0 || d > totalItems || paid > totalItems - d) {
+                    setDialogState(() => errorText = 'Periksa faktur, barang, diskon, dan pembayaran.');
+                    return;
+                  }
+                  Navigator.pop(dialogContext, true);
+                },
+                child: const Text('Simpan Pembelian'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (saved == true && mounted) {
+      try {
+        await _purchases.createPurchase(
+          invoiceNumber: invoice.text,
+          supplierId: supplierId!,
+          items: items,
+          discount: int.parse(discount.text),
+          initialPayment: int.parse(payment.text),
+          paymentMethod: 'Tunai',
+          notes: notes.text,
+        );
+        await _reload();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pembelian berhasil disimpan dan stok diperbarui.')),
+        );
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan pembelian: $e')),
+        );
+      }
+    }
+    invoice.dispose();
+    discount.dispose();
+    payment.dispose();
+    notes.dispose();
+    qty.dispose();
+    cost.dispose();
+  }
+
+  Future<void> _addPayment(Map<String, Object?> row) async {
+    final total = row['total'] as int? ?? 0;
+    final paid = row['paid'] as int? ?? 0;
+    final remaining = total - paid;
+    final amount = TextEditingController(text: remaining.toString());
+    final value = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bayar Utang Pemasok'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Faktur: ${row['invoice_number']}'),
+            Text('Sisa utang: ${_money(remaining)}'),
+            const SizedBox(height: 8),
+            TextField(controller: amount, keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Jumlah pembayaran')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+          FilledButton(onPressed: () {
+            final n = int.tryParse(amount.text) ?? 0;
+            if (n > 0 && n <= remaining) Navigator.pop(dialogContext, n);
+          }, child: const Text('Simpan')),
+        ],
+      ),
+    );
+    if (value != null && mounted) {
+      try {
+        await _purchases.addPayment(purchaseId: row['id'] as int, amount: value, paymentMethod: 'Tunai');
+        await _reload();
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Pembayaran gagal: $e')));
+      }
+    }
+    amount.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pembelian Barang'),
+        actions: [IconButton(onPressed: _reload, icon: const Icon(Icons.refresh))],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _createPurchase,
+        icon: const Icon(Icons.add_shopping_cart),
+        label: const Text('Pembelian'),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            child: TextField(
+              controller: _search,
+              onChanged: (_) => _reload(),
+              decoration: InputDecoration(
+                hintText: 'Cari faktur atau pemasok',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                isDense: true,
+              ),
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<Map<String, Object?>>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) return Center(child: Text('Gagal memuat pembelian: ${snapshot.error}'));
+                final rows = snapshot.data ?? [];
+                if (rows.isEmpty) return const Center(child: Text('Belum ada transaksi pembelian.'));
+                return RefreshIndicator(
+                  onRefresh: _reload,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
+                    itemCount: rows.length,
+                    itemBuilder: (context, index) {
+                      final row = rows[index];
+                      final total = row['total'] as int? ?? 0;
+                      final paid = row['paid'] as int? ?? 0;
+                      final remaining = total - paid;
+                      final status = row['payment_status'] as String? ?? 'unpaid';
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          dense: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          leading: CircleAvatar(
+                            radius: 19,
+                            backgroundColor: const Color(0xFFE8EEFF),
+                            child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF3157B7), size: 20),
+                          ),
+                          title: Text(row['invoice_number'] as String? ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          subtitle: Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Text('${row['supplier_name'] ?? 'Pemasok'} • Dibayar ${_money(paid)} • Sisa ${_money(remaining)}',
+                              maxLines: 2, style: const TextStyle(fontSize: 11)),
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(_money(total), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              Text(status == 'paid' ? 'Lunas' : status == 'partial' ? 'Sebagian' : 'Belum lunas',
+                                style: TextStyle(fontSize: 10, color: status == 'paid' ? Colors.green : Colors.orange)),
+                              if (remaining > 0)
+                                InkWell(onTap: () => _addPayment(row),
+                                  child: const Text('Bayar', style: TextStyle(fontSize: 11, color: Color(0xFF3157B7), fontWeight: FontWeight.w600))),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
