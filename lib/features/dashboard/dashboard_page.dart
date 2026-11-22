@@ -231,136 +231,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _shopCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: Color(0xFFE9E9EF)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8EAF6),
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: const Icon(Icons.storefront_rounded, color: Color(0xFF5C6BC0), size: 24),
-            ),
-            const SizedBox(width: 10),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  SizedBox(height: 2),
-                  Text('Kelola servis, produk, dan transaksi', style: TextStyle(color: Colors.grey, fontSize: 10)),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: Colors.grey),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _cashCard(AsyncSnapshot<Map<String, Object?>> snapshot) {
-    final data = snapshot.data;
-    final loading = snapshot.connectionState == ConnectionState.waiting;
-    final failed = snapshot.hasError;
-    final income = loading ? 'Memuat…' : failed ? '--' : _rupiah(_number(data, 'income'));
-    final expense = loading ? '--' : failed ? '--' : _rupiah(_number(data, 'expense'));
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(11),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6200EA), Color(0xFF9C27B0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(17),
-        boxShadow: [
-          BoxShadow(color: const Color(0xFF7B1FA2).withValues(alpha: 0.22), blurRadius: 15, offset: const Offset(0, 7)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), shape: BoxShape.circle),
-            child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 26),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Kas Masuk Hari Ini', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                const SizedBox(height: 4),
-                Text(income, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 5),
-                Text('Pengeluaran: $expense', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              ],
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Colors.white, size: 30),
-        ],
-      ),
-    );
-  }
-
-  Widget _startCashierCard() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: _openCashier,
-        borderRadius: BorderRadius.circular(22),
-        child: Ink(
-          width: double.infinity,
-          padding: const EdgeInsets.all(11),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(color: const Color(0xFF9C27B0).withValues(alpha: 0.18), blurRadius: 12, offset: const Offset(0, 5)),
-            ],
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 19,
-                backgroundColor: Color(0x33FFFFFF),
-                child: Icon(Icons.point_of_sale_rounded, color: Colors.white, size: 29),
-              ),
-              SizedBox(height: 9),
-              Text('Mulai Transaksi', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              SizedBox(height: 3),
-              Row(
-                children: [
-                  Text('Buka Kasir', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                  Spacer(),
-                  Icon(Icons.arrow_forward_rounded, color: Colors.white),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _statCard({
     required String title,
     required String value,
@@ -369,7 +239,7 @@ class _DashboardPageState extends State<DashboardPage> {
     required List<Color> colors,
   }) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(14),
@@ -380,19 +250,19 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white, size: 23),
+            child: Icon(icon, color: Colors.white, size: 29),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                Text(title, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(value, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (suffix.isNotEmpty)
                   Text(suffix, style: const TextStyle(color: Colors.white70, fontSize: 9)),
               ],
@@ -422,7 +292,7 @@ class _DashboardPageState extends State<DashboardPage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final columns = constraints.maxWidth >= 560 ? 3 : 2;
-            final ratio = constraints.maxWidth >= 380 ? 2.15 : 1.9;
+            final ratio = constraints.maxWidth >= 380 ? 1.95 : 1.75;
             return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
@@ -464,8 +334,8 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         children: [
           Container(
-            width: 54,
-            height: 54,
+            width: 76,
+            height: 76,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(14),
@@ -473,10 +343,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 BoxShadow(color: colors.first.withValues(alpha: 0.2), blurRadius: 9, offset: const Offset(0, 4)),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 22),
+            child: Icon(icon, color: Colors.white, size: 32),
           ),
-          const SizedBox(height: 3),
-          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, height: 1.12, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
+          const SizedBox(height: 5),
+          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, height: 1.12, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
         ],
       ),
     );
@@ -491,7 +361,7 @@ class _DashboardPageState extends State<DashboardPage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final columns = constraints.maxWidth >= 560 ? 4 : 3;
-            final ratio = constraints.maxWidth >= 560 ? 1.12 : 1.18;
+            final ratio = constraints.maxWidth >= 560 ? 1.05 : 1.02;
             return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
@@ -549,19 +419,13 @@ class _DashboardPageState extends State<DashboardPage> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(10, 9, 10, 14),
+                        padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
                         sliver: SliverList(
                           delegate: SliverChildListDelegate([
-                            _shopCard(),
-                            const SizedBox(height: 10),
-                            _cashCard(snapshot),
-                            const SizedBox(height: 10),
-                            _startCashierCard(),
-                            const SizedBox(height: 12),
                             _summary(snapshot),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 16),
                             _menu(),
-                          ]),
+                          ])
                         ),
                       ),
                     ],
