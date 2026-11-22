@@ -2,6 +2,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../data/customer_repository.dart';
+import '../../receivables/presentation/receivables_page.dart';
 
 class CustomerListPage extends StatefulWidget {
   const CustomerListPage({super.key});
@@ -339,6 +340,19 @@ class _CustomerListPageState extends State<CustomerListPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Data Pelanggan'),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ReceivablesPage()),
+              );
+            },
+            icon: const Icon(Icons.notifications_active_outlined),
+            label: const Text('Piutang'),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: Column(
         children: [
