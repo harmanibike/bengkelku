@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 11;
+  static const int _databaseVersion = 12;
 
   Database? _database;
 
@@ -440,6 +440,36 @@ class AppDatabase {
       ON receivable_reminder_logs(receivable_type, record_id, opened_at)
     ''');
 
+
+    // Master jasa, pengaturan harga, dan audit perubahan harga.
+    batch.execute('''
+      CREATE TABLE service_catalog (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT,
+        description TEXT,
+        standard_price INTEGER NOT NULL DEFAULT 0 CHECK(standard_price >= 0),
+        is_active INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_service_catalog_active ON service_catalog(is_active, sort_order, name)');
+    batch.execute('''
+      CREATE TABLE service_price_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_id INTEGER NOT NULL,
+        old_price INTEGER NOT NULL,
+        new_price INTEGER NOT NULL,
+        change_reason TEXT,
+        changed_by TEXT NOT NULL DEFAULT 'Admin',
+        changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (service_id) REFERENCES service_catalog(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_service_price_history_service ON service_price_history(service_id, changed_at)');
+
     // Index untuk mempercepat pencarian.
     batch.execute('''
       CREATE INDEX idx_customers_name
@@ -749,6 +779,37 @@ class AppDatabase {
       ''');
     }
 
+    // Master jasa ditambahkan secara aditif pada database lama.
+    if (oldVersion < 12) {
+      await db.execute('''
+        CREATE TABLE service_catalog (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          category TEXT,
+          description TEXT,
+          standard_price INTEGER NOT NULL DEFAULT 0 CHECK(standard_price >= 0),
+          is_active INTEGER NOT NULL DEFAULT 1,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_service_catalog_active ON service_catalog(is_active, sort_order, name)');
+      await db.execute('''
+        CREATE TABLE service_price_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          service_id INTEGER NOT NULL,
+          old_price INTEGER NOT NULL,
+          new_price INTEGER NOT NULL,
+          change_reason TEXT,
+          changed_by TEXT NOT NULL DEFAULT 'Admin',
+          changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (service_id) REFERENCES service_catalog(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_service_price_history_service ON service_price_history(service_id, changed_at)');
+      await db.insert('app_settings', {'setting_key': 'service_price_mode', 'setting_value': 'both'});
+    }
 
   }
 
