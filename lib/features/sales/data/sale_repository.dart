@@ -292,6 +292,14 @@ class SaleRepository {
         throw StateError('Status transaksi tidak dapat dibatalkan.');
       }
 
+      final existingReturns = await txn.rawQuery(
+        'SELECT COUNT(*) AS total FROM sale_returns WHERE sale_id = ?',
+        [id],
+      );
+      if ((existingReturns.first['total'] as int? ?? 0) > 0) {
+        throw StateError('Nota yang sudah memiliki retur tidak dapat dibatalkan seluruhnya.');
+      }
+
       final total = sale['total'] as int? ?? 0;
       if (total <= 0) {
         throw StateError('Total transaksi tidak valid untuk pembatalan.');
