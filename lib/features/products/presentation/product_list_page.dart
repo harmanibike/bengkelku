@@ -104,7 +104,7 @@ class _ProductListPageState extends State<ProductListPage> {
           builder: (context, setDialogState) => AlertDialog(
             title: Text(editing ? 'Edit Produk' : 'Tambah Produk'),
             content: SizedBox(
-              width: 440,
+              width: 520,
               child: SingleChildScrollView(
                 child: Form(
                   key: formKey,
@@ -337,7 +337,7 @@ class _ProductListPageState extends State<ProductListPage> {
       builder: (context) => AlertDialog(
         title: Text('Riwayat Stok - ' + (product['name']?.toString() ?? 'Produk')),
         content: SizedBox(
-          width: 420,
+          width: 520,
           child: history.isEmpty
               ? const Text('Belum ada riwayat pergerakan stok.')
               : ListView.separated(
@@ -380,7 +380,7 @@ class _ProductListPageState extends State<ProductListPage> {
       builder: (dialogContext) => AlertDialog(
         title: Text('Batch biaya • ${product['name']}'),
         content: SizedBox(
-          width: 480,
+          width: 520,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
