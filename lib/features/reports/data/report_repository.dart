@@ -29,7 +29,7 @@ class ReportRepository {
     final saleReturns = await db.rawQuery('''
       SELECT COUNT(*) AS total, COALESCE(SUM(total_amount), 0) AS amount
       FROM sale_returns
-      WHERE return_date >= ? AND return_date < ?
+      WHERE datetime(return_date) >= datetime(?) AND datetime(return_date) < datetime(?)
     ''', [from, until]);
 
     // HPP penjualan: gunakan alokasi batch FIFO jika tersedia.
@@ -50,7 +50,7 @@ class ReportRepository {
       ), 0) AS amount
       FROM sale_items si
       JOIN sales s ON s.id = si.sale_id
-      WHERE s.transaction_date >= ? AND s.transaction_date < ?
+      WHERE datetime(s.transaction_date) >= datetime(?) AND datetime(s.transaction_date) < datetime(?)
         AND COALESCE(s.payment_status, 'paid') != 'cancelled'
     ''', [from, until]);
 
@@ -59,7 +59,7 @@ class ReportRepository {
       SELECT COALESCE(SUM(sri.quantity * COALESCE(sri.unit_cost, 0)), 0) AS amount
       FROM sale_return_items sri
       JOIN sale_returns sr ON sr.id = sri.sale_return_id
-      WHERE sr.return_date >= ? AND sr.return_date < ?
+      WHERE datetime(sr.return_date) >= datetime(?) AND datetime(sr.return_date) < datetime(?)
     ''', [from, until]);
 
     final grossProfit = (sales.first['amount'] as int? ?? 0)
@@ -69,7 +69,7 @@ class ReportRepository {
 
     final services = await db.rawQuery('''
       SELECT COUNT(*) AS total
-      FROM service_orders WHERE received_at >= ? AND received_at < ?
+      FROM service_orders WHERE datetime(received_at) >= datetime(?) AND datetime(received_at) < datetime(?)
     ''', [from, until]);
 
     final lowStock = await db.rawQuery('''
@@ -89,7 +89,7 @@ class ReportRepository {
 
     final latest = await db.query(
       'cash_transactions',
-      where: 'transaction_date >= ? AND transaction_date < ?',
+      where: 'datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)',
       whereArgs: [from, until],
       orderBy: 'datetime(transaction_date) DESC, id DESC',
       limit: 20,
