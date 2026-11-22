@@ -97,9 +97,9 @@ class PurchaseReturnRepository {
       final rows = await txn.rawQuery('''
         SELECT pr.id AS return_id, pr.return_number, pr.status, pr.total_amount,
           pr.credit_applied, pr.refund_received,
-          source.supplier_id,
+          source.supplier_id, source.status AS source_status,
           target.id AS target_id, target.invoice_number, target.supplier_id AS target_supplier_id,
-          target.total, target.paid, target.return_credit, target.status
+          target.total, target.paid, target.return_credit, target.status AS target_status
         FROM purchase_returns pr
         JOIN purchases source ON source.id = pr.purchase_id
         JOIN purchases target ON target.id = ?
@@ -108,7 +108,7 @@ class PurchaseReturnRepository {
       ''', [purchaseId, returnId]);
       if (rows.isEmpty) throw StateError('Retur atau faktur tujuan tidak ditemukan.');
       final row = rows.first;
-      if (row['status']?.toString() == 'cancelled') throw StateError('Retur sudah dibatalkan.');
+      if (row['status']?.toString() == 'cancelled' || row['source_status']?.toString() == 'cancelled' || row['target_status']?.toString() == 'cancelled') throw StateError('Retur atau faktur sudah dibatalkan.');
       final supplierId = (row['supplier_id'] as num?)?.toInt();
       final targetSupplierId = (row['target_supplier_id'] as num?)?.toInt();
       if (supplierId == null || supplierId != targetSupplierId) {
@@ -161,7 +161,7 @@ class PurchaseReturnRepository {
       final rows = await txn.rawQuery('''
         SELECT pr.id, pr.return_number, pr.status, pr.purchase_id, pr.total_amount,
           pr.credit_applied, pr.refund_received,
-          p.supplier_id, p.invoice_number, p.total, p.paid, p.return_credit
+          p.supplier_id, p.invoice_number, p.total, p.paid, p.return_credit, p.status AS purchase_status
         FROM purchase_returns pr
         JOIN purchases p ON p.id = pr.purchase_id
         WHERE pr.id = ?
@@ -169,7 +169,7 @@ class PurchaseReturnRepository {
       ''', [returnId]);
       if (rows.isEmpty) throw StateError('Data retur tidak ditemukan.');
       final row = rows.first;
-      if (row['status']?.toString() == 'cancelled') throw StateError('Retur sudah dibatalkan.');
+      if (row['status']?.toString() == 'cancelled' || row['purchase_status']?.toString() == 'cancelled') throw StateError('Retur atau faktur sudah dibatalkan.');
       final alreadyCredit = (row['credit_applied'] as num?)?.toInt() ?? 0;
       final alreadyRefund = (row['refund_received'] as num?)?.toInt() ?? 0;
       final total = (row['total_amount'] as num?)?.toInt() ?? 0;
