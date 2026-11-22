@@ -51,7 +51,7 @@ class PurchaseReportRepository {
         MAX(p.total - p.paid - p.return_credit, 0) AS outstanding, s.name AS supplier_name
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
-      WHERE p.purchase_date >= ? AND p.purchase_date < ?
+      WHERE p.status = 'active' AND p.purchase_date >= ? AND p.purchase_date < ?
       ORDER BY p.purchase_date DESC, p.id DESC
       LIMIT 20
     ''', [from, until]);
