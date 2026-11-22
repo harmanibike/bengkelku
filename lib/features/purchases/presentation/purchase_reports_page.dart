@@ -131,6 +131,7 @@ class _PurchaseReportsPageState extends State<PurchaseReportsPage> {
                       _metric('Pembayaran tercatat', _report['payment_amount'], Icons.payments_outlined, Colors.green),
                       _metric('Sisa utang faktur', _report['outstanding'], Icons.account_balance_wallet_outlined, Colors.deepOrange),
                       _metric('Nilai retur', _report['return_amount'], Icons.assignment_return_outlined, Colors.purple),
+                      _metric('Kredit retur diterapkan', _report['return_credit'], Icons.price_check_rounded, Colors.teal),
                     ],
                   ),
                   Card(
