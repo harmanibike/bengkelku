@@ -591,6 +591,16 @@ class ServiceRepository {
     });
   }
 
+  Future<List<Map<String, Object?>>> getServicePaymentHistory(int id) async {
+    final db = await _db;
+    return db.query(
+      'cash_transactions',
+      where: "reference_type = 'service_order' AND reference_id = ? AND transaction_type = 'income'",
+      whereArgs: [id],
+      orderBy: 'transaction_date ASC, id ASC',
+    );
+  }
+
   Future<int> deleteServiceOrder(int id) async {
     final db = await _db;
 
