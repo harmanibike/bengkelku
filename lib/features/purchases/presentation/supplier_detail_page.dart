@@ -26,7 +26,8 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
     final summary = await _repository.getSupplierSummary(id);
     final purchases = await _repository.getPurchaseHistory(id);
     final payments = await _repository.getSupplierPayments(id);
-    return {'summary': summary, 'purchases': purchases, 'payments': payments};
+    final creditApplications = await _repository.getSupplierCreditApplications(id);
+    return {'summary': summary, 'purchases': purchases, 'payments': payments, 'credit_applications': creditApplications};
   }
 
   Future<void> _refresh() async {
@@ -107,6 +108,7 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
           final summary = data['summary'] as Map<String, Object?>? ?? {};
           final purchases = data['purchases'] as List<Map<String, Object?>>? ?? [];
           final payments = data['payments'] as List<Map<String, Object?>>? ?? [];
+          final creditApplications = data['credit_applications'] as List<Map<String, Object?>>? ?? [];
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
@@ -194,6 +196,29 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
                       ),
                     );
                   }),
+                Row(
+                  children: [
+                    _metric('Saldo kredit retur', summary['available_return_credit']),
+                    const SizedBox(width: 7),
+                    _metric('Kredit sudah dipakai', summary['return_credit']),
+                  ],
+                ),
+                _sectionTitle('Pemakaian Kredit Retur', creditApplications.length),
+                if (creditApplications.isEmpty)
+                  const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Belum ada kredit retur yang digunakan pada faktur lain.', style: TextStyle(fontSize: 12))))
+                else
+                  ...creditApplications.map((application) => Card(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 1),
+                      leading: const Icon(Icons.account_balance_wallet_outlined, size: 20, color: Colors.teal),
+                      title: Text(_money(application['amount']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                      subtitle: Text('Retur ${application['return_number']} → Faktur ${application['target_invoice']}',
+                        style: const TextStyle(fontSize: 10)),
+                      trailing: Text(_date(application['created_at']), style: const TextStyle(fontSize: 9, color: Colors.grey)),
+                    ),
+                  )),
                 _sectionTitle('Riwayat Pembayaran', payments.length),
                 if (payments.isEmpty)
                   const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Belum ada pembayaran ke pemasok.', style: TextStyle(fontSize: 12))))
