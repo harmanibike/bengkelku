@@ -19,6 +19,18 @@ class ReportRepository {
       WHERE datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
     ''', [from, until]);
 
+    final cashOpeningRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(
+        CASE
+          WHEN transaction_type = 'income' THEN amount
+          WHEN transaction_type = 'expense' THEN -amount
+          ELSE 0
+        END
+      ), 0) AS balance
+      FROM cash_transactions
+      WHERE datetime(transaction_date) < datetime(?)
+    ''', [from]);
+
     final sales = await db.rawQuery('''
       SELECT COUNT(*) AS total, COALESCE(SUM(total), 0) AS amount
       FROM sales
@@ -96,7 +108,12 @@ class ReportRepository {
     );
 
     return {
+      'opening_cash_balance': cashOpeningRows.first['balance'] as int? ?? 0,
       'income': cash.first['income'] as int? ?? 0,
+      'net_cash_flow': (cash.first['income'] as int? ?? 0) - (cash.first['expense'] as int? ?? 0),
+      'closing_cash_balance': (cashOpeningRows.first['balance'] as int? ?? 0)
+          + (cash.first['income'] as int? ?? 0)
+          - (cash.first['expense'] as int? ?? 0),
       'expense': cash.first['expense'] as int? ?? 0,
       'transaction_count': cash.first['transaction_count'] as int? ?? 0,
       'sales_count': sales.first['total'] as int? ?? 0,
