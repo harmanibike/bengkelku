@@ -148,7 +148,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                   _detailRow('Diskon', sale['discount'] as int? ?? 0),
                   _detailRow('Total', sale['total'] as int? ?? 0, bold: true),
                   _detailRow('Dibayar', sale['paid'] as int? ?? 0),
-                  _detailRow('Sisa tagihan', ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0)).clamp(0, 1 << 62)),
+                  _detailRow('Sisa tagihan', ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0)).clamp(0, 1 << 62).toInt()),
                   _detailRow('Kembalian', sale['change_amount'] as int? ?? 0),
                   const SizedBox(height: 8),
                   Text('Status: ${_statusLabel(sale['payment_status'])}'),
@@ -330,7 +330,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                             final sale = _sales[index];
                             final status = sale['payment_status']?.toString() ?? 'paid';
                             final cancelled = status == 'cancelled';
-            final remaining = ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0)).clamp(0, 1 << 62);
+            final remaining = ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0)).clamp(0, 1 << 62).toInt();
                             return Card(
                               child: ListTile(
                                 onTap: () => _showDetail(sale['id'] as int),
