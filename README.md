@@ -138,7 +138,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Cetak struk kasir dan nota servis.
 - [ ] Kertas thermal 58 mm/80 mm dan printer Bluetooth.
 - [ ] Simpan nota sebagai PDF atau gambar.
-- [ ] Bagikan nota melalui WhatsApp.
+- [ ] Bagikan nota melalui WhatsApp dengan pilihan format **Foto (gambar)** atau **PDF**; pengguna dapat melihat pratinjau sebelum mengirim.
 - [ ] Cetak label harga dan barcode.
 
 ## 12. Pengaturan aplikasi
