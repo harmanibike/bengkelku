@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 16;
+  static const int _databaseVersion = 17;
 
   Database? _database;
 
@@ -952,6 +952,23 @@ class AppDatabase {
     if (oldVersion < 16) {
       await db.execute('ALTER TABLE service_orders ADD COLUMN direct_parts_cost INTEGER NOT NULL DEFAULT 0');
       await db.execute('ALTER TABLE service_orders ADD COLUMN other_direct_cost INTEGER NOT NULL DEFAULT 0');
+    }
+
+    // Riwayat perubahan biaya modal servis. Migrasi aditif, tanpa mengubah nota lama.
+    if (oldVersion < 17) {
+      await db.execute('''
+        CREATE TABLE service_direct_cost_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          service_order_id INTEGER NOT NULL,
+          old_direct_parts_cost INTEGER NOT NULL DEFAULT 0,
+          new_direct_parts_cost INTEGER NOT NULL DEFAULT 0,
+          old_other_direct_cost INTEGER NOT NULL DEFAULT 0,
+          new_other_direct_cost INTEGER NOT NULL DEFAULT 0,
+          changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_service_direct_cost_history_order ON service_direct_cost_history(service_order_id, changed_at, id)');
     }
 
     // Stok opname: menambah tabel sesi dan snapshot produk secara aditif.
