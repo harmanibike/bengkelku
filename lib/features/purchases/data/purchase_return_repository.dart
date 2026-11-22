@@ -423,11 +423,6 @@ class PurchaseReturnRepository {
         whereArgs: [returnId],
         orderBy: 'id ASC',
       );
-      if (allocations.isEmpty) {
-        throw StateError(
-          'Retur ini dibuat sebelum pencatatan alokasi batch tersedia. Pembatalan otomatis tidak aman; stok perlu diaudit terlebih dahulu.',
-        );
-      }
       final returnItems = await txn.query(
         'purchase_return_items',
         where: 'purchase_return_id = ?',
@@ -442,8 +437,36 @@ class PurchaseReturnRepository {
       for (final item in returnItems) {
         final itemId = (item['id'] as num?)?.toInt();
         final expected = (item['quantity'] as num?)?.toInt() ?? 0;
-        if (itemId == null || (allocationByItem[itemId] ?? 0) != expected) {
+        final productId = (item['product_id'] as num?)?.toInt();
+        final productRows = productId == null
+            ? const <Map<String, Object?>>[]
+            : await txn.query(
+                'products',
+                columns: ['track_stock'],
+                where: 'id = ?',
+                whereArgs: [productId],
+                limit: 1,
+              );
+        final trackedNow = productRows.isNotEmpty &&
+            (productRows.first['track_stock'] as num?)?.toInt() == 1;
+        if (trackedNow && (itemId == null || (allocationByItem[itemId] ?? 0) != expected)) {
           throw StateError('Alokasi batch retur tidak lengkap. Pembatalan otomatis dihentikan untuk menjaga stok.');
+        }
+      }
+      if (allocations.isEmpty && returnItems.any((item) {
+        final productId = (item['product_id'] as num?)?.toInt();
+        return productId != null;
+      })) {
+        final trackedProducts = await txn.rawQuery('''
+          SELECT COUNT(*) AS total
+          FROM purchase_return_items pri
+          JOIN products p ON p.id = pri.product_id
+          WHERE pri.purchase_return_id = ? AND p.track_stock = 1
+        ''', [returnId]);
+        if (((trackedProducts.first['total'] as num?)?.toInt() ?? 0) > 0) {
+          throw StateError(
+            'Retur ini dibuat sebelum pencatatan alokasi batch tersedia. Pembatalan otomatis tidak aman; stok perlu diaudit terlebih dahulu.',
+          );
         }
       }
       final byProduct = <int, int>{};
