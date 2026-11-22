@@ -126,6 +126,13 @@ class _ReportsPageState extends State<ReportsPage> {
                       _metric('Transaksi Kas', '${_summary['transaction_count'] ?? 0}', Icons.receipt_long, Colors.purple),
                     ],
                   ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      'Laba kotor hanya untuk penjualan barang setelah dikurangi HPP dan HPP barang retur. Biaya operasional, gaji, komisi, serta biaya jasa belum dikurangkan; angka ini bukan laba bersih.',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   Text('Rincian Kas per Kategori', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
