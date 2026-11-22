@@ -239,6 +239,84 @@ class _ServiceListPageState extends State<ServiceListPage> {
     }
   }
 
+  Future<void> _editDirectCosts(Map<String, Object?> detail) async {
+    final id = detail['id'] as int;
+    final parts = TextEditingController(
+      text: (detail['direct_parts_cost'] as num? ?? 0).toInt().toString(),
+    );
+    final other = TextEditingController(
+      text: (detail['other_direct_cost'] as num? ?? 0).toInt().toString(),
+    );
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Biaya modal servis'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: parts,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Modal sparepart (Rp)',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: other,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Biaya langsung lain (Rp)',
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Catat biaya aktual yang benar-benar dikeluarkan. Perubahan ini tidak mengubah tagihan pelanggan atau stok.',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (saved == true) {
+      int amount(TextEditingController controller) {
+        final digits = controller.text.replaceAll(RegExp(r'[^0-9]'), '');
+        return int.tryParse(digits) ?? 0;
+      }
+
+      try {
+        await _repository.updateServiceOrder(
+          id: id,
+          directPartsCost: amount(parts),
+          otherDirectCost: amount(other),
+        );
+        if (!mounted) return;
+        _refresh();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Biaya langsung servis diperbarui.')),
+        );
+        await _showDetail({'id': id});
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan biaya servis: $error')),
+        );
+      }
+    }
+    parts.dispose();
+    other.dispose();
+  }
+
   Future<void> _showDetail(Map<String, Object?> order) async {
     final id = order['id'] as int;
     final detail = await _repository.getServiceOrderById(id);
@@ -374,6 +452,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Tutup'),
           ),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
+            icon: const Icon(Icons.edit_note_outlined),
+            label: const Text('Ubah Biaya Modal'),
+          ),
           if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
               status != 'cancelled')
             OutlinedButton.icon(
@@ -391,7 +474,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
     );
 
     if (!mounted) return;
-    if (action == 'status') {
+    if (action == 'direct_costs') {
+      await _editDirectCosts(detail);
+    } else if (action == 'status') {
       await _changeStatus(detail);
     } else if (action == 'payment') {
       await _addServicePayment(id);
