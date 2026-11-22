@@ -78,7 +78,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Halaman Audit Stok dengan pencarian, filter masuk/keluar, sumber transaksi, waktu, dan perubahan stok.
 - [x] Peringatan/indikator stok menipis yang tersedia pada modul produk.
 - [ ] Arsip produk dan penghapusan aman dengan perlindungan riwayat transaksi.
-- [ ] Harga bertingkat (eceran, grosir, reseller, dan harga khusus), termasuk aturan minimal kuantitas dan pemilihan otomatis di kasir.
+- [x] Harga bertingkat per produk: nama tingkat, minimal kuantitas, harga per unit, status aktif/nonaktif, dan pemilihan otomatis di kasir berdasarkan jumlah dalam satu baris.
 - [x] Stok opname: snapshot stok, input hitung fisik, validasi perubahan stok selama penghitungan, penerapan selisih, dan audit pergerakan stok.
 - [x] Retur penjualan dengan pengembalian stok dan pencatatan retur.
 - [ ] Cetak label harga dan barcode.
