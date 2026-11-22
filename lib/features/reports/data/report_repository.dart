@@ -16,13 +16,13 @@ class ReportRepository {
         COALESCE(SUM(CASE WHEN transaction_type = 'expense' THEN amount ELSE 0 END), 0) AS expense,
         COUNT(*) AS transaction_count
       FROM cash_transactions
-      WHERE transaction_date >= ? AND transaction_date < ?
+      WHERE datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
     ''', [from, until]);
 
     final sales = await db.rawQuery('''
       SELECT COUNT(*) AS total, COALESCE(SUM(total), 0) AS amount
       FROM sales
-      WHERE transaction_date >= ? AND transaction_date < ?
+      WHERE datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
         AND COALESCE(payment_status, 'paid') != 'cancelled'
     ''', [from, until]);
 
@@ -82,7 +82,7 @@ class ReportRepository {
              SUM(amount) AS amount,
              transaction_type
       FROM cash_transactions
-      WHERE transaction_date >= ? AND transaction_date < ?
+      WHERE datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
       GROUP BY category, transaction_type
       ORDER BY amount DESC
     ''', [from, until]);
@@ -91,7 +91,7 @@ class ReportRepository {
       'cash_transactions',
       where: 'transaction_date >= ? AND transaction_date < ?',
       whereArgs: [from, until],
-      orderBy: 'transaction_date DESC, id DESC',
+      orderBy: 'datetime(transaction_date) DESC, id DESC',
       limit: 20,
     );
 
