@@ -42,6 +42,112 @@ class PurchaseReturnRepository {
     ''');
   }
 
+  Future<List<Map<String, Object?>>> getAvailableReturnCredits() async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT pr.id AS return_id, pr.return_number, pr.total_amount,
+        pr.credit_applied, pr.refund_received,
+        (pr.total_amount - pr.credit_applied - pr.refund_received) AS available_credit,
+        p.supplier_id, p.invoice_number AS source_invoice, s.name AS supplier_name
+      FROM purchase_returns pr
+      JOIN purchases p ON p.id = pr.purchase_id
+      JOIN suppliers s ON s.id = p.supplier_id
+      WHERE pr.total_amount > pr.credit_applied + pr.refund_received
+      ORDER BY pr.return_date ASC, pr.id ASC
+    ''');
+  }
+
+  Future<List<Map<String, Object?>>> getCreditTargetInvoices(int returnId) async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT p.id, p.invoice_number, p.purchase_date, p.total, p.paid,
+        p.return_credit,
+        MAX(p.total - p.paid - p.return_credit, 0) AS remaining_amount
+      FROM purchases p
+      JOIN purchase_returns pr ON pr.purchase_id = ?
+      WHERE p.supplier_id = (
+        SELECT source.supplier_id
+        FROM purchase_returns source_return
+        JOIN purchases source ON source.id = source_return.purchase_id
+        WHERE source_return.id = ?
+      )
+        AND p.total > p.paid + p.return_credit
+      ORDER BY p.purchase_date ASC, p.id ASC
+    ''', [returnId, returnId]);
+  }
+
+  Future<List<Map<String, Object?>>> getCreditApplications(int returnId) async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT a.*, p.invoice_number
+      FROM supplier_return_credit_applications a
+      JOIN purchases p ON p.id = a.purchase_id
+      WHERE a.return_id = ?
+      ORDER BY a.created_at DESC, a.id DESC
+    ''', [returnId]);
+  }
+
+  Future<void> applyReturnCredit({
+    required int returnId,
+    required int purchaseId,
+    required int amount,
+  }) async {
+    if (amount <= 0) throw ArgumentError('Jumlah kredit harus lebih dari nol.');
+    final db = await _db;
+    await db.transaction((txn) async {
+      final rows = await txn.rawQuery('''
+        SELECT pr.id AS return_id, pr.return_number, pr.total_amount,
+          pr.credit_applied, pr.refund_received,
+          source.supplier_id,
+          target.id AS target_id, target.invoice_number, target.supplier_id AS target_supplier_id,
+          target.total, target.paid, target.return_credit
+        FROM purchase_returns pr
+        JOIN purchases source ON source.id = pr.purchase_id
+        JOIN purchases target ON target.id = ?
+        WHERE pr.id = ?
+        LIMIT 1
+      ''', [purchaseId, returnId]);
+      if (rows.isEmpty) throw StateError('Retur atau faktur tujuan tidak ditemukan.');
+      final row = rows.first;
+      final supplierId = (row['supplier_id'] as num?)?.toInt();
+      final targetSupplierId = (row['target_supplier_id'] as num?)?.toInt();
+      if (supplierId == null || supplierId != targetSupplierId) {
+        throw StateError('Kredit hanya dapat digunakan pada faktur dari pemasok yang sama.');
+      }
+      final totalReturn = (row['total_amount'] as num?)?.toInt() ?? 0;
+      final alreadyApplied = (row['credit_applied'] as num?)?.toInt() ?? 0;
+      final refunded = (row['refund_received'] as num?)?.toInt() ?? 0;
+      final availableCredit = totalReturn - alreadyApplied - refunded;
+      if (amount > availableCredit) {
+        throw StateError('Saldo kredit retur hanya tersisa Rp${availableCredit < 0 ? 0 : availableCredit}.');
+      }
+      final invoiceTotal = (row['total'] as num?)?.toInt() ?? 0;
+      final paid = (row['paid'] as num?)?.toInt() ?? 0;
+      final appliedToInvoice = (row['return_credit'] as num?)?.toInt() ?? 0;
+      final remaining = invoiceTotal - paid - appliedToInvoice;
+      if (amount > remaining) {
+        throw StateError('Sisa utang faktur tujuan hanya Rp${remaining < 0 ? 0 : remaining}.');
+      }
+      final nextCredit = appliedToInvoice + amount;
+      await txn.update('purchases', {
+        'return_credit': nextCredit,
+        'payment_status': paid + nextCredit >= invoiceTotal
+            ? 'paid'
+            : paid == 0 && nextCredit == 0 ? 'unpaid' : 'partial',
+      }, where: 'id = ?', whereArgs: [purchaseId]);
+      await txn.update('purchase_returns', {
+        'credit_applied': alreadyApplied + amount,
+      }, where: 'id = ?', whereArgs: [returnId]);
+      await txn.insert('supplier_return_credit_applications', {
+        'return_id': returnId,
+        'purchase_id': purchaseId,
+        'supplier_id': supplierId,
+        'amount': amount,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    });
+  }
+
   Future<void> settleReturn({
     required int returnId,
     required int creditApplied,
