@@ -64,7 +64,6 @@ class PurchaseReturnRepository {
         p.return_credit,
         MAX(p.total - p.paid - p.return_credit, 0) AS remaining_amount
       FROM purchases p
-      JOIN purchase_returns pr ON pr.purchase_id = ?
       WHERE p.supplier_id = (
         SELECT source.supplier_id
         FROM purchase_returns source_return
@@ -73,7 +72,7 @@ class PurchaseReturnRepository {
       )
         AND p.total > p.paid + p.return_credit
       ORDER BY p.purchase_date ASC, p.id ASC
-    ''', [returnId, returnId]);
+    ''', [returnId]);
   }
 
   Future<List<Map<String, Object?>>> getCreditApplications(int returnId) async {
