@@ -229,7 +229,9 @@ class ServiceRepository {
     return result.isEmpty ? null : result.first;
   }
 
-  // Memperbarui hasil pemeriksaan dan rincian biaya.
+  // Memperbarui hasil pemeriksaan dan rincian biaya secara atomik.
+  // Pembacaan, validasi DP, dan perubahan tagihan berada dalam satu transaksi
+  // agar tidak menimpa pembayaran yang masuk bersamaan.
   Future<int> updateServiceOrder({
     required int id,
     String? complaint,
@@ -244,56 +246,67 @@ class ServiceRepository {
     String? notes,
   }) async {
     final db = await _db;
-    final existing = await getServiceOrderById(id);
 
-    if (existing == null) {
-      throw StateError('Nota servis tidak ditemukan.');
-    }
-
-    final labor = _safeAmount(
-      laborCost ?? (existing['labor_cost'] as int? ?? 0),
-    );
-    final parts = _safeAmount(
-      partsCost ?? (existing['parts_cost'] as int? ?? 0),
-    );
-    final estimated = _safeAmount(
-      estimatedCost ?? (existing['estimated_cost'] as int? ?? 0),
-    );
-    final safeDiscount = _safeAmount(
-      discount ?? (existing['discount'] as int? ?? 0),
-    );
-
-    final calculated = (labor + parts > 0 ? labor + parts : estimated) -
-        safeDiscount;
-    final total = calculated < 0 ? 0 : calculated;
-    final paid = existing['down_payment'] as int? ?? 0;
-
-    if (paid > total) {
-      throw ArgumentError(
-        'Total baru tidak boleh lebih kecil dari DP yang sudah dibayar.',
+    return db.transaction((txn) async {
+      final rows = await txn.query(
+        'service_orders',
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
       );
-    }
+      if (rows.isEmpty) {
+        throw StateError('Nota servis tidak ditemukan.');
+      }
+      final existing = rows.first;
 
-    return db.update(
-      'service_orders',
-      {
-        if (complaint != null) 'complaint': complaint.trim(),
-        if (diagnosis != null) 'diagnosis': _nullableText(diagnosis),
-        'estimated_cost': estimated,
-        'labor_cost': labor,
-        'parts_cost': parts,
-        'direct_parts_cost': _safeAmount(directPartsCost ?? (existing['direct_parts_cost'] as int? ?? 0)),
-        'other_direct_cost': _safeAmount(otherDirectCost ?? (existing['other_direct_cost'] as int? ?? 0)),
-        'discount': safeDiscount,
-        'total_cost': total,
-        'remaining_payment': total - paid,
-        if (mechanicName != null)
-          'mechanic_name': _nullableText(mechanicName),
-        if (notes != null) 'notes': _nullableText(notes),
-      },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+      final labor = _safeAmount(
+        laborCost ?? (existing['labor_cost'] as int? ?? 0),
+      );
+      final parts = _safeAmount(
+        partsCost ?? (existing['parts_cost'] as int? ?? 0),
+      );
+      final estimated = _safeAmount(
+        estimatedCost ?? (existing['estimated_cost'] as int? ?? 0),
+      );
+      final safeDiscount = _safeAmount(
+        discount ?? (existing['discount'] as int? ?? 0),
+      );
+      final calculated = (labor + parts > 0 ? labor + parts : estimated) -
+          safeDiscount;
+      final total = calculated < 0 ? 0 : calculated;
+      final paid = existing['down_payment'] as int? ?? 0;
+
+      if (paid > total) {
+        throw ArgumentError(
+          'Total baru tidak boleh lebih kecil dari DP yang sudah dibayar.',
+        );
+      }
+
+      return txn.update(
+        'service_orders',
+        {
+          if (complaint != null) 'complaint': complaint.trim(),
+          if (diagnosis != null) 'diagnosis': _nullableText(diagnosis),
+          'estimated_cost': estimated,
+          'labor_cost': labor,
+          'parts_cost': parts,
+          'direct_parts_cost': _safeAmount(
+            directPartsCost ?? (existing['direct_parts_cost'] as int? ?? 0),
+          ),
+          'other_direct_cost': _safeAmount(
+            otherDirectCost ?? (existing['other_direct_cost'] as int? ?? 0),
+          ),
+          'discount': safeDiscount,
+          'total_cost': total,
+          'remaining_payment': total - paid,
+          if (mechanicName != null)
+            'mechanic_name': _nullableText(mechanicName),
+          if (notes != null) 'notes': _nullableText(notes),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    });
   }
 
   // Koreksi biaya modal tidak boleh mengubah harga tagihan, DP, atau sisa piutang.
