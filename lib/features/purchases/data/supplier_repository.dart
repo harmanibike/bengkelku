@@ -54,6 +54,22 @@ class SupplierRepository {
     return rows.first;
   }
 
+  Future<List<Map<String, Object?>>> getSuppliersWithDebt() async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT s.id AS supplier_id, s.name AS supplier_name, s.phone,
+        COUNT(p.id) AS invoice_count,
+        COALESCE(SUM(p.total), 0) AS total_amount,
+        COALESCE(SUM(p.paid), 0) AS paid_amount,
+        COALESCE(SUM(p.total - p.paid), 0) AS remaining_amount
+      FROM suppliers s
+      JOIN purchases p ON p.supplier_id = s.id
+      WHERE p.total > p.paid
+      GROUP BY s.id, s.name, s.phone
+      ORDER BY remaining_amount DESC, s.name COLLATE NOCASE ASC
+    ''');
+  }
+
   Future<List<Map<String, Object?>>> getPurchaseHistory(int supplierId) async {
     final db = await _db;
     return db.rawQuery('''
