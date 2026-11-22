@@ -6,6 +6,7 @@ import '../../business/data/business_profile_repository.dart';
 import '../../business/presentation/business_identity_header.dart';
 import 'service_intake_page.dart';
 import 'service_photo_helper.dart';
+import '../../receipts/presentation/receipt_share_launcher.dart';
 
 class ServiceListPage extends StatefulWidget {
   const ServiceListPage({super.key});
@@ -474,6 +475,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
             child: const Text('Tutup'),
           ),
           OutlinedButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, 'receipt'),
+            icon: const Icon(Icons.receipt_long_outlined),
+            label: const Text('Nota / Bagikan'),
+          ),
+          OutlinedButton.icon(
             onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
             icon: const Icon(Icons.edit_note_outlined),
             label: const Text('Ubah Biaya Modal'),
@@ -495,7 +501,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
     );
 
     if (!mounted) return;
-    if (action == 'direct_costs') {
+    if (action == 'receipt') {
+      await ReceiptShareLauncher.service(context, id);
+    } else if (action == 'direct_costs') {
       await _editDirectCosts(detail);
     } else if (action == 'status') {
       await _changeStatus(detail);
