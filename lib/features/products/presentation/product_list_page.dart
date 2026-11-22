@@ -166,7 +166,7 @@ class _ProductListPageState extends State<ProductListPage> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Nama produk *', border: OutlineInputBorder()), validator: (v) => v == null || v.trim().isEmpty ? 'Nama wajib diisi' : null),
                       const SizedBox(height: 10),
                       TextFormField(controller: sku, decoration: const InputDecoration(labelText: 'SKU / Kode produk', border: OutlineInputBorder())),
@@ -287,7 +287,7 @@ class _ProductListPageState extends State<ProductListPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('Stok saat ini: ' + (product['stock']?.toString() ?? '0') + ' ' + (product['unit']?.toString() ?? 'pcs')),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 SegmentedButton<bool>(
                   segments: const [
                     ButtonSegment(value: true, label: Text('Stok Masuk'), icon: Icon(Icons.add)),
@@ -296,7 +296,7 @@ class _ProductListPageState extends State<ProductListPage> {
                   selected: {isIn},
                   onSelectionChanged: (v) => setDialogState(() => isIn = v.first),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 TextField(controller: quantity, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder())),
                 const SizedBox(height: 10),
                 TextField(controller: notes, maxLines: 2, decoration: const InputDecoration(labelText: 'Catatan (opsional)', border: OutlineInputBorder())),
@@ -478,7 +478,7 @@ class _ProductListPageState extends State<ProductListPage> {
             ),
           ),
           SwitchListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             title: const Text('Tampilkan produk nonaktif'),
             value: _showInactive,
             onChanged: (value) => setState(() { _showInactive = value; _loadProducts(); }),
@@ -492,7 +492,7 @@ class _ProductListPageState extends State<ProductListPage> {
                 final products = snapshot.data ?? [];
                 if (products.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.inventory_2_outlined, size: 60),
-                  SizedBox(height: 12),
+                  SizedBox(height: 8),
                   Text('Belum ada produk', style: TextStyle(fontWeight: FontWeight.bold)),
                   SizedBox(height: 5),
                   Text('Tekan tombol Tambah untuk memasukkan produk dan stok awal.', textAlign: TextAlign.center),
