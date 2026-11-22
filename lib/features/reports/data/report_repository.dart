@@ -84,6 +84,17 @@ class ReportRepository {
       FROM service_orders WHERE datetime(received_at) >= datetime(?) AND datetime(received_at) < datetime(?)
     ''', [from, until]);
 
+    // Pendapatan servis diakui saat pekerjaan selesai, bukan saat DP diterima.
+    // Penerimaan DP/pelunasan tetap hanya dihitung pada laporan arus kas.
+    final serviceRevenueRows = await db.rawQuery('''
+      SELECT COUNT(*) AS total, COALESCE(SUM(total_cost), 0) AS amount
+      FROM service_orders
+      WHERE service_status IN ('completed', 'delivered')
+        AND completed_at IS NOT NULL
+        AND datetime(completed_at) >= datetime(?)
+        AND datetime(completed_at) < datetime(?)
+    ''', [from, until]);
+
     final lowStock = await db.rawQuery('''
       SELECT COUNT(*) AS total FROM products
       WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock
@@ -126,6 +137,8 @@ class ReportRepository {
       'net_cogs_amount': (soldCostRows.first['amount'] as int? ?? 0) - (returnedCostRows.first['amount'] as int? ?? 0),
       'gross_profit_amount': grossProfit,
       'service_count': services.first['total'] as int? ?? 0,
+      'completed_service_count': serviceRevenueRows.first['total'] as int? ?? 0,
+      'service_revenue': serviceRevenueRows.first['amount'] as int? ?? 0,
       'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
       'latest': latest,
