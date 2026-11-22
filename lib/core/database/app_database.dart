@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   Database? _database;
 
@@ -149,6 +149,26 @@ class AppDatabase {
           REFERENCES bicycles(id)
           ON DELETE SET NULL
       )
+    ''');
+
+    // Riwayat perubahan status servis untuk jejak pengerjaan.
+    batch.execute('''
+      CREATE TABLE service_status_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_order_id INTEGER NOT NULL,
+        old_status TEXT,
+        new_status TEXT NOT NULL,
+        note TEXT,
+        changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (service_order_id)
+          REFERENCES service_orders(id)
+          ON DELETE CASCADE
+      )
+    ''');
+
+    batch.execute('''
+      CREATE INDEX idx_service_status_history_order
+      ON service_status_history(service_order_id, changed_at)
     ''');
 
     // Rincian pekerjaan dan sparepart servis.
@@ -320,6 +340,36 @@ class AppDatabase {
       await db.execute('ALTER TABLE products ADD COLUMN image_path TEXT');
     }
   }
+
+
+    // Riwayat status servis. Backfill satu status awal untuk nota lama
+    // tanpa mengubah atau menghapus data transaksi yang sudah ada.
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE service_status_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          service_order_id INTEGER NOT NULL,
+          old_status TEXT,
+          new_status TEXT NOT NULL,
+          note TEXT,
+          changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (service_order_id)
+            REFERENCES service_orders(id)
+            ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_service_status_history_order
+        ON service_status_history(service_order_id, changed_at)
+      ''');
+      await db.execute('''
+        INSERT INTO service_status_history
+          (service_order_id, old_status, new_status, note, changed_at)
+        SELECT id, NULL, COALESCE(service_status, 'waiting'),
+          'Status awal dari data lama', COALESCE(received_at, CURRENT_TIMESTAMP)
+        FROM service_orders
+      ''');
+    }
 
   Future<void> close() async {
     if (_database != null && _database!.isOpen) {
