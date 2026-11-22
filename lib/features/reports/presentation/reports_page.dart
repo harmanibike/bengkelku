@@ -124,6 +124,9 @@ class _ReportsPageState extends State<ReportsPage> {
                       _metric('Laba Kotor Barang', _rupiah((_summary['gross_profit_amount'] as num?)?.toInt() ?? 0), Icons.account_balance_wallet, Colors.green),
                       _metric('Pendapatan Servis Selesai', _rupiah((_summary['service_revenue'] as num?)?.toInt() ?? 0), Icons.handyman, Colors.teal),
                       _metric('Servis Selesai', '${_summary['completed_service_count'] ?? 0} nota', Icons.build, Colors.blue),
+                      _metric('Biaya Langsung Servis', _rupiah((_summary['service_direct_cost_amount'] as num?)?.toInt() ?? 0), Icons.receipt, Colors.red),
+                      _metric('Laba Kotor Servis', _rupiah((_summary['service_gross_profit_amount'] as num?)?.toInt() ?? 0), Icons.handyman, Colors.teal),
+                      _metric('Total Laba Kotor', _rupiah((_summary['combined_gross_profit_amount'] as num?)?.toInt() ?? 0), Icons.account_balance_wallet, Colors.green),
                       _metric('Stok Menipis', '${_summary['low_stock'] ?? 0} produk', Icons.inventory, Colors.deepOrange),
                       _metric('Transaksi Kas', '${_summary['transaction_count'] ?? 0}', Icons.receipt_long, Colors.purple),
                     ],
@@ -155,7 +158,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      'Arus kas menunjukkan uang yang benar-benar masuk dan keluar, bukan laba. Pendapatan servis dihitung dari nota berstatus selesai/diambil berdasarkan tanggal selesai; DP dan pelunasan servis tetap dicatat terpisah di arus kas. HPP barang, biaya operasional, gaji, komisi, dan biaya langsung servis belum seluruhnya dihitung sehingga laporan ini belum menunjukkan laba bersih.',
+                      'Arus kas menunjukkan uang yang benar-benar masuk dan keluar, bukan laba. Pendapatan servis dihitung dari nota selesai/diambil berdasarkan tanggal selesai. Laba kotor servis mengurangi biaya modal sparepart dan biaya langsung lain yang diinput manual; pastikan nilainya dicatat lengkap. Biaya operasional, gaji, komisi, pajak, dan biaya tidak langsung belum seluruhnya dikurangkan, sehingga total laba kotor bukan laba bersih. DP/pelunasan tetap hanya dihitung pada arus kas agar tidak dihitung dua kali.',
                       style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ),
