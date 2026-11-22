@@ -14,12 +14,48 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
   List<Map<String, Object?>> _items = [];
   List<Map<String, Object?>> _history = [];
   bool _loading = true;
+  bool _authorized = false;
   String _mode = ServicePricingRepository.modeBoth;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() { super.initState(); _authorize(); }
   @override
   void dispose() { _tabs.dispose(); _search.dispose(); super.dispose(); }
+
+
+  Future<void> _authorize() async {
+    final configured = await _repo.hasAdminPin();
+    if (!mounted) return;
+    final pin = TextEditingController();
+    final confirm = TextEditingController();
+    final ok = await showDialog<bool>(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
+      title: Text(configured ? 'Verifikasi Admin' : 'Buat PIN Admin'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(configured ? 'Masukkan PIN admin untuk mengelola harga jasa.' : 'Buat PIN admin 6–8 angka. Hanya admin yang boleh mengubah harga jasa.'),
+        const SizedBox(height: 10),
+        TextField(controller: pin, obscureText: true, keyboardType: TextInputType.number, maxLength: 8, decoration: const InputDecoration(labelText: 'PIN admin')),
+        if (!configured) TextField(controller: confirm, obscureText: true, keyboardType: TextInputType.number, maxLength: 8, decoration: const InputDecoration(labelText: 'Ulangi PIN')),
+      ]),
+      actions: [
+        if (configured) TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(configured ? 'Masuk' : 'Simpan PIN')),
+      ],
+    ));
+    try {
+      if (ok == true) {
+        if (configured) {
+          if (!await _repo.verifyAdminPin(pin.text)) throw StateError('PIN admin salah.');
+        } else {
+          if (pin.text != confirm.text) throw StateError('Konfirmasi PIN tidak cocok.');
+          await _repo.setupAdminPin(pin.text);
+        }
+        if (mounted) { setState(() => _authorized = true); await _load(); }
+      } else if (mounted) { Navigator.pop(context); }
+    } catch (e) {
+      _message(e.toString().replaceFirst('Bad state: ', ''));
+      if (mounted) Navigator.pop(context);
+    } finally { pin.dispose(); confirm.dispose(); }
+  }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -67,8 +103,8 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Harga Jasa Servis'), bottom: TabBar(controller: _tabs, tabs: const [Tab(text:'Master Jasa'),Tab(text:'Riwayat Harga'),Tab(text:'Pengaturan')])),
+  Widget build(BuildContext context) => !_authorized ? const Scaffold(body: Center(child: CircularProgressIndicator())) : Scaffold(
+    appBar: AppBar(title: const Text('Harga Jasa Servis'), bottom: TabBar(controller: _tabs, onTap: (_) => setState(() {}), tabs: const [Tab(text:'Master Jasa'),Tab(text:'Riwayat Harga'),Tab(text:'Pengaturan')])),
     floatingActionButton: _tabs.index == 0 ? FloatingActionButton.small(onPressed: ()=>_edit(), child: const Icon(Icons.add)) : null,
     body: _loading ? const Center(child:CircularProgressIndicator()) : TabBarView(controller:_tabs, children:[
       Column(children:[
