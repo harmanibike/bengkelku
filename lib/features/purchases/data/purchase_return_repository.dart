@@ -297,6 +297,26 @@ class PurchaseReturnRepository {
           throw StateError('Stok ${item['product_name']} tidak cukup untuk retur. Stok tersedia: $before.');
         }
         final after = before - quantity;
+        var batchRemaining = quantity;
+        final batches = await txn.query(
+          'inventory_cost_batches',
+          where: 'product_id = ? AND quantity_remaining > 0',
+          whereArgs: [productId],
+          orderBy: 'received_at ASC, id ASC',
+        );
+        for (final batch in batches) {
+          if (batchRemaining <= 0) break;
+          final availableBatch = batch['quantity_remaining'] as int? ?? 0;
+          final take = availableBatch < batchRemaining ? availableBatch : batchRemaining;
+          if (take <= 0) continue;
+          await txn.update('inventory_cost_batches', {
+            'quantity_remaining': availableBatch - take,
+          }, where: 'id = ?', whereArgs: [batch['id']]);
+          batchRemaining -= take;
+        }
+        if (batchRemaining > 0) {
+          throw StateError('Saldo batch produk tidak cukup untuk retur. Kekurangan: $batchRemaining.');
+        }
         await txn.update('products', {
           'stock': after,
           'updated_at': DateTime.now().toIso8601String(),
