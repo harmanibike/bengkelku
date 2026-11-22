@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../business/presentation/business_profile_page.dart';
+import 'payment_methods_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -51,6 +52,17 @@ class SettingsPage extends StatelessWidget {
             title: 'Profil Usaha',
             subtitle: 'Nama, alamat, kontak, logo, dan identitas usaha',
             page: const BusinessProfilePage(),
+          ),
+          const SizedBox(height: 10),
+          const Text('Transaksi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.payments_rounded,
+            color: const Color(0xFF1565C0),
+            title: 'Metode Pembayaran',
+            subtitle: 'Pilih metode pembayaran yang tersedia di kasir',
+            page: const PaymentMethodsPage(),
           ),
         ],
       ),
