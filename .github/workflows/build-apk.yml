@@ -59,6 +59,39 @@ jobs:
           print("Nama aplikasi: BengkelKu POS")
           PY
 
+      - name: Apply BengkelKu launcher icon
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import shutil
+
+          source_icon = Path("assets/branding/ic_bengkelku.xml")
+          drawable_dir = Path("android/app/src/main/res/drawable")
+          drawable_dir.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(source_icon, drawable_dir / "ic_bengkelku.xml")
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          content = manifest.read_text()
+          content, count = re.subn(
+              r'android:icon="[^"]*"',
+              'android:icon="@drawable/ic_bengkelku"',
+              content,
+              count=1
+          )
+          if count != 1:
+              raise SystemExit("Atribut android:icon tidak ditemukan.")
+          content = re.sub(
+              r'android:roundIcon="[^"]*"',
+              'android:roundIcon="@drawable/ic_bengkelku"',
+              content,
+              count=1
+          )
+          manifest.write_text(content)
+          print("Ikon launcher BengkelKu POS berhasil diterapkan.")
+
+          PY
+
       - name: Install dependencies
         run: flutter pub get
 
