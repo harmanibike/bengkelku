@@ -190,6 +190,9 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
       final remaining = sale
           ? netTotal - paid + refunded
           : _int(record['remaining_payment']);
+      final invoiceNumber = record[sale ? 'invoice_number' : 'order_number']?.toString() ?? '-';
+      final customerName = record['customer_name']?.toString() ?? 'Pelanggan dihapus';
+      final dateValue = record[sale ? 'transaction_date' : 'received_at'];
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -201,10 +204,10 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Nota: ${record[sale ? 'invoice_number' : 'order_number'] ?? '-}',
+                  Text('Nota: $invoiceNumber',
                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text('Pelanggan: ${record['customer_name'] ?? 'Pelanggan dihapus'}'),
-                  Text('Tanggal: ${_date(record[sale ? 'transaction_date' : 'received_at'])}'),
+                  Text('Pelanggan: $customerName'),
+                  Text('Tanggal: ${_date(dateValue)}'),
                   const Divider(),
                   _detailAmount('Total awal', sale ? record['total'] : record['total_cost']),
                   if (sale) ...[
