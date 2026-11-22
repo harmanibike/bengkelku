@@ -127,10 +127,34 @@ class _ReportsPageState extends State<ReportsPage> {
                       _metric('Transaksi Kas', '${_summary['transaction_count'] ?? 0}', Icons.receipt_long, Colors.purple),
                     ],
                   ),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Saldo kas awal', style: TextStyle(fontSize: 12)),
+                              Text(_rupiah((_summary['opening_cash_balance'] as num?)?.toInt() ?? 0), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const Divider(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Saldo kas akhir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              Text(_rupiah((_summary['closing_cash_balance'] as num?)?.toInt() ?? (income - expense)), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      'Laba kotor hanya untuk penjualan barang setelah dikurangi HPP dan HPP barang retur. Biaya operasional, gaji, komisi, serta biaya jasa belum dikurangkan; angka ini bukan laba bersih.',
+                      'Arus kas menunjukkan uang yang benar-benar masuk dan keluar, bukan laba. Laba kotor hanya untuk penjualan barang setelah dikurangi HPP dan HPP barang retur; biaya operasional, gaji, komisi, serta biaya jasa belum dikurangkan sehingga bukan laba bersih.',
                       style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ),
