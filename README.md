@@ -101,7 +101,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Pengeluaran pembelian dan pembayaran pemasok dicatat pada alur pembelian.
 - [x] Buku kas terpadu dengan saldo awal, saldo berjalan, ringkasan masuk/keluar, filter periode/jenis, dan transaksi manual.
 - [ ] Kategori pemasukan/pengeluaran yang dapat dikelola.
-- [ ] Biaya operasional, gaji, dan komisi.
+- [x] Pencatatan manual biaya operasional, gaji, dan komisi sebagai kas keluar; belum ada payroll atau perhitungan komisi otomatis.
 - [ ] Rekonsiliasi serta koreksi dengan jejak audit.
 - [ ] Laporan arus kas dan laba rugi lengkap yang tervalidasi; saat ini tersedia ringkasan laba kotor barang berdasarkan HPP FIFO/alokasi batch dan harga modal tersimpan untuk transaksi lama.
 
@@ -119,7 +119,8 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Laporan pembelian/pemasok dasar.
 - [x] Audit riwayat pergerakan stok.
 - [x] Ringkasan piutang servis dan penjualan barang.
-- [x] Ringkasan penjualan bersih setelah retur dan laba kotor barang setelah pengurangan HPP barang yang diretur.\n- [ ] Laporan servis, produk terlaris, dan stok yang lebih lengkap.
+- [x] Ringkasan penjualan bersih setelah retur dan laba kotor barang setelah pengurangan HPP barang yang diretur.
+- [x] Ringkasan pendapatan servis dari nota berstatus selesai/diambil berdasarkan tanggal penyelesaian.\n- [ ] Laporan servis, produk terlaris, dan stok yang lebih lengkap.
 - [ ] Laporan utang/piutang terperinci.
 - [ ] Laporan pemasukan, pengeluaran, laba rugi, arus kas, dan komisi.
 - [ ] Filter periode yang konsisten dan ekspor PDF/Excel.
