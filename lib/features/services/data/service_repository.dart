@@ -1315,6 +1315,8 @@ class ServiceRepository {
   Future<int> addPayment({
     required int id,
     required int amount,
+    int tipAmount = 0,
+    String? tipRecipientName,
   }) async {
     if (AuthSession.instance.isMechanic) {
       throw StateError('Akun Mekanik tidak memiliki akses pembayaran.');
@@ -1322,13 +1324,14 @@ class ServiceRepository {
     if (amount <= 0) {
       throw ArgumentError('Jumlah pembayaran harus lebih dari nol.');
     }
+    if (tipAmount < 0) throw ArgumentError('Nominal tip tidak valid.');
 
     final db = await _db;
 
     return db.transaction((txn) async {
       final result = await txn.query(
         'service_orders',
-        columns: ['order_number', 'total_cost', 'down_payment', 'service_status'],
+        columns: ['order_number', 'total_cost', 'down_payment', 'service_status', 'mechanic_name'],
         where: 'id = ?',
         whereArgs: [id],
         limit: 1,
@@ -1381,6 +1384,38 @@ class ServiceRepository {
         'reference_id': id,
         'transaction_date': now.toIso8601String(),
       });
+      if (tipAmount > 0) {
+        final recipient = tipRecipientName?.trim().isNotEmpty == true
+            ? tipRecipientName!.trim()
+            : result.first['mechanic_name']?.toString();
+        final tipId = await txn.insert('tip_transactions', {
+          'amount': tipAmount,
+          'source_type': 'service_order',
+          'source_id': id,
+          'recipient_name': recipient,
+          'payment_method': 'cash',
+          'status': 'held',
+          'received_by_id': AuthSession.instance.userId,
+          'received_by_name': AuthSession.instance.displayName,
+          'received_at': now.toIso8601String(),
+        });
+        await txn.insert('cash_transactions', {
+          'transaction_type': 'income',
+          'category': 'Uang Tip',
+          'description': recipient == null || recipient.isEmpty ? 'Tip servis $orderNumber' : 'Tip servis $orderNumber untuk $recipient',
+          'amount': tipAmount,
+          'reference_type': 'tip',
+          'reference_id': tipId,
+          'transaction_date': now.toIso8601String(),
+        });
+        await ActivityLogRepository.record(
+          txn,
+          action: 'tip_received',
+          description: 'Mencatat uang tip servis $orderNumber sebesar Rp$tipAmount.',
+          entityType: 'tip',
+          entityId: tipId,
+        );
+      }
 
       return updatedRows;
     });
