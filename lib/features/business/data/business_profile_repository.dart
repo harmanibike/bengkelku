@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class BusinessProfileRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -18,6 +19,7 @@ class BusinessProfileRepository {
   };
 
   Future<Map<String, String>> getProfile() async {
+    AuthSession.instance.requireCashierOrAdmin('Profil usaha hanya dapat dilihat Admin dan Kasir.');
     final db = await _db;
     final rows = await db.query(
       'app_settings',
@@ -34,6 +36,7 @@ class BusinessProfileRepository {
   }
 
   Future<void> saveProfile(Map<String, String> values) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah profil usaha.');
     final db = await _db;
     final now = DateTime.now().toIso8601String();
     await db.transaction((txn) async {
