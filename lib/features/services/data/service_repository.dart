@@ -472,10 +472,13 @@ class ServiceRepository {
     int? discount,
     String? mechanicName,
     String? notes,
+    bool customerApproved = false,
+    String? customerApprovalNote,
+    String? changeReason,
   }) async {
-    if (AuthSession.instance.isMechanic) {
-      throw StateError('Akun Mekanik hanya dapat memperbarui status dan dokumentasi tugasnya.');
-    }
+    AuthSession.instance.requireCashierOrAdmin(
+      'Hanya Admin dan Kasir yang dapat mengubah estimasi servis.',
+    );
     final db = await _db;
 
     return db.transaction((txn) async {
@@ -506,10 +509,52 @@ class ServiceRepository {
           safeDiscount;
       final total = calculated < 0 ? 0 : calculated;
       final paid = existing['down_payment'] as int? ?? 0;
-
+      final oldEstimated = existing['estimated_cost'] as int? ?? 0;
+      final oldLabor = existing['labor_cost'] as int? ?? 0;
+      final oldParts = existing['parts_cost'] as int? ?? 0;
+      final oldDiscount = existing['discount'] as int? ?? 0;
+      final oldTotal = existing['total_cost'] as int? ?? 0;
+      final financialChanged = estimated != oldEstimated ||
+          labor != oldLabor || parts != oldParts || safeDiscount != oldDiscount;
+      final status = existing['service_status']?.toString();
+      if (financialChanged && !customerApproved) {
+        throw StateError('Minta persetujuan pelanggan sebelum mengubah estimasi atau tagihan.');
+      }
+      if (financialChanged && (status == 'completed' || status == 'delivered')) {
+        throw StateError('Estimasi servis yang sudah selesai/diambil tidak dapat diubah agar laporan periode tetap akurat.');
+      }
       if (paid > total) {
         throw ArgumentError(
-          'Total baru tidak boleh lebih kecil dari DP yang sudah dibayar.',
+          'Total baru lebih kecil dari seluruh pembayaran yang sudah diterima. Selesaikan pengembalian atau kredit pelanggan terlebih dahulu.',
+        );
+      }
+      final now = DateTime.now().toIso8601String();
+      if (financialChanged) {
+        await txn.insert('service_estimate_history', {
+          'service_order_id': id,
+          'old_estimated_cost': oldEstimated,
+          'new_estimated_cost': estimated,
+          'old_labor_cost': oldLabor,
+          'new_labor_cost': labor,
+          'old_parts_cost': oldParts,
+          'new_parts_cost': parts,
+          'old_discount': oldDiscount,
+          'new_discount': safeDiscount,
+          'old_total_cost': oldTotal,
+          'new_total_cost': total,
+          'reason': _nullableText(changeReason),
+          'customer_approved': 1,
+          'customer_approval_note': _nullableText(customerApprovalNote),
+          'changed_by_id': AuthSession.instance.userId,
+          'changed_by_name': AuthSession.instance.displayName,
+          'changed_at': now,
+        });
+        await ActivityLogRepository.record(
+          txn,
+          action: 'service_estimate_changed',
+          description: 'Mengubah estimasi/tagihan servis #$id dari Rp$oldTotal menjadi Rp$total setelah persetujuan pelanggan.',
+          entityType: 'service_order',
+          entityId: id,
         );
       }
 
