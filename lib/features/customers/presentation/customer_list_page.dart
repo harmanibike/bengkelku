@@ -23,6 +23,8 @@ class _CustomerListPageState extends State<CustomerListPage> {
 
   late Future<List<Map<String, Object?>>> _customersFuture;
   bool _isImportingContacts = false;
+  static const int _pageSize = 50;
+  int _page = 0;
 
   @override
   void initState() {
@@ -39,11 +41,13 @@ class _CustomerListPageState extends State<CustomerListPage> {
   void _loadCustomers() {
     _customersFuture = _repository.getCustomers(
       keyword: _searchController.text,
+      limit: _pageSize,
+      offset: _page * _pageSize,
     );
   }
 
   void _refresh() {
-    setState(_loadCustomers);
+    setState(() { _page = 0; _loadCustomers(); });
   }
 
   // Simpan foto pelanggan dalam ukuran kecil agar kolom Base64 tidak
@@ -678,12 +682,41 @@ class _CustomerListPageState extends State<CustomerListPage> {
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                  itemCount: customers.length,
-                  itemBuilder: (context, index) {
-                    return _buildCustomerCard(customers[index]);
-                  },
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                        itemCount: customers.length,
+                        itemBuilder: (context, index) {
+                          return _buildCustomerCard(customers[index]);
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _page > 0
+                                ? () => setState(() { _page--; _loadCustomers(); })
+                                : null,
+                            icon: const Icon(Icons.chevron_left),
+                            label: const Text('Sebelumnya'),
+                          ),
+                          Text('Halaman ${_page + 1}'),
+                          OutlinedButton.icon(
+                            onPressed: customers.length == _pageSize
+                                ? () => setState(() { _page++; _loadCustomers(); })
+                                : null,
+                            icon: const Icon(Icons.chevron_right),
+                            label: const Text('Berikutnya'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
