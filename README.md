@@ -288,14 +288,17 @@ Cetak transaksi langsung Bluetooth/USB/Wi-Fi, integrasi laci uang, papan antrian
 
 - [x] Buku saldo pelanggan tersendiri melalui ledger mutasi; saldo tidak dicampur dengan omzet.
 - [x] Admin/Kasir dapat menerima deposit dari halaman pelanggan, memilih metode pembayaran, dan melihat saldo serta riwayat mutasi.
-- [x] Saldo deposit dapat dipakai sebagai metode pembayaran di POS, pelunasan penjualan, dan pembayaran servis.
+- [x] Saldo deposit pelanggan terdaftar digunakan otomatis untuk mengurangi tagihan POS; sisa pembayaran dibayar dengan metode yang dipilih.
+- [x] Saat Admin/Kasir menyelesaikan atau menyerahkan servis, saldo deposit otomatis digunakan untuk mengurangi sisa tagihan servis; akun Mekanik tidak memicu transaksi keuangan.
+- [x] Kelebihan pembayaran servis dapat dipilih untuk dikembalikan sebagai kembalian, disimpan sebagai saldo deposit, atau dicatat sebagai tip mekanik.
 - [x] Pemakaian saldo dicatat sebagai pembayaran non-kas; tidak membuat pemasukan kas palsu.
 - [x] Pembatalan servis/penjualan dan retur penjualan mengembalikan bagian pembayaran yang berasal dari deposit ke saldo pelanggan; bagian pembayaran tunai dikembalikan melalui kas.
 - [x] Total titipan deposit pelanggan ditampilkan terpisah pada ringkasan laporan keuangan.
 - [x] Uang tip memiliki tabel/ledger terpisah dari nota penjualan/servis dan omzet; tip dapat dicatat pada pembayaran servis atau secara terpisah.
 - [x] Laporan tip memiliki filter periode, rekap per penerima/mekanik, status belum diserahkan/sudah diserahkan, dan riwayat tip.
 - [x] Penyerahan tip dicatat sebagai pengeluaran kas terpisah dan hanya dapat dikonfirmasi Admin.
-- [ ] Penarikan/refund deposit secara manual di luar pembatalan/retur transaksi.
+- [x] Admin/Kasir dapat menarik saldo pelanggan secara tunai kapan saja selama saldo mencukupi; mutasi saldo dan kas keluar tercatat serta dapat direkonsiliasi.
+- [x] Penarikan tunai dicatat sebagai pengurangan titipan pelanggan dan pengeluaran kas, bukan pengurang omzet.
 - [ ] Sinkronisasi saldo pelanggan dan tip lintas perangkat; saat ini data tetap lokal pada perangkat.
 
 **Catatan akuntansi:** Deposit merupakan titipan/kewajiban kepada pelanggan, bukan pendapatan bengkel. Tip bukan omzet jasa atau barang. Keduanya tetap muncul pada arus kas karena uang benar-benar diterima, tetapi tidak menambah metrik penjualan/pendapatan dan laba usaha. Penggunaan saldo deposit mengurangi kewajiban saldo pelanggan tanpa menambah kas masuk.
