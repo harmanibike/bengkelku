@@ -6,7 +6,7 @@ import '../../../core/database/app_database.dart';
 
 class LoyaltySettings {
   const LoyaltySettings({
-    this.enabled = true,
+    this.enabled = false,
     this.spendAmountPerPoint = 10000,
     this.pointValue = 100,
     this.minimumRedeemPoints = 100,
@@ -37,7 +37,7 @@ class LoyaltySettings {
   };
 
   factory LoyaltySettings.fromJson(Map<String, dynamic> json) => LoyaltySettings(
-    enabled: json['enabled'] is bool ? json['enabled'] as bool : true,
+    enabled: json['enabled'] is bool ? json['enabled'] as bool : false,
     spendAmountPerPoint: _positiveInt(json['spendAmountPerPoint'], 10000),
     pointValue: _positiveInt(json['pointValue'], 100),
     minimumRedeemPoints: _positiveInt(json['minimumRedeemPoints'], 100),
@@ -46,7 +46,7 @@ class LoyaltySettings {
 
 class StockReminderSettings {
   const StockReminderSettings({
-    this.enabled = true,
+    this.enabled = false,
     this.checkAtMinimumStock = true,
     this.repeatDaily = true,
   });
@@ -72,7 +72,7 @@ class StockReminderSettings {
   };
 
   factory StockReminderSettings.fromJson(Map<String, dynamic> json) => StockReminderSettings(
-    enabled: json['enabled'] is bool ? json['enabled'] as bool : true,
+    enabled: json['enabled'] is bool ? json['enabled'] as bool : false,
     checkAtMinimumStock: json['checkAtMinimumStock'] is bool ? json['checkAtMinimumStock'] as bool : true,
     repeatDaily: json['repeatDaily'] is bool ? json['repeatDaily'] as bool : true,
   );
