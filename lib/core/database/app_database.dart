@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 21;
+  static const int currentVersion = 22;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -369,6 +369,7 @@ class AppDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         invoice_number TEXT NOT NULL UNIQUE,
         customer_id INTEGER,
+        customer_name TEXT,
         subtotal INTEGER NOT NULL DEFAULT 0,
         discount INTEGER NOT NULL DEFAULT 0,
         tax INTEGER NOT NULL DEFAULT 0,
@@ -683,6 +684,9 @@ class AppDatabase {
       ''');
       await db.execute('CREATE INDEX idx_activity_logs_created ON activity_logs(created_at DESC, id DESC)');
       await db.execute('CREATE INDEX idx_activity_logs_user ON activity_logs(user_id, created_at DESC)');
+    }
+    if (oldVersion < 22) {
+      await db.execute('ALTER TABLE sales ADD COLUMN customer_name TEXT');
     }
     // Akun pengguna dan penugasan mekanik. Migrasi bersifat aditif:
     // data servis lama dipertahankan dan tetap dapat diakses admin/kasir.
