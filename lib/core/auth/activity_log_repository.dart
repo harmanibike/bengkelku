@@ -29,7 +29,7 @@ class ActivityLogRepository {
     return db.query(
       'activity_logs',
       orderBy: 'created_at DESC, id DESC',
-      limit: limit.clamp(1, 1000),
+      limit: limit.clamp(1, 1000).toInt(),
     );
   }
 }
