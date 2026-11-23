@@ -315,6 +315,45 @@ class SaleReturnRepository {
         'payment_status': nextPaymentStatus,
       }, where: 'id = ?', whereArgs: [saleId]);
 
+      // Poin dari barang yang diretur dikurangi secara proporsional.
+      // Total pengurangan kumulatif dibatasi agar saldo poin tidak negatif.
+      final earnedRows = await txn.query(
+        'loyalty_point_ledger',
+        where: 'sale_id = ? AND entry_type = ?',
+        whereArgs: [saleId, 'earn'],
+        limit: 1,
+      );
+      if (earnedRows.isNotEmpty) {
+        final earned = earnedRows.first;
+        final earnedPoints = earned['points'] as int? ?? 0;
+        final eligibleAmount = earned['eligible_amount'] as int? ?? total;
+        if (earnedPoints > 0 && eligibleAmount > 0) {
+          final cumulativeReturned = totalPreviouslyReturned + returnTotal;
+          final eligibleReturned = cumulativeReturned.clamp(0, eligibleAmount).toInt();
+          final targetReversal = (earnedPoints * eligibleReturned / eligibleAmount).floor();
+          final reversedRows = await txn.rawQuery('''
+            SELECT COALESCE(SUM(-points), 0) AS reversed_points
+            FROM loyalty_point_ledger
+            WHERE sale_id = ? AND entry_type = 'return'
+          ''', [saleId]);
+          final alreadyReversed = reversedRows.first['reversed_points'] as int? ?? 0;
+          final pointsToReverse = targetReversal - alreadyReversed;
+          if (pointsToReverse > 0) {
+            await txn.insert('loyalty_point_ledger', {
+              'customer_id': earned['customer_id'],
+              'sale_id': saleId,
+              'reference_type': 'sale_return',
+              'reference_id': returnId,
+              'entry_type': 'return',
+              'points': -pointsToReverse,
+              'eligible_amount': eligibleAmount,
+              'description': 'Pengurangan poin dari retur $returnNumber',
+              'created_at': now.toIso8601String(),
+            });
+          }
+        }
+      }
+
       return returnId;
     });
   }
