@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class AccountRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -48,14 +49,23 @@ class AccountRepository {
     }
 
     final db = await _db;
-    final salt = _newSalt();
-    return db.insert('app_users', {
+    return db.transaction((txn) async {
+      final count = Sqflite.firstIntValue(await txn.rawQuery('SELECT COUNT(*) FROM app_users')) ?? 0;
+      if (count == 0 && role != 'admin') {
+        throw StateError('Akun pertama harus Admin.');
+      }
+      if (count > 0 && !AuthSession.instance.isAdmin) {
+        throw StateError('Hanya Admin yang dapat membuat akun baru.');
+      }
+      final salt = _newSalt();
+      return txn.insert('app_users', {
       'display_name': name,
       'username': login,
       'role': role,
       'pin_hash': '$salt:${_hashPin(pin, salt)}',
       'is_active': 1,
       'created_at': DateTime.now().toIso8601String(),
+      });
     });
   }
 
@@ -110,6 +120,12 @@ class AccountRepository {
     required int id,
     required bool active,
   }) async {
+    if (!AuthSession.instance.isAdmin) {
+      throw StateError('Hanya Admin yang dapat mengubah status akun.');
+    }
+    if (!active && AuthSession.instance.userId == id) {
+      throw StateError('Admin yang sedang login tidak dapat menonaktifkan akunnya sendiri.');
+    }
     final db = await _db;
     if (!active) {
       final rows = await db.query(
@@ -143,6 +159,9 @@ class AccountRepository {
     required int id,
     required String newPin,
   }) async {
+    if (!AuthSession.instance.isAdmin) {
+      throw StateError('Hanya Admin yang dapat mengatur ulang PIN akun.');
+    }
     if (!_validPin(newPin)) {
       throw ArgumentError('PIN harus 6–8 digit.');
     }
