@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 26;
+  static const int currentVersion = 27;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -679,6 +679,22 @@ class AppDatabase {
     ''');
 
     await batch.commit(noResult: true);
+    await db.execute('''
+      CREATE TABLE loyalty_point_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER,
+        sale_id INTEGER,
+        reference_type TEXT NOT NULL,
+        reference_id INTEGER NOT NULL,
+        entry_type TEXT NOT NULL,
+        points INTEGER NOT NULL,
+        eligible_amount INTEGER NOT NULL DEFAULT 0,
+        description TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_loyalty_ledger_customer ON loyalty_point_ledger(customer_id, created_at DESC)');
+    await db.execute('CREATE UNIQUE INDEX idx_loyalty_ledger_reference ON loyalty_point_ledger(reference_type, reference_id, entry_type)');
     await _seedDefaultServiceCatalog(db);
     await _seedDefaultProductCategories(db);
   }
@@ -698,6 +714,26 @@ class AppDatabase {
           updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
       ''');
+    }
+
+    // Buku poin loyalty: migrasi aditif, transaksi dan pelanggan lama tetap utuh.
+    if (oldVersion < 27) {
+      await db.execute('''
+        CREATE TABLE loyalty_point_ledger (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_id INTEGER,
+          sale_id INTEGER,
+          reference_type TEXT NOT NULL,
+          reference_id INTEGER NOT NULL,
+          entry_type TEXT NOT NULL,
+          points INTEGER NOT NULL,
+          eligible_amount INTEGER NOT NULL DEFAULT 0,
+          description TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_loyalty_ledger_customer ON loyalty_point_ledger(customer_id, created_at DESC)');
+      await db.execute('CREATE UNIQUE INDEX idx_loyalty_ledger_reference ON loyalty_point_ledger(reference_type, reference_id, entry_type)');
     }
 
     // Foto profil pelanggan disimpan opsional sebagai Base64; migrasi aditif.
