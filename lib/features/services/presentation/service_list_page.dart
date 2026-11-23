@@ -253,6 +253,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
     try {
       await _walletRepository.recordTip(
         amount: amount, sourceType: 'service_order', sourceId: detail['id'] as int,
+        recipientAccountId: detail['assigned_mechanic_id'] as int?,
         recipientName: detail['mechanic_name']?.toString(),
         paymentMethod: 'cash', note: note,
       );
