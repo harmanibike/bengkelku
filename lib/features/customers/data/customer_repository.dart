@@ -155,7 +155,15 @@ class CustomerRepository {
     if (keyword.length < 3) return null;
 
     final db = await _db;
-    final customers = await db.query('customers', orderBy: 'name COLLATE NOCASE ASC');
+    final customers = await db.rawQuery('''
+      SELECT c.*,
+        COALESCE((
+          SELECT w.balance_after FROM customer_wallet_ledger w
+          WHERE w.customer_id = c.id ORDER BY w.id DESC LIMIT 1
+        ), 0) AS wallet_balance
+      FROM customers c
+      ORDER BY c.name COLLATE NOCASE ASC
+    ''');
     final normalizedInput = keyword.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 
     String normalizePhone(String value) {
