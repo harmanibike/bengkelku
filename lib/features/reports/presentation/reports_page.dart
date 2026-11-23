@@ -116,7 +116,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   const Text('Ringkasan Keuangan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: _period,
+                    initialValue: _period,
                     decoration: const InputDecoration(labelText: 'Periode laporan', border: OutlineInputBorder()),
                     items: const [
                       DropdownMenuItem(value: 'today', child: Text('Hari ini')),
