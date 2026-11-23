@@ -6,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/auth_session.dart';
+import '../../../core/auth/activity_log_repository.dart';
 
 class AccountRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -58,14 +59,22 @@ class AccountRepository {
         throw StateError('Hanya Admin yang dapat membuat akun baru.');
       }
       final salt = _newSalt();
-      return txn.insert('app_users', {
-      'display_name': name,
-      'username': login,
-      'role': role,
-      'pin_hash': '$salt:${_hashPin(pin, salt)}',
-      'is_active': 1,
-      'created_at': DateTime.now().toIso8601String(),
+      final id = await txn.insert('app_users', {
+        'display_name': name,
+        'username': login,
+        'role': role,
+        'pin_hash': '$salt:${_hashPin(pin, salt)}',
+        'is_active': 1,
+        'created_at': DateTime.now().toIso8601String(),
       });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'account_created',
+        description: 'Membuat akun $role untuk $name ($login).',
+        entityType: 'app_user',
+        entityId: id,
+      );
+      return id;
     });
   }
 
@@ -144,15 +153,31 @@ class AccountRepository {
       }
     }
 
-    return db.update(
-      'app_users',
-      {
-        'is_active': active ? 1 : 0,
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final accountRows = await txn.query('app_users',
+        columns: ['display_name', 'username', 'role'],
+        where: 'id = ?', whereArgs: [id], limit: 1);
+      final changed = await txn.update(
+        'app_users',
+        {
+          'is_active': active ? 1 : 0,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (changed > 0) {
+        final account = accountRows.isEmpty ? null : accountRows.first;
+        await ActivityLogRepository.record(
+          txn,
+          action: active ? 'account_activated' : 'account_deactivated',
+          description: '${active ? 'Mengaktifkan' : 'Menonaktifkan'} akun ${account?['display_name'] ?? '#$id'} (${account?['username'] ?? '-'}) dengan peran ${account?['role'] ?? '-'}.' ,
+          entityType: 'app_user',
+          entityId: id,
+        );
+      }
+      return changed;
+    });
   }
 
   Future<int> resetPin({
@@ -167,14 +192,29 @@ class AccountRepository {
     }
     final db = await _db;
     final salt = _newSalt();
-    return db.update(
-      'app_users',
-      {
-        'pin_hash': '$salt:${_hashPin(newPin, salt)}',
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final rows = await txn.query('app_users',
+        columns: ['display_name', 'username'],
+        where: 'id = ?', whereArgs: [id], limit: 1);
+      final changed = await txn.update(
+        'app_users',
+        {
+          'pin_hash': '$salt:${_hashPin(newPin, salt)}',
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (changed > 0) {
+        await ActivityLogRepository.record(
+          txn,
+          action: 'account_pin_reset',
+          description: 'Mereset PIN akun ${rows.isEmpty ? '#$id' : rows.first['display_name']} (${rows.isEmpty ? '-' : rows.first['username']}).',
+          entityType: 'app_user',
+          entityId: id,
+        );
+      }
+      return changed;
+    });
   }
 }
