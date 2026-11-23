@@ -262,6 +262,59 @@ class _ReportsPageState extends State<ReportsPage> {
                       ),
                     );
                   }),
+                  Builder(builder: (context) {
+                    final issues = (_summary['sale_return_cost_audit_issues'] as List?) ?? [];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(issues.isEmpty ? Icons.verified_outlined : Icons.warning_amber_rounded,
+                                  color: issues.isEmpty ? Colors.green : Colors.orange),
+                                const SizedBox(width: 8),
+                                const Expanded(child: Text('Audit HPP retur penjualan',
+                                  style: TextStyle(fontWeight: FontWeight.w600))),
+                                Text('${issues.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            if (issues.isEmpty)
+                              const Text('Snapshot biaya retur sesuai dengan nota asal dan jumlah alokasi batch yang dipulihkan.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey))
+                            else ...[
+                              const Text('Retur berikut memiliki selisih snapshot HPP atau jumlah batch yang dipulihkan:',
+                                style: TextStyle(fontSize: 12)),
+                              const SizedBox(height: 6),
+                              ...issues.take(5).map((row) {
+                                final item = row as Map<String, Object?>;
+                                final costIssues = (item['cost_issue_count'] as num?)?.toInt() ?? 0;
+                                final batchIssues = (item['batch_quantity_issue_count'] as num?)?.toInt() ?? 0;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 3),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text('${item['return_number'] ?? '-'} • Nota ${item['invoice_number'] ?? '-'}',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                    if (costIssues > 0)
+                                      Text('$costIssues item memiliki biaya retur berbeda dari snapshot nota.',
+                                        style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                                    if (batchIssues > 0)
+                                      Text('$batchIssues item memiliki jumlah alokasi batch yang tidak cocok.',
+                                        style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                                  ]),
+                                );
+                              }),
+                              if (issues.length > 5)
+                                Text('${issues.length - 5} retur lainnya perlu diperiksa.',
+                                  style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
