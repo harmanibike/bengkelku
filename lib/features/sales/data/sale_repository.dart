@@ -401,6 +401,62 @@ class SaleRepository {
     });
   }
 
+  Future<int> addSaleWalletPayment({required int id, required int amount}) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses pembayaran.');
+    if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari nol.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('sales', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) throw StateError('Transaksi penjualan tidak ditemukan.');
+      final sale = rows.first;
+      if (sale['payment_status'] == 'cancelled') throw StateError('Penjualan yang dibatalkan tidak dapat menerima pembayaran.');
+      final customerId = sale['customer_id'] as int?;
+      if (customerId == null) throw StateError('Saldo hanya dapat digunakan oleh pelanggan terdaftar.');
+      final returnRows = await txn.rawQuery('''
+        SELECT COALESCE(SUM(total_amount), 0) AS returned_amount,
+               COALESCE(SUM(refunded_amount), 0) AS refunded_amount
+        FROM sale_returns WHERE sale_id = ?
+      ''', [id]);
+      final effectiveTotal = (sale['total'] as num? ?? 0).toInt()
+          - (returnRows.first['returned_amount'] as num? ?? 0).toInt()
+          + (returnRows.first['refunded_amount'] as num? ?? 0).toInt();
+      final paidBefore = (sale['paid'] as num?)?.toInt() ?? 0;
+      final remaining = effectiveTotal - paidBefore;
+      if (remaining <= 0) throw StateError('Penjualan ini sudah lunas.');
+      if (amount > remaining) throw ArgumentError('Pembayaran melebihi sisa tagihan.');
+      final walletRows = await txn.rawQuery(
+        'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+        [customerId],
+      );
+      final balance = walletRows.isEmpty ? 0 : (walletRows.first['balance_after'] as num?)?.toInt() ?? 0;
+      if (amount > balance) throw StateError('Saldo pelanggan tidak mencukupi. Saldo tersedia Rp$balance.');
+      final nextBalance = balance - amount;
+      final paidAfter = paidBefore + amount;
+      final nextStatus = paidAfter >= effectiveTotal ? 'paid' : 'partial';
+      final now = DateTime.now().toIso8601String();
+      await txn.update('sales', {
+        'paid': paidAfter, 'payment_status': nextStatus, 'payment_method': 'customer_wallet',
+      }, where: 'id = ?', whereArgs: [id]);
+      await txn.insert('customer_wallet_ledger', {
+        'customer_id': customerId, 'entry_type': 'sale_payment', 'amount': amount,
+        'balance_after': nextBalance, 'description': 'Pembayaran penjualan ${sale['invoice_number'] ?? id}',
+        'reference_type': 'sale', 'reference_id': id, 'payment_method': 'customer_wallet',
+        'created_by_id': AuthSession.instance.userId, 'created_by_name': AuthSession.instance.displayName,
+        'created_at': now,
+      });
+      if (nextStatus == 'paid') {
+        await _awardLoyaltyPoints(
+          txn, saleId: id, customerId: customerId, eligibleAmount: effectiveTotal,
+          description: 'Poin dari pelunasan penjualan ${sale['invoice_number'] ?? id}',
+        );
+      }
+      await ActivityLogRepository.record(txn, action: 'sale_wallet_payment',
+        description: 'Membayar penjualan ${sale['invoice_number'] ?? id} sebesar Rp$amount dari saldo pelanggan.',
+        entityType: 'sale', entityId: id);
+      return paidAfter;
+    });
+  }
+
   /// Membatalkan penjualan tanpa menghapus nota atau riwayat kas.
   /// Stok dibalik berdasarkan pergerakan stok asli dari transaksi tersebut.
   Future<int> cancelSale({required int id, String? reason}) async {
@@ -627,11 +683,15 @@ class SaleRepository {
   Future<List<Map<String, Object?>>> getSalePaymentHistory(int id) async {
     AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses riwayat pembayaran.');
     final db = await _db;
-    return db.query(
-      'cash_transactions',
-      where: "reference_id = ? AND reference_type IN ('sale', 'sale_payment') AND transaction_type = 'income'",
-      whereArgs: [id],
-      orderBy: 'transaction_date ASC, id ASC',
-    );
+    return db.rawQuery('''
+      SELECT id, amount, category, description, transaction_date, 'cash' AS payment_source
+      FROM cash_transactions
+      WHERE reference_id = ? AND reference_type IN ('sale', 'sale_payment') AND transaction_type = 'income'
+      UNION ALL
+      SELECT id, amount, 'Saldo Pelanggan' AS category, description, created_at AS transaction_date, 'wallet' AS payment_source
+      FROM customer_wallet_ledger
+      WHERE reference_id = ? AND reference_type = 'sale' AND entry_type = 'sale_payment'
+      ORDER BY transaction_date ASC, id ASC
+    ''', [id, id]);
   }
 }
