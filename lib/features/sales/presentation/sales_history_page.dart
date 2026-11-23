@@ -148,6 +148,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(_dateLabel(sale['transaction_date'])),
+                  Text('Pelanggan: ${sale['customer_name']?.toString() ?? 'Pelanggan Umum'}'),
                   const Divider(height: 20),
                   ...items.map((item) {
                     final quantity = item['quantity'] as int? ?? 0;
