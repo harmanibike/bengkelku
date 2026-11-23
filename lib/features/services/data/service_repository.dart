@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/auth_session.dart';
+import '../../../core/auth/activity_log_repository.dart';
 
 class ServiceRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -127,6 +128,13 @@ class ServiceRepository {
         'before_photo_path': _nullableText(beforePhotoPath),
       });
 
+      await ActivityLogRepository.record(
+        txn,
+        action: 'service_status_changed',
+        description: 'Mengubah status servis ${rows.first['order_number'] ?? id} dari $current menjadi $status.',
+        entityType: 'service_order',
+        entityId: id,
+      );
       await txn.insert('service_status_history', {
         'service_order_id': serviceOrderId,
         'old_status': null,
@@ -398,6 +406,13 @@ class ServiceRepository {
         'new_other_direct_cost': otherDirectCost,
         'changed_at': now,
       });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'service_direct_cost_changed',
+        description: 'Mengubah biaya langsung servis #$id.',
+        entityType: 'service_order',
+        entityId: id,
+      );
       return txn.update(
         'service_orders',
         {
@@ -640,6 +655,13 @@ class ServiceRepository {
       );
 
       // Pembayaran lanjutan juga masuk ke kas, terhubung ke nota servis.
+      await ActivityLogRepository.record(
+        txn,
+        action: 'service_payment',
+        description: 'Mencatat pembayaran servis $orderNumber sebesar Rp$amount.',
+        entityType: 'service_order',
+        entityId: id,
+      );
       await txn.insert('cash_transactions', {
         'transaction_type': 'income',
         'category': 'Servis',
