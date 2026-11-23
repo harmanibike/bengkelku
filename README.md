@@ -139,6 +139,24 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Laporan laba rugi bersih, biaya operasional teralokasi, payroll/komisi otomatis, dan validasi menyeluruh; saat ini tersedia arus kas serta ringkasan laba kotor barang/servis.
 - [ ] Filter periode yang konsisten dan ekspor PDF/Excel.
 
+## Kebijakan laci uang otomatis
+
+- Laci uang direncanakan terhubung ke port RJ11/RJ12 pada printer thermal yang memang mendukung cash drawer.
+- Menu Pengaturan menyediakan sakelar ON/OFF untuk membuka laci otomatis setelah pembayaran berhasil tersimpan.
+- Admin dan Kasir dapat melakukan tes buka laci dan membuka laci secara manual sesuai hak akses.
+- Laci tidak boleh terbuka otomatis untuk transaksi gagal, dibatalkan, atau belum tersimpan.
+- Dukungan aktual tetap bergantung pada port, pinout, tegangan/pulsa, dan protokol printer serta kompatibilitas laci; tidak semua printer mendukung laci.
+- Fitur ini masih berupa spesifikasi dan belum dianggap tersedia sampai integrasi, penyimpanan pengaturan, dan pengujian perangkat selesai.
+
+## Kebijakan tampilan dan format struk
+
+- Menu Pengaturan akan menyediakan pengaturan format kertas 58 mm atau 80 mm.
+- Pengguna dapat mengatur elemen struk yang ditampilkan, termasuk logo, nama/alamat/kontak usaha, rincian transaksi, dan catatan bagian bawah.
+- Pengguna dapat mengatur ukuran teks dan jarak/tata letak struk, lalu melihat pratinjau sebelum mencetak.
+- Pengaturan berlaku untuk struk penjualan dan servis; bagian informasi khusus tiap jenis dokumen tetap dipertahankan.
+- Pengaturan format dan tampilan harus tersimpan secara lokal agar tetap tersedia saat aplikasi offline dan setelah aplikasi dibuka ulang.
+- Fitur pengaturan ini belum dianggap tersedia sampai layar, penyimpanan, generator PDF/PNG, dan pengujian hasil cetak terintegrasi.
+
 ## Kebijakan hak akses printer
 
 Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya EPOS RPP02N:
@@ -156,7 +174,9 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - [x] Buka layanan cetak Android dari pratinjau PDF.
 - [x] Arsip snapshot nota yang pernah diterbitkan dan buka ulang dari riwayat nota per transaksi.
 - [x] Bukti penerimaan sepeda saat masuk bengkel dan bukti pelunasan servis sebagai dokumen terpisah; keduanya memiliki snapshot arsip sendiri. Bukti pelunasan hanya dapat diterbitkan saat sisa tagihan nol.
-- [ ] Cetak langsung printer thermal Bluetooth 58 mm/80 mm dan pengaturan perangkat/kertas.
+- [ ] Cetak langsung printer thermal Bluetooth/USB/Wi-Fi yang didukung, termasuk pengaturan koneksi dan perangkat.
+- [ ] Pengaturan laci uang otomatis ON/OFF, tes buka, dan buka manual dengan pengamanan setelah pembayaran berhasil tersimpan.
+- [ ] Pengaturan tampilan dan format struk (58/80 mm, elemen yang ditampilkan, ukuran teks, jarak, catatan bawah, dan pratinjau) yang diterapkan konsisten pada PDF, PNG, dan cetak langsung.
 - [ ] Cetak label harga dan barcode.
 
 ## 12. Pengaturan aplikasi
@@ -164,7 +184,7 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - [x] Profil usaha dan logo.
 - [x] Pengaturan harga jasa dan PIN admin untuk override harga.
 - [x] Pengaturan metode pembayaran yang aktif pada kasir.
-- [ ] Pengaturan pajak, mata uang, nomor nota, printer, diskon, dan akun pengguna.
+- [ ] Pengaturan pajak, mata uang, nomor nota, printer, laci uang, tampilan/format struk, diskon, dan akun pengguna.
 - [ ] Backup database, restore, dan ekspor data yang telah diuji.
 
 ## 13. Multi-perangkat
