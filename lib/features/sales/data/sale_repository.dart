@@ -26,6 +26,8 @@ class SaleRepository {
     required int paid,
     String? paymentMethod,
     int? customerId,
+    String? customerName,
+    int discount = 0,
     String? notes,
   }) async {
     if (items.isEmpty)
@@ -102,12 +104,16 @@ class SaleRepository {
         });
       }
 
-      final appliedPayment = paid.clamp(0, subtotal).toInt();
-      if (appliedPayment < subtotal && customerId == null) {
+      if (discount < 0 || discount > subtotal) {
+        throw ArgumentError('Diskon harus antara Rp0 dan subtotal.');
+      }
+      final total = subtotal - discount;
+      final appliedPayment = paid.clamp(0, total).toInt();
+      if (appliedPayment < total && customerId == null) {
         throw ArgumentError('Pilih pelanggan untuk transaksi belum lunas.');
       }
-      final change = paid > subtotal ? paid - subtotal : 0;
-      final paymentStatus = appliedPayment >= subtotal ? 'paid' : (appliedPayment > 0 ? 'partial' : 'unpaid');
+      final change = paid > total ? paid - total : 0;
+      final paymentStatus = appliedPayment >= total ? 'paid' : (appliedPayment > 0 ? 'partial' : 'unpaid');
       final now = DateTime.now();
       final invoice = 'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch}';
 
@@ -119,10 +125,11 @@ class SaleRepository {
       final saleId = await txn.insert('sales', {
         'invoice_number': invoice,
         'customer_id': customerId,
+        'customer_name': customerName?.trim().isNotEmpty == true ? customerName!.trim() : 'Pelanggan Umum',
         'subtotal': subtotal,
-        'discount': 0,
+        'discount': discount,
         'tax': 0,
-        'total': subtotal,
+        'total': total,
         'paid': appliedPayment,
         'change_amount': change,
         'payment_method': paymentMethod ?? 'cash',
@@ -457,7 +464,7 @@ class SaleRepository {
     final term = keyword.trim();
     return db.rawQuery('''
       SELECT sales.*,
-             COALESCE(customers.name, 'Pelanggan Umum') AS customer_name,
+             COALESCE(NULLIF(sales.customer_name, ''), customers.name, 'Pelanggan Umum') AS customer_name,
              COALESCE(ret.returned_amount, 0) AS returned_amount,
              COALESCE(ret.refunded_amount, 0) AS refunded_amount,
              MAX(0, sales.total - sales.paid
@@ -473,7 +480,7 @@ class SaleRepository {
         GROUP BY sale_id
       ) ret ON ret.sale_id = sales.id
       WHERE (? = '' OR sales.invoice_number LIKE ?
-         OR COALESCE(customers.name, '') LIKE ?
+         OR COALESCE(NULLIF(sales.customer_name, ''), customers.name, '') LIKE ?
          OR COALESCE(sales.notes, '') LIKE ?)
       ORDER BY sales.transaction_date DESC, sales.id DESC
       LIMIT 200
