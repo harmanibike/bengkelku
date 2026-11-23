@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../../core/auth/auth_session.dart';
-import '../../settings/presentation/account_pages.dart';
+import '../../core/auth/auth_session.dart';
+import '../settings/presentation/account_pages.dart';
 
 import '../bicycles/presentation/bicycle_list_page.dart';
 import '../customers/presentation/customer_list_page.dart';
