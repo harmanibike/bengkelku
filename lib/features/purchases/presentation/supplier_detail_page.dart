@@ -291,6 +291,11 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
                     final status = row['payment_status'] as String? ?? 'unpaid';
                     final cancelled = row['status']?.toString() == 'cancelled';
                     final returned = (row['returned_amount'] as num? ?? 0).toInt();
+                    final storedPaid = (row['paid'] as num? ?? 0).toInt();
+                    final paymentHistory = (row['payment_history_amount'] as num? ?? 0).toInt();
+                    final storedCredit = (row['return_credit'] as num? ?? 0).toInt();
+                    final creditHistory = (row['credit_application_amount'] as num? ?? 0).toInt();
+                    final ledgerMismatch = storedPaid != paymentHistory || storedCredit != creditHistory;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 6),
                       child: ListTile(
@@ -299,8 +304,16 @@ class _SupplierDetailPageState extends State<SupplierDetailPage> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 2),
                         leading: const Icon(Icons.receipt_long_outlined, size: 21),
                         title: Text(row['invoice_number'] as String? ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        subtitle: Text('${_date(row['purchase_date'])} • ${row['item_count'] ?? 0} jenis barang • Dibayar ${_money(row['paid'])} • Retur ${_money(returned)}',
-                          style: const TextStyle(fontSize: 10)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('${_date(row['purchase_date'])} • ${row['item_count'] ?? 0} jenis barang • Dibayar ${_money(row['paid'])} • Retur ${_money(returned)}',
+                              style: const TextStyle(fontSize: 10)),
+                            if (ledgerMismatch)
+                              const Text('Perlu audit: saldo pembayaran/kredit berbeda dari riwayat',
+                                style: TextStyle(fontSize: 9, color: Colors.deepOrange, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
