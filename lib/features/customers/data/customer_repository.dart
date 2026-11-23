@@ -105,10 +105,15 @@ class CustomerRepository {
 
     final db = await _db;
     final customers = await db.query('customers', orderBy: 'name COLLATE NOCASE ASC');
-    final normalizedInput = keyword.toLowerCase().replaceAll(RegExp(r'\\s+'), ' ').trim();
-    final inputDigits = keyword.replaceAll(RegExp(r'[^0-9]'), '');
+    final normalizedInput = keyword.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 
-    // Nomor HP dicocokkan setelah karakter pemisah diabaikan.
+    String normalizePhone(String value) {
+      var digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.startsWith('62')) digits = '0\${digits.substring(2)}';
+      return digits;
+    }
+
+    final inputDigits = normalizePhone(keyword);
     if (inputDigits.length >= 6) {
       final phoneMatches = customers.where((customer) {
         final phone = normalizePhone((customer['phone'] ?? '').toString());
@@ -119,7 +124,7 @@ class CustomerRepository {
     }
 
     final nameMatches = customers.where((customer) {
-      final name = (customer['name'] ?? '').toString().toLowerCase().replaceAll(RegExp(r'\\s+'), ' ').trim();
+      final name = (customer['name'] ?? '').toString().toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
       return name == normalizedInput;
     }).toList();
     if (nameMatches.length == 1) return nameMatches.first;
