@@ -143,6 +143,16 @@ class ReportRepository {
           + COALESCE(ret.refunded_amount, 0)) > 0
     ''');
 
+    final customerWalletRows = await db.rawQuery('''
+      SELECT COALESCE(SUM(balance_after), 0) AS amount,
+             COUNT(*) AS customer_count
+      FROM customer_wallet_ledger current
+      WHERE current.id = (
+        SELECT MAX(latest.id) FROM customer_wallet_ledger latest
+        WHERE latest.customer_id = current.customer_id
+      )
+    ''');
+
     final supplierPayableRows = await db.rawQuery('''
       SELECT COALESCE(SUM(
         CASE WHEN p.total - p.paid - COALESCE(p.return_credit, 0) > 0
@@ -374,6 +384,8 @@ class ReportRepository {
       'sale_receivable_count': saleReceivableRows.first['total'] as int? ?? 0,
       'customer_receivable_amount': (serviceReceivableRows.first['amount'] as int? ?? 0) + (saleReceivableRows.first['amount'] as int? ?? 0),
       'customer_receivable_count': (serviceReceivableRows.first['total'] as int? ?? 0) + (saleReceivableRows.first['total'] as int? ?? 0),
+      'customer_wallet_balance': customerWalletRows.first['amount'] as int? ?? 0,
+      'customer_wallet_customer_count': customerWalletRows.first['customer_count'] as int? ?? 0,
       'supplier_payable_amount': supplierPayableRows.first['amount'] as int? ?? 0,
       'supplier_payable_count': supplierPayableRows.first['total'] as int? ?? 0,
       'return_refund_audit_issues': returnRefundAudit,
