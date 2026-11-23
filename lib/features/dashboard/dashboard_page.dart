@@ -9,10 +9,7 @@ import '../customers/presentation/customer_list_page.dart';
 import '../products/presentation/product_list_page.dart';
 import '../products/presentation/stock_movement_page.dart';
 import '../products/presentation/stock_opname_page.dart';
-import '../purchases/presentation/suppliers_page.dart';
 import '../purchases/presentation/purchases_page.dart';
-import '../purchases/presentation/purchase_returns_page.dart';
-import '../purchases/presentation/supplier_debts_page.dart';
 import '../settings/presentation/settings_page.dart';
 import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
@@ -133,20 +130,8 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const CashbookPage()));
   }
 
-  void _openSuppliers() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const SuppliersPage()));
-  }
-
   void _openPurchases() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchasesPage()));
-  }
-
-  void _openPurchaseReturns() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchaseReturnsPage()));
-  }
-
-  void _openSupplierDebts() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplierDebtsPage()));
   }
 
 
@@ -505,8 +490,6 @@ class _DashboardPageState extends State<DashboardPage> {
         _menuTile(title: 'Buku Kas', icon: Icons.account_balance_wallet_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openCashbook),
         _menuTile(title: 'Pengeluaran', icon: Icons.money_off_rounded, colors: const [Color(0xFFE64A19), Color(0xFFFF8A65)], onTap: _openReports),
         _menuTile(title: 'Pembelian', icon: Icons.add_shopping_cart_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openPurchases),
-        _menuTile(title: 'Retur Beli', icon: Icons.assignment_return_rounded, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: _openPurchaseReturns),
-        _menuTile(title: 'Utang', icon: Icons.account_balance_wallet_rounded, colors: const [Color(0xFFE65100), Color(0xFFFFB74D)], onTap: _openSupplierDebts),
         _menuTile(title: 'Pengaturan', icon: Icons.settings_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openSettings),
       ],
     ];
