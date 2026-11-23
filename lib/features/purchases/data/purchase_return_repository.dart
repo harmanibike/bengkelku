@@ -561,9 +561,17 @@ class PurchaseReturnRepository {
             (stockDeducted == 1 ||
                 (stockDeducted == null &&
                     restoreByProduct.containsKey(productId)));
-        if (stockWasDeducted &&
-            (itemId == null || (allocationByItem[itemId] ?? 0) != expected)) {
-          throw StateError('Alokasi batch retur tidak lengkap. Pembatalan otomatis dihentikan untuk menjaga stok.');
+        final allocatedQuantity =
+            itemId == null ? 0 : (allocationByItem[itemId] ?? 0);
+        if (stockWasDeducted && allocatedQuantity != expected) {
+          throw StateError(
+            'Alokasi batch retur tidak lengkap. Pembatalan otomatis dihentikan untuk menjaga stok.',
+          );
+        }
+        if (!stockWasDeducted && allocatedQuantity > 0) {
+          throw StateError(
+            'Alokasi batch ditemukan untuk barang yang tidak mengurangi stok. Pembatalan dihentikan untuk audit persediaan.',
+          );
         }
       }
       if (allocations.isEmpty && restoreByProduct.isNotEmpty) {
