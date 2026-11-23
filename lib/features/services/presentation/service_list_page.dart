@@ -1,6 +1,8 @@
 
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/auth/auth_session.dart';
+
 import '../data/service_repository.dart';
 import '../../business/data/business_profile_repository.dart';
 import '../../business/presentation/business_identity_header.dart';
@@ -44,14 +46,16 @@ class _ServiceListPageState extends State<ServiceListPage> {
   }
 
   void _loadOrders() {
-    _ordersFuture = _showOutstandingOnly
-        ? _repository.getOutstandingServiceOrders(
-            keyword: _searchController.text,
-          )
-        : _repository.getServiceOrders(
+    final session = AuthSession.instance;
+    _ordersFuture = session.isMechanic
+        ? _repository.getServiceOrders(
             keyword: _searchController.text,
             status: _statusFilter,
-          );
+            assignedMechanicId: session.userId,
+          )
+        : _showOutstandingOnly
+            ? _repository.getOutstandingServiceOrders(keyword: _searchController.text)
+            : _repository.getServiceOrders(keyword: _searchController.text, status: _statusFilter);
   }
 
   void _refresh() => setState(_loadOrders);
@@ -118,10 +122,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
           ),
           items: _statusLabels.entries
               .where((entry) =>
-                  entry.key == current ||
+                  (!AuthSession.instance.isMechanic || const ['checking', 'in_progress', 'completed'].contains(entry.key)) &&
+                  (entry.key == current ||
                   (ServiceRepository.allowedStatusTransitions[current] ??
                           const <String>[])
-                      .contains(entry.key))
+                      .contains(entry.key)))
               .map((entry) => DropdownMenuItem(
                     value: entry.key,
                     child: Text(entry.value),
@@ -145,7 +150,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
     );
     if (result == null || !mounted) return;
     try {
-      await _repository.updateServiceStatus(id: id, status: result);
+      await _repository.updateServiceStatus(
+        id: id,
+        status: result,
+        actingMechanicId: AuthSession.instance.isMechanic ? AuthSession.instance.userId : null,
+      );
       if (!mounted) return;
       _refresh();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -351,6 +360,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 _detailLine('Keluhan', detail['complaint']),
                 _detailLine('Diagnosis', detail['diagnosis']),
                 _detailLine('Mekanik', detail['mechanic_name']),
+                if (!AuthSession.instance.isMechanic) ...[
                 const Divider(),
                 _detailLine('Jasa servis', _rupiah(detail['labor_cost'])),
                 _detailLine('Sparepart', _rupiah(detail['parts_cost'])),
@@ -368,6 +378,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                           ? 'Belum lunas (sebagian dibayar)'
                           : 'Belum dibayar',
                 ),
+                ],
                 _detailLine('Status sepeda', _statusLabels[status] ?? status),
                 if (statusHistory.isNotEmpty) ...[
                   const Divider(),
@@ -426,6 +437,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 ],
                 if ((detail['notes']?.toString() ?? '').isNotEmpty)
                   _detailLine('Catatan', detail['notes']),
+                if (!AuthSession.instance.isMechanic) ...[
                 const Divider(),
                 const Text('Dokumentasi Servis',
                     style: TextStyle(fontWeight: FontWeight.bold)),
@@ -465,6 +477,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                         : 'Ganti foto sesudah'),
                   ),
                 ),
+                ],
               ],
             ),
           ),
@@ -474,17 +487,17 @@ class _ServiceListPageState extends State<ServiceListPage> {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Tutup'),
           ),
-          OutlinedButton.icon(
+          if (!AuthSession.instance.isMechanic) OutlinedButton.icon(
             onPressed: () => Navigator.pop(dialogContext, 'receipt_history'),
             icon: const Icon(Icons.history),
             label: const Text('Riwayat Nota'),
           ),
-          OutlinedButton.icon(
+          if (!AuthSession.instance.isMechanic) OutlinedButton.icon(
             onPressed: () => Navigator.pop(dialogContext, 'receipt'),
             icon: const Icon(Icons.receipt_long_outlined),
             label: const Text('Nota / Bagikan'),
           ),
-          PopupMenuButton<String>(
+          if (!AuthSession.instance.isMechanic) PopupMenuButton<String>(
             tooltip: 'Dokumen servis',
             onSelected: (value) => Navigator.pop(dialogContext, value),
             itemBuilder: (_) => [
@@ -511,7 +524,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
               ),
             ),
           ),
-          OutlinedButton.icon(
+          if (!AuthSession.instance.isMechanic) OutlinedButton.icon(
             onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
             icon: const Icon(Icons.edit_note_outlined),
             label: const Text('Ubah Biaya Modal'),
@@ -705,7 +718,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               scrollDirection: Axis.horizontal,
               children: [
-                FilterChip(
+                if (!AuthSession.instance.isMechanic) FilterChip(
                   label: const Text('Piutang'),
                   selected: _showOutstandingOnly,
                   avatar: const Icon(Icons.account_balance_wallet_outlined, size: 17),
@@ -770,7 +783,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: AuthSession.instance.isMechanic ? null : FloatingActionButton.extended(
         onPressed: _openIntake,
         icon: const Icon(Icons.add),
         label: const Text('Servis Masuk'),
