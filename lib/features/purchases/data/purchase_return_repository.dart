@@ -512,32 +512,14 @@ class PurchaseReturnRepository {
         final itemId = (item['id'] as num?)?.toInt();
         final expected = (item['quantity'] as num?)?.toInt() ?? 0;
         final productId = (item['product_id'] as num?)?.toInt();
-        final productRows = productId == null
-            ? const <Map<String, Object?>>[]
-            : await txn.query(
-                'products',
-                columns: ['track_stock'],
-                where: 'id = ?',
-                whereArgs: [productId],
-                limit: 1,
-              );
-        final trackedNow = productRows.isNotEmpty &&
-            (productRows.first['track_stock'] as num?)?.toInt() == 1;
-        if (trackedNow && (itemId == null || (allocationByItem[itemId] ?? 0) != expected)) {
+        final stockWasDeducted =
+            productId != null && restoreByProduct.containsKey(productId);
+        if (stockWasDeducted &&
+            (itemId == null || (allocationByItem[itemId] ?? 0) != expected)) {
           throw StateError('Alokasi batch retur tidak lengkap. Pembatalan otomatis dihentikan untuk menjaga stok.');
         }
       }
-      if (allocations.isEmpty && returnItems.any((item) {
-        final productId = (item['product_id'] as num?)?.toInt();
-        return productId != null;
-      })) {
-        final trackedProducts = await txn.rawQuery('''
-          SELECT COUNT(*) AS total
-          FROM purchase_return_items pri
-          JOIN products p ON p.id = pri.product_id
-          WHERE pri.purchase_return_id = ? AND p.track_stock = 1
-        ''', [returnId]);
-        if (((trackedProducts.first['total'] as num?)?.toInt() ?? 0) > 0) {
+      if (allocations.isEmpty && restoreByProduct.isNotEmpty) {
           throw StateError(
             'Retur ini dibuat sebelum pencatatan alokasi batch tersedia. Pembatalan otomatis tidak aman; stok perlu diaudit terlebih dahulu.',
           );
@@ -590,7 +572,7 @@ class PurchaseReturnRepository {
           ? 'weighted_average'
           : settingRows.first['setting_value']?.toString();
       if (method == 'weighted_average') {
-        for (final productId in byProduct.keys) {
+        for (final productId in restoreByProduct.keys) {
           final totals = await txn.rawQuery('''
             SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
               COALESCE(SUM(quantity_remaining * unit_cost), 0) AS value
