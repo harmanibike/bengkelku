@@ -104,7 +104,7 @@ class StockReminderNotificationService {
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
       } else {
-        await _plugin.cancel(_notificationId);
+        await _plugin.cancel(id: _notificationId);
         final today = DateTime.now();
         final dateKey =
             '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
@@ -137,7 +137,7 @@ class StockReminderNotificationService {
   Future<void> cancelStockReminder() async {
     try {
       await _initialize();
-      await _plugin.cancel(_notificationId);
+      await _plugin.cancel(id: _notificationId);
     } catch (_) {
       // Abaikan jika layanan notifikasi perangkat tidak tersedia.
     }
