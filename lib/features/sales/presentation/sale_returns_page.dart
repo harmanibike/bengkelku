@@ -287,7 +287,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
-              value: _selectedSaleId,
+              initialValue: _selectedSaleId,
               isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Pilih nota penjualan',
