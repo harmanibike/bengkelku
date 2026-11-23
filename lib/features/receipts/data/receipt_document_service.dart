@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../settings/data/receipt_settings_repository.dart';
+
 class ReceiptDocumentService {
   static int _int(Object? value) => value is num ? value.toInt() : int.tryParse('$value') ?? 0;
   static String _text(Object? value) {
@@ -46,6 +48,7 @@ class ReceiptDocumentService {
     required Map<String, Object?> returnSummary,
     required Map<String, String> profile,
   }) async {
+    final settings = await ReceiptSettingsRepository().getReceiptSettings();
     final items = List<Map<String, Object?>>.from(sale['items'] as List? ?? const []);
     final logo = await _logo(profile);
     final doc = pw.Document();
@@ -57,19 +60,19 @@ class ReceiptDocumentService {
     final remaining = (total - paid - returned + refunded).clamp(0, 1 << 62).toInt();
 
     doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat(164.4, height, marginAll: 8),
+      pageFormat: PdfPageFormat(settings.paperWidthPoints, height, marginAll: settings.marginPoints),
       build: (context) => pw.Container(
         color: PdfColors.white,
         child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          _header(profile, logo),
+          _header(profile, logo, settings),
           _center('NOTA PENJUALAN', bold: true, size: 12),
           pw.SizedBox(height: 5),
           _line('No. Nota', _text(sale['invoice_number'])),
           _line('Tanggal', dateLabel(sale['transaction_date'])),
-          if (_text(sale['customer_name']).isNotEmpty) _line('Pelanggan', _text(sale['customer_name'])),
-          if (_text(sale['customer_phone']).isNotEmpty) _line('Telepon', _text(sale['customer_phone'])),
+          if (settings.showCustomerDetails && _text(sale['customer_name']).isNotEmpty) _line('Pelanggan', _text(sale['customer_name'])),
+          if (settings.showCustomerDetails && _text(sale['customer_phone']).isNotEmpty) _line('Telepon', _text(sale['customer_phone'])),
           pw.Divider(),
           ...items.map((item) {
             final qty = _int(item['quantity']);
@@ -102,7 +105,7 @@ class ReceiptDocumentService {
               rupiah(payment['amount']),
             )),
           ],
-          if (_text(sale['notes']).isNotEmpty) ...[
+          if (settings.showTransactionNotes && _text(sale['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6),
             pw.Text('Catatan: ${_text(sale['notes'])}', style: const pw.TextStyle(fontSize: 8)),
           ],
@@ -131,19 +134,19 @@ class ReceiptDocumentService {
     ].where((part) => part.isNotEmpty).join(' ');
 
     doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat(164.4, height, marginAll: 8),
+      pageFormat: PdfPageFormat(settings.paperWidthPoints, height, marginAll: settings.marginPoints),
       build: (context) => pw.Container(
         color: PdfColors.white,
         child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          _header(profile, logo),
+          _header(profile, logo, settings),
           _center('NOTA SERVIS', bold: true, size: 12),
           pw.SizedBox(height: 5),
           _line('No. Nota', _text(service['order_number'])),
           _line('Tanggal masuk', dateLabel(service['received_at'])),
-          _line('Pelanggan', _text(service['customer_name'])),
-          if (_text(service['customer_phone']).isNotEmpty) _line('Telepon', _text(service['customer_phone'])),
+          if (settings.showCustomerDetails) _line('Pelanggan', _text(service['customer_name'])),
+          if (settings.showCustomerDetails && _text(service['customer_phone']).isNotEmpty) _line('Telepon', _text(service['customer_phone'])),
           if (bicycle.isNotEmpty) _line('Sepeda', bicycle),
           if (_text(service['bicycle_serial_number']).isNotEmpty) _line('No. rangka', _text(service['bicycle_serial_number'])),
           pw.Divider(),
@@ -166,12 +169,12 @@ class ReceiptDocumentService {
               rupiah(payment['amount']),
             )),
           ],
-          if (_text(service['notes']).isNotEmpty) ...[
+          if (settings.showTransactionNotes && _text(service['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6),
             pw.Text('Catatan: ${_text(service['notes'])}', style: const pw.TextStyle(fontSize: 8)),
           ],
           pw.SizedBox(height: 12),
-          _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : _text(profile['business_footer_note']), size: 8),
+          if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : _text(profile['business_footer_note']), size: 8),
         ],
       )),
     ));
@@ -192,13 +195,13 @@ class ReceiptDocumentService {
     ].where((part) => part.isNotEmpty).join(' ');
     final height = 440.0 + (_text(service['notes']).isNotEmpty ? 35 : 0);
     doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat(164.4, height, marginAll: 8),
+      pageFormat: PdfPageFormat(settings.paperWidthPoints, height, marginAll: settings.marginPoints),
       build: (context) => pw.Container(
         color: PdfColors.white,
         child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          _header(profile, logo),
+          _header(profile, logo, settings),
           _center('BUKTI PENERIMAAN SEPEDA', bold: true, size: 11),
           _center('DOKUMEN SAAT SEPEDA MASUK BENGKEL', size: 7),
           pw.SizedBox(height: 7),
@@ -233,7 +236,7 @@ class ReceiptDocumentService {
           pw.SizedBox(height: 12),
           _center('Dokumen ini merupakan bukti penerimaan sepeda, bukan bukti pelunasan.', size: 7),
           pw.SizedBox(height: 10),
-          _center(_text(profile['business_footer_note']).isEmpty
+          if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty
               ? 'Simpan dokumen ini untuk pengambilan sepeda.'
               : _text(profile['business_footer_note']), size: 8),
         ],
@@ -258,13 +261,13 @@ class ReceiptDocumentService {
       _text(service['bicycle_model']),
     ].where((part) => part.isNotEmpty).join(' ');
     doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat(164.4, height, marginAll: 8),
+      pageFormat: PdfPageFormat(settings.paperWidthPoints, height, marginAll: settings.marginPoints),
       build: (context) => pw.Container(
         color: PdfColors.white,
         child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          _header(profile, logo),
+          _header(profile, logo, settings),
           _center('BUKTI PELUNASAN SERVIS', bold: true, size: 12),
           _center('PEMBAYARAN TELAH LUNAS', bold: true, size: 8),
           pw.SizedBox(height: 7),
@@ -291,23 +294,22 @@ class ReceiptDocumentService {
           _center('LUNAS - TIDAK ADA SISA TAGIHAN', bold: true, size: 9),
           _center('Terima kasih atas kepercayaan Anda.', size: 8),
           pw.SizedBox(height: 10),
-          _center(_text(profile['business_footer_note']), size: 8),
+          if (settings.showFooter) _center(_text(profile['business_footer_note']), size: 8),
         ],
       )),
     ));
     return doc.save();
   }
 
-  static pw.Widget _header(Map<String, String> profile, pw.MemoryImage? logo) {
+  static pw.Widget _header(Map<String, String> profile, pw.MemoryImage? logo, ReceiptPrintSettings settings) {
     final details = [
-      _text(profile['business_address']),
-      _text(profile['business_phone']),
-      _text(profile['business_whatsapp']),
-      _text(profile['business_email']),
+      if (settings.showBusinessAddress) _text(profile['business_address']),
+      if (settings.showBusinessContact) _text(profile['business_phone']),
+      if (settings.showBusinessContact) _text(profile['business_whatsapp']),
     ].where((item) => item.isNotEmpty).toList();
     return pw.Column(children: [
-      if (logo != null) pw.Container(height: 32, alignment: pw.Alignment.center, child: pw.Image(logo, fit: pw.BoxFit.contain)),
-      if (_text(profile['business_name']).isNotEmpty)
+      if (settings.showLogo && logo != null) pw.Container(height: 32, alignment: pw.Alignment.center, child: pw.Image(logo, fit: pw.BoxFit.contain)),
+      if (settings.showBusinessName && _text(profile['business_name']).isNotEmpty)
         _center(_text(profile['business_name']), bold: true, size: 11),
       ...details.map((detail) => _center(detail, size: 7)),
       pw.SizedBox(height: 5),
