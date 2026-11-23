@@ -13,8 +13,35 @@ class AccountRepository {
 
   static const roles = ['admin', 'cashier', 'mechanic'];
 
-  String _hashPin(String pin, String salt) =>
+  static const int _pinHashIterations = 120000;
+
+  String _hashLegacyPin(String pin, String salt) =>
       sha256.convert(utf8.encode('$salt:$pin')).toString();
+
+  String _hashPin(String pin, String salt, {int iterations = _pinHashIterations}) {
+    final hmac = Hmac(sha256, utf8.encode(pin));
+    var block = hmac.convert([...utf8.encode(salt), 0, 0, 0, 1]).bytes;
+    final derived = List<int>.from(block);
+    for (var round = 1; round < iterations; round++) {
+      block = hmac.convert(block).bytes;
+      for (var index = 0; index < derived.length; index++) {
+        derived[index] ^= block[index];
+      }
+    }
+    return base64Url.encode(derived).replaceAll('=', '');
+  }
+
+  String _encodePinHash(String pin, String salt) =>
+      'pbkdf2_sha256:$_pinHashIterations:$salt:${_hashPin(pin, salt)}';
+
+  bool _constantTimeEquals(String left, String right) {
+    if (left.length != right.length) return false;
+    var difference = 0;
+    for (var index = 0; index < left.length; index++) {
+      difference |= left.codeUnitAt(index) ^ right.codeUnitAt(index);
+    }
+    return difference == 0;
+  }
 
   String _newSalt() {
     final random = Random.secure();
@@ -63,7 +90,7 @@ class AccountRepository {
         'display_name': name,
         'username': login,
         'role': role,
-        'pin_hash': '$salt:${_hashPin(pin, salt)}',
+        'pin_hash': _encodePinHash(pin, salt),
         'is_active': 1,
         'created_at': DateTime.now().toIso8601String(),
       });
@@ -93,12 +120,35 @@ class AccountRepository {
 
     final user = rows.first;
     final stored = user['pin_hash']?.toString() ?? '';
-    final separator = stored.indexOf(':');
-    if (separator <= 0) return null;
-
-    final salt = stored.substring(0, separator);
-    final expected = stored.substring(separator + 1);
-    if (_hashPin(pin, salt) != expected) return null;
+    if (stored.startsWith('pbkdf2_sha256:')) {
+      final parts = stored.split(':');
+      if (parts.length != 4) return null;
+      final iterations = int.tryParse(parts[1]);
+      if (iterations == null || iterations < 10000 || iterations > 500000) {
+        return null;
+      }
+      final actual = _hashPin(pin, parts[2], iterations: iterations);
+      if (!_constantTimeEquals(actual, parts[3])) return null;
+    } else {
+      // Hash SHA-256 lama tetap diterima agar pengguna tidak terkunci setelah
+      // pembaruan. Setelah PIN benar, hash langsung ditingkatkan.
+      final separator = stored.indexOf(':');
+      if (separator <= 0) return null;
+      final salt = stored.substring(0, separator);
+      final expected = stored.substring(separator + 1);
+      if (!_constantTimeEquals(_hashLegacyPin(pin, salt), expected)) {
+        return null;
+      }
+      await db.update(
+        'app_users',
+        {
+          'pin_hash': _encodePinHash(pin, _newSalt()),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [user['id']],
+      );
+    }
 
     return {
       'id': user['id'],
@@ -216,7 +266,7 @@ class AccountRepository {
       final changed = await txn.update(
         'app_users',
         {
-          'pin_hash': '$salt:${_hashPin(newPin, salt)}',
+          'pin_hash': _encodePinHash(newPin, salt),
           'updated_at': DateTime.now().toIso8601String(),
         },
         where: 'id = ?',
