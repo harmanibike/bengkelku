@@ -748,7 +748,7 @@ class ServiceRepository {
       if (orders.isEmpty) throw StateError('Nota servis tidak ditemukan.');
       final order = orders.first;
       final serviceStatus = order['service_status']?.toString();
-      if (!const ['waiting', 'checking', 'in_progress'].contains(serviceStatus)) {
+      if (approve && !const ['waiting', 'checking', 'in_progress'].contains(serviceStatus)) {
         throw StateError('Perubahan sparepart hanya dapat diterapkan saat servis masih dikerjakan.');
       }
 
