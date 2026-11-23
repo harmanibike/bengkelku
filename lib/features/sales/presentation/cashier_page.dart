@@ -268,6 +268,8 @@ class _CashierPageState extends State<CashierPage> {
     final buyerNameController = TextEditingController(text: _buyerNameForHold.text);
     try {
       var discountAmount = 0;
+      Map<String, Object?>? matchedCustomer;
+      var customerLookupToken = 0;
       var selectedPaymentMethod = _paymentMethods.any((method) => method['code'] == 'cash')
           ? 'cash'
           : _paymentMethods.first['code']!;
@@ -285,8 +287,42 @@ class _CashierPageState extends State<CashierPage> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: buyerNameController,
-                  decoration: const InputDecoration(labelText: 'Nama pembeli (opsional)', hintText: 'Kosongkan = Pelanggan Umum'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nama / Nomor HP pelanggan',
+                    hintText: 'Ketik nama atau nomor HP',
+                  ),
+                  onChanged: (value) async {
+                    final token = ++customerLookupToken;
+                    setDialogState(() => matchedCustomer = null);
+                    final match = await _customerRepository.findCustomerByNameOrPhone(value);
+                    if (!dialogContext.mounted || token != customerLookupToken) return;
+                    setDialogState(() => matchedCustomer = match);
+                  },
                 ),
+                if (matchedCustomer != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.verified, color: Colors.green, size: 18),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Pelanggan terdeteksi: ${matchedCustomer!['name']}',
+                            style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (buyerNameController.text.trim().length >= 3)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 5),
+                    child: Text(
+                      'Pelanggan belum terdaftar. Transaksi tetap bisa dilanjutkan.',
+                      style: TextStyle(color: Colors.black54, fontSize: 12),
+                    ),
+                  ),
                 const SizedBox(height: 8),
                 TextField(
                   controller: discountController,
@@ -370,8 +406,8 @@ class _CashierPageState extends State<CashierPage> {
       final paymentMethodLabel = _paymentMethods.firstWhere(
         (method) => method['code'] == confirmedMethod,
       )['name']!;
-      int? customerId;
-      if (paid < finalTotal) {
+      int? customerId = matchedCustomer?['id'] as int?;
+      if (paid < finalTotal && customerId == null) {
         customerId = await _chooseCustomer();
         if (customerId == null || !mounted) return;
       }
