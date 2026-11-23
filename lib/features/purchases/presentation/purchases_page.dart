@@ -468,38 +468,57 @@ class _PurchasesPageState extends State<PurchasesPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplierDebtsPage()));
   }
 
+  Widget _purchaseMenuTile({
+    required String title,
+    required IconData icon,
+    required List<Color> colors,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: colors,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: colors.first.withValues(alpha: 0.22),
+                  blurRadius: 7,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 29),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pembelian Barang'),
         actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Menu pembelian lainnya',
-            onSelected: (value) {
-              if (value == 'suppliers') {
-                _openSuppliers();
-              } else if (value == 'returns') {
-                _openPurchaseReturns();
-              } else if (value == 'debts') {
-                _openSupplierDebts();
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'suppliers', child: ListTile(
-                leading: Icon(Icons.local_shipping_outlined), title: Text('Pemasok'),
-                contentPadding: EdgeInsets.zero, dense: true,
-              )),
-              PopupMenuItem(value: 'returns', child: ListTile(
-                leading: Icon(Icons.assignment_return_outlined), title: Text('Retur Beli'),
-                contentPadding: EdgeInsets.zero, dense: true,
-              )),
-              PopupMenuItem(value: 'debts', child: ListTile(
-                leading: Icon(Icons.account_balance_wallet_outlined), title: Text('Hutang Pemasok'),
-                contentPadding: EdgeInsets.zero, dense: true,
-              )),
-            ],
-          ),
           IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
         ],
       ),
@@ -511,7 +530,41 @@ class _PurchasesPageState extends State<PurchasesPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Menu Pembelian', style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.bold,
+                )),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _purchaseMenuTile(
+                      title: 'Pemasok',
+                      icon: Icons.local_shipping_outlined,
+                      colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)],
+                      onTap: _openSuppliers,
+                    )),
+                    Expanded(child: _purchaseMenuTile(
+                      title: 'Retur Beli',
+                      icon: Icons.assignment_return_outlined,
+                      colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)],
+                      onTap: _openPurchaseReturns,
+                    )),
+                    Expanded(child: _purchaseMenuTile(
+                      title: 'Hutang Pemasok',
+                      icon: Icons.account_balance_wallet_outlined,
+                      colors: const [Color(0xFFE65100), Color(0xFFFFB74D)],
+                      onTap: _openSupplierDebts,
+                    )),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: TextField(
               controller: _search,
               onChanged: (_) => _reload(),
