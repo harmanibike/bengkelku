@@ -647,7 +647,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(result['approve'] == true ? 'Perubahan sparepart diterapkan.' : 'Usulan ditolak.')));
-      await _refresh();
+      _refresh();
       await _showDetail({'id': serviceId});
     } catch (error) {
       if (!mounted) return;
