@@ -68,7 +68,7 @@ class ReceiptDocumentService {
         children: [
           _header(profile, logo, settings),
           _center('NOTA PENJUALAN', bold: true, size: 12, settings: settings),
-          pw.SizedBox(height: 5),
+          pw.SizedBox(height: 5 * settings.spacing),
           _line('No. Nota', _text(sale['invoice_number']), settings: settings),
           _line('Tanggal', dateLabel(sale['transaction_date']), settings: settings),
           if (settings.showCustomerDetails && _text(sale['customer_name']).isNotEmpty) _line('Pelanggan', _text(sale['customer_name']), settings: settings),
@@ -79,12 +79,12 @@ class ReceiptDocumentService {
             final price = _int(item['unit_price']);
             final subtotal = _int(item['subtotal']);
             return pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 5),
+              padding: pw.EdgeInsets.only(bottom: 5 * settings.spacing),
               child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                pw.Text(_text(item['product_name']), style: const pw.TextStyle(fontSize: 9)),
+                pw.Text(_text(item['product_name']), style: pw.TextStyle(fontSize: 9 * settings.fontScale)),
                 pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-                  pw.Text('$qty x ${rupiah(price)}', style: const pw.TextStyle(fontSize: 8)),
-                  pw.Text(rupiah(subtotal), style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('$qty x ${rupiah(price)}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
+                  pw.Text(rupiah(subtotal), style: pw.TextStyle(fontSize: 9 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
                 ]),
               ]),
             );
@@ -98,8 +98,8 @@ class ReceiptDocumentService {
           if (refunded > 0) _line('Uang dikembalikan', rupiah(refunded), settings: settings),
           _line('Sisa tagihan', rupiah(remaining), bold: true, settings: settings),
           if (payments.isNotEmpty) ...[
-            pw.SizedBox(height: 7),
-            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 7 * settings.spacing),
+            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
             ...payments.map((payment) => _line(
               dateLabel(payment['transaction_date']),
               rupiah(payment['amount']),
@@ -107,10 +107,10 @@ class ReceiptDocumentService {
             )),
           ],
           if (settings.showTransactionNotes && _text(sale['notes']).isNotEmpty) ...[
-            pw.SizedBox(height: 6),
+            pw.SizedBox(height: 6 * settings.spacing),
             pw.Text('Catatan: ${_text(sale['notes'])}', style: const pw.TextStyle(fontSize: 8)),
           ],
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 12 * settings.spacing),
           if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih atas kunjungan Anda.' : _text(profile['business_footer_note']), size: 8, settings: settings),
         ],
       )),
