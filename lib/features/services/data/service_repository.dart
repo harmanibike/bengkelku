@@ -573,6 +573,7 @@ class ServiceRepository {
       String itemName;
       int? requestProductId;
       int requestQuantity;
+      int requestUnitPrice = 0;
       if (requestType == 'add') {
         final products = await txn.query(
           'products',
@@ -601,6 +602,7 @@ class ServiceRepository {
         itemName = items.first['item_name']?.toString() ?? 'Sparepart';
         requestProductId = items.first['product_id'] as int?;
         requestQuantity = items.first['quantity'] as int? ?? 1;
+        requestUnitPrice = items.first['unit_price'] as int? ?? 0;
       }
 
       return txn.insert('service_part_change_requests', {
@@ -610,7 +612,7 @@ class ServiceRepository {
         'product_id': requestProductId,
         'item_name': itemName,
         'quantity': requestQuantity,
-        'unit_price': 0,
+        'unit_price': requestUnitPrice,
         'mechanic_note': _nullableText(mechanicNote),
         'status': 'pending',
         'proposed_by_id': session.userId,
