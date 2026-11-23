@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 33;
+  static const int currentVersion = 34;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -266,6 +266,7 @@ class AppDatabase {
         product_id INTEGER,
         product_name TEXT NOT NULL,
         quantity INTEGER NOT NULL,
+        stock_deducted INTEGER NOT NULL DEFAULT 0,
         unit_cost INTEGER NOT NULL DEFAULT 0,
         subtotal INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (purchase_return_id) REFERENCES purchase_returns(id) ON DELETE CASCADE,
@@ -875,6 +876,14 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    // Simpan apakah stok benar-benar dikurangi saat retur dibuat.
+    // NULL pada database lama berarti histori harus diverifikasi dari stock_movements.
+    if (oldVersion < 34) {
+      await db.execute(
+        'ALTER TABLE purchase_return_items ADD COLUMN stock_deducted INTEGER',
+      );
+    }
+
     // Pairing perangkat Server-Client. Migrasi aditif; data bengkel lama tidak disentuh.
     if (oldVersion < 33) {
       await db.execute('''
