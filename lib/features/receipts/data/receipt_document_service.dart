@@ -103,14 +103,15 @@ class ReceiptDocumentService {
             ...payments.map((payment) => _line(
               dateLabel(payment['transaction_date']),
               rupiah(payment['amount']),
-            , settings: settings)),
+              settings: settings,
+            )),
           ],
           if (settings.showTransactionNotes && _text(sale['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6),
             pw.Text('Catatan: ${_text(sale['notes'])}', style: const pw.TextStyle(fontSize: 8)),
           ],
           pw.SizedBox(height: 12),
-          _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih atas kunjungan Anda.' : _text(profile['business_footer_note']), size: 8, settings: settings),
+          if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih atas kunjungan Anda.' : _text(profile['business_footer_note']), size: 8, settings: settings),
         ],
       )),
     ));
@@ -168,7 +169,8 @@ class ReceiptDocumentService {
             ...payments.map((payment) => _line(
               dateLabel(payment['transaction_date']),
               rupiah(payment['amount']),
-            , settings: settings)),
+              settings: settings,
+            )),
           ],
           if (settings.showTransactionNotes && _text(service['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6),
@@ -212,9 +214,9 @@ class ReceiptDocumentService {
           _line('Tanggal diterima', dateLabel(service['received_at']), settings: settings),
           pw.Divider(),
           _center('DATA PELANGGAN', bold: true, settings: settings),
-          _line('Nama', _text(service['customer_name']), settings: settings),
-          _line('Telepon', _text(service['customer_phone']), settings: settings),
-          _line('Alamat', _text(service['customer_address']), settings: settings),
+          if (settings.showCustomerDetails) _line('Nama', _text(service['customer_name']), settings: settings),
+          if (settings.showCustomerDetails) _line('Telepon', _text(service['customer_phone']), settings: settings),
+          if (settings.showCustomerDetails) _line('Alamat', _text(service['customer_address']), settings: settings),
           pw.Divider(),
           _center('IDENTITAS SEPEDA', bold: true, settings: settings),
           _line('Sepeda', bicycle, settings: settings),
@@ -230,7 +232,7 @@ class ReceiptDocumentService {
             _line('Dokumentasi foto', 'Foto kondisi awal tersimpan di aplikasi', settings: settings),
           if (_text(service['mechanic_name']).isNotEmpty)
             _line('Mekanik', _text(service['mechanic_name']), settings: settings),
-          if (_text(service['notes']).isNotEmpty)
+          if (settings.showTransactionNotes && _text(service['notes']).isNotEmpty)
             _line('Catatan', _text(service['notes']), settings: settings),
           pw.Divider(),
           _line('Estimasi biaya', rupiah(service['estimated_cost']), settings: settings),
@@ -277,8 +279,8 @@ class ReceiptDocumentService {
           _line('No. Dokumen', '${_text(service['order_number'])}-LUNAS', settings: settings),
           _line('No. Servis', _text(service['order_number']), settings: settings),
           _line('Tanggal masuk', dateLabel(service['received_at']), settings: settings),
-          _line('Pelanggan', _text(service['customer_name']), settings: settings),
-          if (_text(service['customer_phone']).isNotEmpty)
+          if (settings.showCustomerDetails) _line('Pelanggan', _text(service['customer_name']), settings: settings),
+          if (settings.showCustomerDetails && _text(service['customer_phone']).isNotEmpty)
             _line('Telepon', _text(service['customer_phone']), settings: settings),
           if (bicycle.isNotEmpty) _line('Sepeda', bicycle, settings: settings),
           pw.Divider(),
@@ -291,7 +293,8 @@ class ReceiptDocumentService {
             ...payments.map((payment) => _line(
               dateLabel(payment['transaction_date']),
               rupiah(payment['amount']),
-            , settings: settings)),
+              settings: settings,
+            )),
           ],
           pw.Divider(),
           _center('LUNAS - TIDAK ADA SISA TAGIHAN', bold: true, size: 9, settings: settings),
@@ -309,6 +312,7 @@ class ReceiptDocumentService {
       if (settings.showBusinessAddress) _text(profile['business_address']),
       if (settings.showBusinessContact) _text(profile['business_phone']),
       if (settings.showBusinessContact) _text(profile['business_whatsapp']),
+      if (settings.showBusinessContact) _text(profile['business_email']),
     ].where((item) => item.isNotEmpty).toList();
     return pw.Column(children: [
       if (settings.showLogo && logo != null) pw.Container(height: 32, alignment: pw.Alignment.center, child: pw.Image(logo, fit: pw.BoxFit.contain)),
@@ -346,7 +350,7 @@ class ReceiptDocumentService {
               children: [
                 pw.Expanded(
                   flex: 5,
-                  child: pw.Text(label, style: pw.TextStyle(fontSize: 8, fontWeight: weight)),
+                  child: pw.Text(label, style: pw.TextStyle(fontSize: 8 * (settings?.fontScale ?? 1), fontWeight: weight)),
                 ),
                 pw.SizedBox(width: 4),
                 pw.Expanded(
