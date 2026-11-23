@@ -218,7 +218,7 @@ class ServiceRepository {
         final stockBefore = product['stock'] as int? ?? 0;
         final name = product['name']?.toString() ?? 'Sparepart';
         final subtotal = quantity * unitPrice;
-        await txn.insert('service_order_items', {
+        final serviceItemId = await txn.insert('service_order_items', {
           'service_order_id': serviceOrderId,
           'product_id': productId,
           'item_name': name,
@@ -226,6 +226,7 @@ class ServiceRepository {
           'quantity': quantity,
           'unit_price': unitPrice,
           'subtotal': subtotal,
+          'is_active': 1,
         });
         if (tracked) {
           if (stockBefore < quantity) {
@@ -251,6 +252,13 @@ class ServiceRepository {
             await txn.update('inventory_cost_batches', {
               'quantity_remaining': available - take,
             }, where: 'id = ?', whereArgs: [batch['id']]);
+            await txn.insert('service_part_allocations', {
+              'service_order_item_id': serviceItemId,
+              'batch_id': batch['id'],
+              'quantity': take,
+              'unit_cost': batch['unit_cost'] as int? ?? 0,
+              'created_at': now.toIso8601String(),
+            });
             remaining -= take;
           }
           final stockAfter = stockBefore - quantity;
@@ -433,7 +441,7 @@ class ServiceRepository {
     final service = Map<String, Object?>.from(result.first);
     service['items'] = await db.query(
       'service_order_items',
-      where: 'service_order_id = ?',
+      where: 'service_order_id = ? AND is_active = 1',
       whereArgs: [id],
       orderBy: 'id ASC',
     );
