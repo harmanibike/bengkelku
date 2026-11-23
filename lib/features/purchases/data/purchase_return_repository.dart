@@ -1,11 +1,14 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../../core/auth/auth_session.dart';
+
 import '../../../core/database/app_database.dart';
 
 class PurchaseReturnRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
   Future<List<Map<String, Object?>>> getPurchases() async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT p.id, p.invoice_number, p.purchase_date, s.name AS supplier_name
@@ -17,6 +20,7 @@ class PurchaseReturnRepository {
   }
 
   Future<List<Map<String, Object?>>> getReturnableItems(int purchaseId) async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT pi.id AS purchase_item_id, pi.product_id, pi.product_name,
@@ -32,6 +36,7 @@ class PurchaseReturnRepository {
   }
 
   Future<List<Map<String, Object?>>> getReturns() async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT pr.*, p.invoice_number, s.name AS supplier_name
@@ -43,6 +48,7 @@ class PurchaseReturnRepository {
   }
 
   Future<List<Map<String, Object?>>> getAvailableReturnCredits() async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT pr.id AS return_id, pr.return_number, pr.total_amount,
@@ -58,6 +64,7 @@ class PurchaseReturnRepository {
   }
 
   Future<List<Map<String, Object?>>> getCreditTargetInvoices(int returnId) async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT p.id, p.invoice_number, p.purchase_date, p.total, p.paid,
@@ -76,6 +83,7 @@ class PurchaseReturnRepository {
   }
 
   Future<List<Map<String, Object?>>> getCreditApplications(int returnId) async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT a.*, p.invoice_number
@@ -87,6 +95,7 @@ class PurchaseReturnRepository {
   }
 
   Future<void> applyReturnCredit({
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     required int returnId,
     required int purchaseId,
     required int amount,
@@ -149,6 +158,7 @@ class PurchaseReturnRepository {
   }
 
   Future<void> settleReturn({
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     required int returnId,
     required int creditApplied,
     required int refundReceived,
@@ -222,6 +232,7 @@ class PurchaseReturnRepository {
   }
 
   Future<int> createReturn({
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     required int purchaseId,
     required String returnNumber,
     required Map<int, int> quantities,
@@ -381,6 +392,7 @@ class PurchaseReturnRepository {
   }
 
   Future<void> cancelReturn({
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     required int returnId,
     required String reason,
   }) async {
