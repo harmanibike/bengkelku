@@ -144,7 +144,7 @@ class SettingsPage extends StatelessWidget {
             page: const PaymentMethodsPage(),
           ),
           const SizedBox(height: 10),
-          const Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+          if (AuthSession.instance.isAdmin) ...[\n          const Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 8),
           if (AuthSession.instance.isAdmin) ...[
             _item(
