@@ -1,5 +1,7 @@
 
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -44,6 +46,31 @@ class _CustomerListPageState extends State<CustomerListPage> {
     setState(_loadCustomers);
   }
 
+  // Simpan foto pelanggan dalam ukuran kecil agar kolom Base64 tidak
+  // membengkak dan daftar pelanggan lebih ringan saat memuat foto.
+  Future<Uint8List> _compressPhoto(Uint8List bytes) async {
+    final codec = await ui.instantiateImageCodec(
+      bytes,
+      targetWidth: 320,
+      targetHeight: 320,
+      allowUpscaling: false,
+    );
+    try {
+      final frame = await codec.getNextFrame();
+      try {
+        final data = await frame.image.toByteData(
+          format: ui.ImageByteFormat.jpeg,
+          quality: 65,
+        );
+        return data?.buffer.asUint8List() ?? bytes;
+      } finally {
+        frame.image.dispose();
+      }
+    } finally {
+      codec.dispose();
+    }
+  }
+
   Future<void> _showCustomerForm({
     Map<String, Object?>? customer,
   }) async {
@@ -72,7 +99,8 @@ class _CustomerListPageState extends State<CustomerListPage> {
       final image = await ImagePicker().pickImage(source: source, imageQuality: 75, maxWidth: 512, maxHeight: 512);
       if (image == null) return;
       final bytes = await image.readAsBytes();
-      setDialogState(() => photoBase64 = base64Encode(bytes));
+      final compressed = await _compressPhoto(bytes);
+      setDialogState(() => photoBase64 = base64Encode(compressed));
     }
 
     try {
@@ -388,7 +416,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
           'email': detail == null || detail.emails.isEmpty
               ? null
               : detail.emails.first.address,
-          'photo_base64': photo == null ? null : base64Encode(photo),
+          'photo_base64': photo == null ? null : base64Encode(await _compressPhoto(photo)),
         });
         if (normalized.isNotEmpty) phones.add(normalized);
       }
