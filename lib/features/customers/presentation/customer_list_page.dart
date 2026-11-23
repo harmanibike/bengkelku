@@ -527,6 +527,16 @@ class _CustomerListPageState extends State<CustomerListPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12),
                 ),
+              Row(
+                children: [
+                  const Icon(Icons.stars_rounded, size: 14, color: Color(0xFFFFA000)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${customer['loyalty_points'] ?? 0} poin loyalty',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFB77900)),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
