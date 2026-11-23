@@ -321,7 +321,9 @@ jobs:
 
       - name: Install Android NDK with retry
         run: |
-          set -euo pipefail
+          # sdkmanager menutup stdin setelah konfirmasi; abaikan SIGPIPE dari yes,
+          # tetapi tetap gunakan exit code sdkmanager sebagai hasil instalasi.
+          set -eu
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           NDK_VERSION="28.2.13676358"
