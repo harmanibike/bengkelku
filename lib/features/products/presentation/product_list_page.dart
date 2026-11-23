@@ -1,13 +1,12 @@
 import 'dart:io';
 
-import '../../../core/formatters/currency_input_formatter.dart';
-
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
 import '../data/product_repository.dart';
 import '../../purchases/presentation/purchase_cost_settings_page.dart';
 import 'product_category_page.dart';
