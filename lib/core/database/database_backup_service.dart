@@ -6,6 +6,7 @@ import 'package:sqflite/sqflite.dart';
 
 import 'app_database.dart';
 import '../auth/activity_log_repository.dart';
+import '../auth/auth_session.dart';
 
 class DatabaseBackupService {
   static const String _databaseName = 'bengkelku_pos.db';
@@ -57,6 +58,7 @@ class DatabaseBackupService {
   }
 
   Future<String> restoreBackup(String sourcePath) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat memulihkan database.');
     final source = File(sourcePath);
     if (!await source.exists() || await source.length() < 100) {
       throw StateError('File backup tidak ditemukan atau ukurannya tidak valid.');
