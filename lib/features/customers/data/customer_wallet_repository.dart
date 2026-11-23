@@ -61,6 +61,59 @@ class CustomerWalletRepository {
     });
   }
 
+  Future<int> withdrawCash({
+    required int customerId,
+    required int amount,
+    String? note,
+  }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat memproses penarikan saldo pelanggan.');
+    if (amount <= 0) throw ArgumentError('Nominal penarikan harus lebih dari nol.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final customer = await txn.query('customers', columns: ['id', 'name'], where: 'id = ?', whereArgs: [customerId], limit: 1);
+      if (customer.isEmpty) throw StateError('Pelanggan tidak ditemukan.');
+      final balanceRows = await txn.rawQuery(
+        'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+        [customerId],
+      );
+      final balance = balanceRows.isEmpty ? 0 : (balanceRows.first['balance_after'] as num?)?.toInt() ?? 0;
+      if (amount > balance) throw StateError('Saldo tidak mencukupi. Saldo tersedia Rp$balance.');
+      final now = DateTime.now().toIso8601String();
+      final nextBalance = balance - amount;
+      final ledgerId = await txn.insert('customer_wallet_ledger', {
+        'customer_id': customerId,
+        'entry_type': 'adjustment',
+        'amount': amount,
+        'balance_after': nextBalance,
+        'description': note?.trim().isNotEmpty == true ? 'Penarikan tunai: ${note!.trim()}' : 'Penarikan tunai oleh pelanggan',
+        'reference_type': 'customer_wallet_withdrawal',
+        'reference_id': customerId,
+        'payment_method': 'cash',
+        'created_by_id': AuthSession.instance.userId,
+        'created_by_name': AuthSession.instance.displayName,
+        'created_at': now,
+      });
+      await txn.insert('cash_transactions', {
+        'transaction_type': 'expense',
+        'category': 'Penarikan Saldo Pelanggan',
+        'description': 'Penarikan tunai saldo ${customer.first['name']}',
+        'amount': amount,
+        'reference_type': 'customer_wallet_withdrawal',
+        'reference_id': ledgerId,
+        'transaction_date': now,
+        'created_at': now,
+      });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'customer_wallet_withdrawal',
+        description: 'Penarikan tunai saldo Rp$amount oleh ${customer.first['name']}.',
+        entityType: 'customer',
+        entityId: customerId,
+      );
+      return ledgerId;
+    });
+  }
+
   Future<int> recordTip({
     required int amount,
     required String sourceType,
