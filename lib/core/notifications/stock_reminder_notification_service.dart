@@ -26,7 +26,7 @@ class StockReminderNotificationService {
       return;
     }
     _initializing = _plugin.initialize(
-      const InitializationSettings(
+      settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
     ).then((_) {});
