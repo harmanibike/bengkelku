@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class PaymentMethodsRepository {
   static const settingKey = 'payment_methods';
@@ -25,6 +26,7 @@ class PaymentMethodsRepository {
   ];
 
   Future<Map<String, String>> getPaymentDetails() async {
+    AuthSession.instance.requireCashierOrAdmin('Detail pembayaran hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final rows = await db.query(
       'app_settings',
@@ -39,6 +41,7 @@ class PaymentMethodsRepository {
   }
 
   Future<void> savePaymentDetails(Map<String, String> details) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah detail pembayaran.');
     final db = await _db;
     final batch = db.batch();
     for (final key in detailKeys) {
@@ -56,6 +59,7 @@ class PaymentMethodsRepository {
   }
 
   Future<List<Map<String, String>>> getMethods() async {
+    AuthSession.instance.requireCashierOrAdmin('Metode pembayaran hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final rows = await db.query(
       'app_settings',
@@ -88,6 +92,7 @@ class PaymentMethodsRepository {
   }
 
   Future<void> saveEnabledCodes(Set<String> codes) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengatur metode pembayaran.');
     final known = defaultMethods.map((method) => method['code']!).toSet();
     final valid = codes.intersection(known);
     if (valid.isEmpty) {
