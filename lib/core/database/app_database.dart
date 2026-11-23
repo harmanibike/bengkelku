@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 20;
+  static const int _databaseVersion = 21;
 
   Database? _database;
 
@@ -38,6 +38,22 @@ class AppDatabase {
   Future<void> _createDatabase(Database db, int version) async {
     final batch = db.batch();
 
+    // Jejak aktivitas akun; user_id tanpa foreign key agar histori tetap utuh.
+    batch.execute('''
+      CREATE TABLE activity_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        user_name TEXT NOT NULL,
+        user_role TEXT NOT NULL,
+        action TEXT NOT NULL,
+        entity_type TEXT,
+        entity_id INTEGER,
+        description TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_activity_logs_created ON activity_logs(created_at DESC, id DESC)');
+    batch.execute('CREATE INDEX idx_activity_logs_user ON activity_logs(user_id, created_at DESC)');
     // Akun lokal untuk Admin, Kasir, dan Mekanik.
     batch.execute('''
       CREATE TABLE app_users (
@@ -649,6 +665,24 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    // Riwayat aktivitas pengguna; migrasi aditif dan tidak mengubah transaksi lama.
+    if (oldVersion < 21) {
+      await db.execute('''
+        CREATE TABLE activity_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER,
+          user_name TEXT NOT NULL,
+          user_role TEXT NOT NULL,
+          action TEXT NOT NULL,
+          entity_type TEXT,
+          entity_id INTEGER,
+          description TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_activity_logs_created ON activity_logs(created_at DESC, id DESC)');
+      await db.execute('CREATE INDEX idx_activity_logs_user ON activity_logs(user_id, created_at DESC)');
+    }
     // Akun pengguna dan penugasan mekanik. Migrasi bersifat aditif:
     // data servis lama dipertahankan dan tetap dapat diakses admin/kasir.
     if (oldVersion < 20) {
