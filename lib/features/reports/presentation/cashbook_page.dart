@@ -73,7 +73,7 @@ class _CashbookPageState extends State<CashbookPage> {
       'purchase_return_cancel' => 'Pembatalan retur pembelian',
       'manual_cash' => 'Input manual',
       null || '' => 'Sumber tidak tercatat',
-      _ => type,
+      _ => type ?? 'Sumber tidak dikenal',
     };
     return id == null || id.isEmpty ? 'Sumber: $source' : 'Sumber: $source • ID $id';
   }
@@ -109,7 +109,7 @@ class _CashbookPageState extends State<CashbookPage> {
               onChanged:(value){if(value!=null)setDialogState(()=>selectedCategory=value);},
             ),
             TextFormField(controller:description,decoration:const InputDecoration(labelText:'Keterangan'),validator:(v)=>v==null||v.trim().isEmpty?'Wajib diisi':null),
-            TextFormField(controller:amount,keyboardType:TextInputType.number,inputFormatters:const [CurrencyInputFormatter()],decoration:const InputDecoration(labelText:'Nominal (Rp)'),validator:(v){final n=parseCurrencyInput(v);return n==null||n<=0?'Nominal tidak valid':null;}),
+            TextFormField(controller:amount,keyboardType:TextInputType.number,inputFormatters:const [CurrencyInputFormatter()],decoration:const InputDecoration(labelText:'Nominal (Rp)'),validator:(v){final n=parseCurrencyInput(v);return n<=0?'Nominal tidak valid':null;}),
           ]),
         )),
         actions:[
