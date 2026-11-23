@@ -10,6 +10,9 @@ import 'package:bengkelku_pos/features/receivables/data/receivable_repository.da
 import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 import 'package:bengkelku_pos/features/reports/data/report_repository.dart';
 import 'package:bengkelku_pos/core/database/database_backup_service.dart';
+import 'package:bengkelku_pos/features/customers/data/customer_wallet_repository.dart';
+import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
+import 'package:bengkelku_pos/features/products/data/product_repository.dart';
 
 void main() {
   setUp(() {
@@ -110,6 +113,86 @@ void main() {
     test('database restore rejects unauthenticated access', () async {
       await expectLater(
         DatabaseBackupService().restoreBackup('/not-used.db'),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('mechanic cannot process customer wallet deposit or withdrawal', () async {
+      AuthSession.instance.signIn({
+        'id': 7,
+        'role': 'mechanic',
+        'display_name': 'Mekanik Tes',
+      });
+      final wallet = CustomerWalletRepository();
+      await expectLater(
+        wallet.addDeposit(
+          customerId: 1,
+          amount: 10000,
+          paymentMethod: 'cash',
+        ),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        wallet.withdrawCash(customerId: 1, amount: 10000),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('mechanic cannot create a POS sale', () async {
+      AuthSession.instance.signIn({
+        'id': 7,
+        'role': 'mechanic',
+        'display_name': 'Mekanik Tes',
+      });
+      await expectLater(
+        SaleRepository().checkout(items: [], paid: 0),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('cashier cannot make manual stock adjustments', () async {
+      AuthSession.instance.signIn({
+        'id': 8,
+        'role': 'cashier',
+        'display_name': 'Kasir Tes',
+      });
+      await expectLater(
+        ProductRepository().adjustStock(
+          productId: 1,
+          quantity: 1,
+          isStockIn: true,
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('cashier cannot create manual cashbook transactions', () async {
+      AuthSession.instance.signIn({
+        'id': 8,
+        'role': 'cashier',
+        'display_name': 'Kasir Tes',
+      });
+      await expectLater(
+        CashbookRepository().addManualTransaction(
+          type: 'expense',
+          category: 'Tes',
+          description: 'Tes akses',
+          amount: 10000,
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('cashier cannot create or restore database backups', () async {
+      AuthSession.instance.signIn({
+        'id': 8,
+        'role': 'cashier',
+        'display_name': 'Kasir Tes',
+      });
+      final backup = DatabaseBackupService();
+      await expectLater(backup.createBackup(), throwsA(isA<StateError>()));
+      await expectLater(
+        backup.restoreBackup('/not-used.db'),
         throwsA(isA<StateError>()),
       );
     });
