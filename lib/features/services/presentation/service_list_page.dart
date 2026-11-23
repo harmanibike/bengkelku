@@ -502,7 +502,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Estimasi servis diperbarui dan riwayat perubahan dicatat.')));
-      await _refresh();
+      _refresh();
       await _showDetail({'id': id});
     } catch (error) {
       if (!mounted) return;
