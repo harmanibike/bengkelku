@@ -9,6 +9,32 @@ import '../../../core/auth/activity_log_repository.dart';
 class ServicePricingRepository {
   Future<Database> get _db => AppDatabase.instance.database;
   static const String modeBoth = 'both';
+  static const int _pinHashIterations = 120000;
+
+  String _hashPin(String pin, String salt, {int iterations = _pinHashIterations}) {
+    final hmac = Hmac(sha256, utf8.encode(pin));
+    var block = hmac.convert([...utf8.encode(salt), 0, 0, 0, 1]).bytes;
+    final derived = List<int>.from(block);
+    for (var round = 1; round < iterations; round++) {
+      block = hmac.convert(block).bytes;
+      for (var index = 0; index < derived.length; index++) {
+        derived[index] ^= block[index];
+      }
+    }
+    return base64Url.encode(derived).replaceAll('=', '');
+  }
+
+  String _encodePin(String pin, String salt) =>
+      'pbkdf2_sha256:$_pinHashIterations:$salt:${_hashPin(pin, salt)}';
+
+  bool _constantTimeEquals(String left, String right) {
+    if (left.length != right.length) return false;
+    var difference = 0;
+    for (var index = 0; index < left.length; index++) {
+      difference |= left.codeUnitAt(index) ^ right.codeUnitAt(index);
+    }
+    return difference == 0;
+  }
 
   Future<bool> hasAdminPin() async {
     AuthSession.instance.requireAdmin('Pengaturan harga jasa hanya dapat diakses Admin.');
@@ -23,7 +49,7 @@ class ServicePricingRepository {
     final db = await _db;
     final salt = List<int>.generate(16, (_) => Random.secure().nextInt(256));
     final saltText = base64.encode(salt);
-    final hash = sha256.convert(utf8.encode('$saltText:$pin')).toString();
+    final hash = _encodePin(pin, saltText);
     await db.transaction((txn) async {
       final rows = await txn.query('app_settings', columns: ['id'], where: "setting_key = 'service_admin_pin_hash'", limit: 1);
       if (rows.isNotEmpty) throw StateError('PIN admin sudah dibuat.');
@@ -40,7 +66,28 @@ class ServicePricingRepository {
     final salt = values['service_admin_pin_salt'] ?? '';
     final expected = values['service_admin_pin_hash'] ?? '';
     if (salt.isEmpty || expected.isEmpty) return false;
-    return sha256.convert(utf8.encode('$salt:$pin')).toString() == expected;
+
+    if (expected.startsWith('pbkdf2_sha256:')) {
+      final parts = expected.split(':');
+      if (parts.length != 4) return false;
+      final iterations = int.tryParse(parts[1]);
+      if (iterations == null || iterations < 10000 || iterations > 500000) {
+        return false;
+      }
+      final actual = _hashPin(pin, parts[2], iterations: iterations);
+      return _constantTimeEquals(actual, parts[3]);
+    }
+
+    // Hash SHA-256 lama tetap diterima agar PIN yang sudah tersimpan tidak
+    // terkunci setelah pembaruan. PIN benar langsung ditingkatkan ke PBKDF2.
+    final legacyHash = sha256.convert(utf8.encode('$salt:$pin')).toString();
+    if (!_constantTimeEquals(legacyHash, expected)) return false;
+    await db.update(
+      'app_settings',
+      {'setting_value': _encodePin(pin, salt)},
+      where: "setting_key = 'service_admin_pin_hash'",
+    );
+    return true;
   }
 
   Future<List<Map<String, Object?>>> getServices({bool activeOnly = false, String keyword = ''}) async {
