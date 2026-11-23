@@ -898,12 +898,12 @@ class ServiceRepository {
   }
 
 
-  // Penugasan hanya dapat diubah oleh alur administrasi; identitas akun
-  // mekanik disimpan sebagai relasi, bukan hanya teks nama.
+  // Admin dan Kasir boleh mengatur penugasan; pengelolaan akun mekanik
+  // (buat/edit/nonaktifkan akun) tetap menjadi kewenangan Admin.
   Future<int> assignMechanic({required int serviceOrderId, int? mechanicId}) async {
-    if (!AuthSession.instance.isAdmin) {
-      throw StateError('Hanya Admin yang dapat mengubah penugasan mekanik.');
-    }
+    AuthSession.instance.requireCashierOrAdmin(
+      'Hanya Admin dan Kasir yang dapat mengubah penugasan mekanik.',
+    );
     final db = await _db;
     String? mechanicName;
     if (mechanicId != null) {
