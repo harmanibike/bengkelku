@@ -56,11 +56,6 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Scan Barcode Produk'),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-      ),
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -153,14 +148,35 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
               ),
             ),
           ),
-          const Positioned(
+          Positioned(
             left: 20,
             right: 20,
-            bottom: 36,
-            child: Text(
-              'Arahkan kamera ke barcode produk. Pemindaian akan berjalan otomatis.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 14),
+            bottom: 0,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: const Text(
+                  'Arahkan kamera ke barcode produk. Pemindaian akan berjalan otomatis.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 8,
+            child: SafeArea(
+              child: IconButton(
+                tooltip: 'Tutup scanner',
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black54,
+                  shape: const CircleBorder(),
+                ),
+              ),
             ),
           ),
         ],
