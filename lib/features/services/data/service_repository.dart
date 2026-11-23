@@ -359,6 +359,7 @@ class ServiceRepository {
 
   // Riwayat audit perubahan modal, tidak mengubah tagihan dan stok.
   Future<List<Map<String, Object?>>> getServiceDirectCostHistory(int id) async {
+    AuthSession.instance.requireAdmin('Riwayat biaya modal hanya dapat diakses Admin.');
     final db = await _db;
     return db.query(
       'service_direct_cost_history',
@@ -684,6 +685,7 @@ class ServiceRepository {
   }
 
   Future<List<Map<String, Object?>>> getServicePaymentHistory(int id) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses riwayat pembayaran.');
     final db = await _db;
     return db.query(
       'cash_transactions',
