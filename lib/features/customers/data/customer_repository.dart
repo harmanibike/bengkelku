@@ -18,6 +18,7 @@ class CustomerRepository {
     String? address,
     String? email,
     String? notes,
+    String? photoBase64,
   }) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola pelanggan.');
     final db = await _db;
@@ -29,6 +30,7 @@ class CustomerRepository {
         'address': address?.trim(),
         'email': email?.trim(),
         'notes': notes?.trim(),
+        'photo_base64': photoBase64,
       });
       await ActivityLogRepository.record(
         txn,
@@ -48,6 +50,7 @@ class CustomerRepository {
     String? address,
     String? email,
     String? notes,
+    String? photoBase64,
   }) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola pelanggan.');
     final db = await _db;
@@ -61,6 +64,7 @@ class CustomerRepository {
           'address': address?.trim(),
           'email': email?.trim(),
           'notes': notes?.trim(),
+          'photo_base64': photoBase64,
           'updated_at': DateTime.now().toIso8601String(),
         },
         where: 'id = ?',
