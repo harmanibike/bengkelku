@@ -276,6 +276,7 @@ class _CashierPageState extends State<CashierPage> {
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (dialogContext, setDialogState) => AlertDialog(
+            scrollable: true,
             title: const Text('Pembayaran'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
