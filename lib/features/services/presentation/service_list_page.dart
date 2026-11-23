@@ -426,7 +426,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
     final status = detail['service_status']?.toString() ?? 'waiting';
     final statusHistory = await _repository.getServiceStatusHistory(id);
-    final directCostHistory = await _repository.getServiceDirectCostHistory(id);
+    final directCostHistory = AuthSession.instance.isAdmin
+        ? await _repository.getServiceDirectCostHistory(id)
+        : <Map<String, Object?>>[];
     final businessProfile = await BusinessProfileRepository().getProfile();
     if (!mounted) return;
     final action = await showDialog<String>(
