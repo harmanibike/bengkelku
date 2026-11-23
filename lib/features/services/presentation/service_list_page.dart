@@ -517,8 +517,12 @@ class _ServiceListPageState extends State<ServiceListPage> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Usulkan pembatalan sparepart'),
-          content: TextField(controller: noteController, maxLines: 2,
-            decoration: const InputDecoration(labelText: 'Alasan / catatan', border: OutlineInputBorder())),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Ajukan pembatalan hanya jika sparepart belum dipakai atau dipasang. Setelah disetujui dan pelanggan mengizinkan, stok akan dikembalikan ke batch asal.'),
+            const SizedBox(height: 8),
+            TextField(controller: noteController, maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Alasan / catatan', border: OutlineInputBorder())),
+          ]),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
             FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Kirim usulan')),
