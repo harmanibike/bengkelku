@@ -12,7 +12,9 @@ import 'service_photo_helper.dart';
 import '../../receipts/presentation/receipt_share_launcher.dart';
 
 class ServiceListPage extends StatefulWidget {
-  const ServiceListPage({super.key});
+  const ServiceListPage({super.key, this.showOutstandingOnly = false});
+
+  final bool showOutstandingOnly;
 
   @override
   State<ServiceListPage> createState() => _ServiceListPageState();
@@ -37,6 +39,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
   @override
   void initState() {
     super.initState();
+    _showOutstandingOnly = widget.showOutstandingOnly;
     _loadOrders();
   }
 
