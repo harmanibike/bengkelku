@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 25;
+  static const int currentVersion = 26;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -688,6 +688,18 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    // Pastikan tabel pengaturan tersedia pada semua database lama tanpa menghapus data.
+    if (oldVersion < 26) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS app_settings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          setting_key TEXT NOT NULL UNIQUE,
+          setting_value TEXT,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+    }
+
     // Foto profil pelanggan disimpan opsional sebagai Base64; migrasi aditif.
     if (oldVersion < 25) {
       await db.execute('ALTER TABLE customers ADD COLUMN photo_base64 TEXT');
