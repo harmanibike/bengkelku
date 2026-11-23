@@ -323,6 +323,7 @@ class _CashierPageState extends State<CashierPage> {
       var discountAmount = 0;
       Map<String, Object?>? matchedCustomer;
       var customerLookupToken = 0;
+      var paymentManuallyEdited = false;
       var selectedPaymentMethod = _paymentMethods.any((method) => method['code'] == 'cash')
           ? 'cash'
           : _paymentMethods.first['code']!;
@@ -349,7 +350,14 @@ class _CashierPageState extends State<CashierPage> {
                     setDialogState(() => matchedCustomer = null);
                     final match = await _customerRepository.findCustomerByNameOrPhone(value);
                     if (!dialogContext.mounted || token != customerLookupToken) return;
-                    setDialogState(() => matchedCustomer = match);
+                    setDialogState(() {
+                      matchedCustomer = match;
+                      if (!paymentManuallyEdited) {
+                        final payable = _total - discountAmount;
+                        final wallet = (match?['wallet_balance'] as num?)?.toInt() ?? 0;
+                        paymentController.text = formatCurrencyInput(payable - (wallet < payable ? wallet : payable));
+                      }
+                    });
                   },
                 ),
                 if (matchedCustomer != null) ...[
@@ -393,7 +401,8 @@ class _CashierPageState extends State<CashierPage> {
                     final parsed = parseCurrencyInput(value);
                     discountAmount = parsed.clamp(0, _total).toInt();
                     final payable = _total - discountAmount;
-                    paymentController.text = formatCurrencyInput(payable);
+                    final wallet = (matchedCustomer?['wallet_balance'] as num?)?.toInt() ?? 0;
+                    paymentController.text = formatCurrencyInput(payable - (wallet < payable ? wallet : payable));
                   }),
                 ),
                 const SizedBox(height: 8),
@@ -411,10 +420,6 @@ class _CashierPageState extends State<CashierPage> {
                       value: method['code'],
                       child: Text(method['name']!),
                     )),
-                    const DropdownMenuItem(
-                      value: 'customer_wallet',
-                      child: Text('Saldo Deposit Pelanggan'),
-                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -451,11 +456,10 @@ class _CashierPageState extends State<CashierPage> {
                   controller: paymentController,
                   keyboardType: TextInputType.number,
                   inputFormatters: const [CurrencyInputFormatter()],
+                  onChanged: (_) => paymentManuallyEdited = true,
                   decoration: InputDecoration(
-                    labelText: selectedPaymentMethod == 'customer_wallet' ? 'Nominal saldo digunakan (Rp)' : 'Uang diterima (Rp)',
-                    helperText: selectedPaymentMethod == 'customer_wallet'
-                        ? 'Pembayaran akan mengurangi saldo deposit pelanggan, bukan menambah kas.'
-                        : null,
+                    labelText: 'Uang diterima (Rp)',
+                    helperText: 'Saldo deposit pelanggan terdaftar akan digunakan otomatis terlebih dahulu.',
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -474,15 +478,22 @@ class _CashierPageState extends State<CashierPage> {
         throw ArgumentError('Diskon tidak boleh melebihi subtotal.');
       }
       final finalTotal = _total - discount;
-      final paid = parseCurrencyInput(paymentController.text);
-      final paymentMethodLabel = confirmedMethod == 'customer_wallet'
-          ? 'Saldo Deposit Pelanggan'
-          : _paymentMethods.firstWhere((method) => method['code'] == confirmedMethod)['name']!;
       int? customerId = matchedCustomer?['id'] as int?;
-      if ((paid < finalTotal || confirmedMethod == 'customer_wallet') && customerId == null) {
+      var paid = parseCurrencyInput(paymentController.text);
+      if (paid < finalTotal && customerId == null) {
         customerId = await _chooseCustomer();
         if (customerId == null || !mounted) return;
       }
+      var walletBalance = 0;
+      if (customerId != null) {
+        walletBalance = await _walletRepository.getBalance(customerId);
+        if (!paymentManuallyEdited) {
+          paid = finalTotal - (walletBalance < finalTotal ? walletBalance : finalTotal);
+        }
+      }
+      final cashApplied = paid.clamp(0, finalTotal).toInt();
+      final walletPayment = (finalTotal - cashApplied).clamp(0, walletBalance).toInt();
+      final paymentMethodLabel = _paymentMethods.firstWhere((method) => method['code'] == confirmedMethod)['name']!;
       if (confirmedMethod == 'customer_wallet') {
         if (customerId == null) throw StateError('Pilih pelanggan terdaftar untuk menggunakan saldo deposit.');
         if (paid <= 0) throw ArgumentError('Nominal saldo yang digunakan harus lebih dari nol.');
@@ -497,8 +508,8 @@ class _CashierPageState extends State<CashierPage> {
           'quantity': item['quantity'],
           'unit_price': item['unit_price'],
         }).toList(),
-        paid: confirmedMethod == 'customer_wallet' ? 0 : paid,
-        walletPayment: confirmedMethod == 'customer_wallet' ? paid : 0,
+        paid: paid,
+        walletPayment: walletPayment,
         paymentMethod: paymentMethodLabel,
         customerId: customerId,
         customerName: buyerNameController.text.trim().isEmpty ? 'Pelanggan Umum' : buyerNameController.text.trim(),
