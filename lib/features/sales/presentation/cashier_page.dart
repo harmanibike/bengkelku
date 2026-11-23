@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import '../data/sale_repository.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../settings/data/payment_methods_repository.dart';
+import 'barcode_scanner_page.dart';
 
 class CashierPage extends StatefulWidget {
   const CashierPage({super.key});
@@ -67,6 +68,47 @@ class _CashierPageState extends State<CashierPage> {
       setState(() { _paymentMethods = methods; _paymentDetails = details; });
     } catch (_) {
       // Metode default tetap tersedia jika pengaturan belum dapat dibaca.
+    }
+  }
+
+
+  Future<void> _scanProductBarcode() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+    );
+    if (code == null || !mounted) return;
+
+    _search.text = code;
+    try {
+      final results = await _repository.getSellableProducts(keyword: code);
+      if (!mounted) return;
+      setState(() => _products = results);
+
+      final normalizedCode = code.trim().toLowerCase();
+      final exactMatches = results.where((product) =>
+          product['barcode']?.toString().trim().toLowerCase() == normalizedCode
+      ).toList();
+
+      if (exactMatches.length == 1) {
+        _addToCart(exactMatches.first);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Barcode terbaca: ${exactMatches.first['name']}')),
+        );
+      } else if (exactMatches.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Barcode belum terdaftar pada produk.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Barcode digunakan lebih dari satu produk. Periksa data barcode produk.')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mencari barcode: $error')),
+      );
     }
   }
 
@@ -467,7 +509,21 @@ class _CashierPageState extends State<CashierPage> {
               decoration: InputDecoration(
                 hintText: 'Cari produk / SKU / barcode',
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(onPressed: () { _search.clear(); _loadProducts(); }, icon: const Icon(Icons.close)),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Scan barcode dengan kamera',
+                      onPressed: _saving ? null : _scanProductBarcode,
+                      icon: const Icon(Icons.qr_code_scanner),
+                    ),
+                    IconButton(
+                      tooltip: 'Hapus pencarian',
+                      onPressed: () { _search.clear(); _loadProducts(); },
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
