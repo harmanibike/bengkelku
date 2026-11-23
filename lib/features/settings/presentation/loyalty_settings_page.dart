@@ -82,7 +82,7 @@ class _LoyaltySettingsPageState extends State<LoyaltySettingsPage> {
     }
   }
 
-  Widget _numberField(String label, String helper, TextEditingController controller) {
+  Widget _numberField(String label, String helper, TextEditingController controller, {bool currency = true}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: TextField(
@@ -94,7 +94,7 @@ class _LoyaltySettingsPageState extends State<LoyaltySettingsPage> {
           labelText: label,
           helperText: helper,
           border: const OutlineInputBorder(),
-          prefixText: 'Rp ',
+          prefixText: currency ? 'Rp ' : null,
         ),
       ),
     );
@@ -123,7 +123,7 @@ class _LoyaltySettingsPageState extends State<LoyaltySettingsPage> {
                 const Text('Aturan Penukaran Poin', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 _numberField('Nilai 1 poin saat ditukar', 'Contoh: 1 poin bernilai Rp100 sebagai potongan.', _valueController),
-                _numberField('Minimal poin untuk ditukar', 'Pelanggan harus memiliki minimal jumlah poin ini.', _minimumController),
+                _numberField('Minimal poin untuk ditukar', 'Pelanggan harus memiliki minimal jumlah poin ini.', _minimumController, currency: false),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(12),
