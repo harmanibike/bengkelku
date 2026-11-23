@@ -13,6 +13,11 @@ import 'package:bengkelku_pos/core/database/database_backup_service.dart';
 import 'package:bengkelku_pos/features/customers/data/customer_wallet_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
 import 'package:bengkelku_pos/features/products/data/product_repository.dart';
+import 'package:bengkelku_pos/features/business/data/business_profile_repository.dart';
+import 'package:bengkelku_pos/features/purchases/data/purchase_cost_settings_repository.dart';
+import 'package:bengkelku_pos/features/purchases/data/purchase_report_repository.dart';
+import 'package:bengkelku_pos/features/services/data/service_pricing_repository.dart';
+import 'package:bengkelku_pos/features/settings/data/device_mode_repository.dart';
 
 void main() {
   setUp(() {
@@ -193,6 +198,66 @@ void main() {
       await expectLater(backup.createBackup(), throwsA(isA<StateError>()));
       await expectLater(
         backup.restoreBackup('/not-used.db'),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('cashier cannot access purchase cost configuration or report', () async {
+      AuthSession.instance.signIn({
+        'id': 8,
+        'role': 'cashier',
+        'display_name': 'Kasir Tes',
+      });
+      await expectLater(
+        PurchaseCostSettingsRepository().setMethod('per_batch'),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        PurchaseReportRepository().getReport(
+          start: DateTime(2026, 1, 1),
+          end: DateTime(2026, 1, 2),
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('cashier cannot change business profile or service pricing', () async {
+      AuthSession.instance.signIn({
+        'id': 8,
+        'role': 'cashier',
+        'display_name': 'Kasir Tes',
+      });
+      await expectLater(
+        BusinessProfileRepository().saveProfile({'business_name': 'Tes'}),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        ServicePricingRepository().saveService(
+          name: 'Tes jasa',
+          standardPrice: 10000,
+          reason: 'Tes',
+        ),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        ServicePricingRepository().getPriceHistory(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('cashier cannot change device connection settings', () async {
+      AuthSession.instance.signIn({
+        'id': 8,
+        'role': 'cashier',
+        'display_name': 'Kasir Tes',
+      });
+      final devices = DeviceModeRepository();
+      await expectLater(
+        devices.saveClientConfig(host: '192.168.1.2', port: 8765),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        devices.saveMode(DeviceModeRepository.localMode),
         throwsA(isA<StateError>()),
       );
     });
