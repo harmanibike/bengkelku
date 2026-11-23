@@ -61,6 +61,10 @@ class CashbookRepository {
         CASE
           WHEN c.amount <= 0 THEN 'Nominal harus lebih dari nol'
           WHEN c.transaction_type NOT IN ('income', 'expense') THEN 'Jenis kas tidak valid'
+          WHEN c.reference_type IN ('sale', 'sale_payment', 'service_order', 'purchase_return_refund')
+            AND c.transaction_type != 'income' THEN 'Arah transaksi seharusnya kas masuk'
+          WHEN c.reference_type IN ('sale_cancel', 'service_order_cancellation', 'purchase_payment', 'purchase_cancel')
+            AND c.transaction_type != 'expense' THEN 'Arah transaksi seharusnya kas keluar'
           WHEN c.reference_type IS NULL OR c.reference_type = '' THEN 'Sumber transaksi tidak tercatat'
           WHEN c.reference_type = 'manual_cash' AND c.reference_id IS NOT NULL THEN 'Transaksi manual memiliki ID referensi'
           WHEN c.reference_type IN ('sale', 'sale_payment', 'sale_cancel')
