@@ -34,8 +34,15 @@ class ServiceRepository {
 
   // Membuat nota penerimaan servis.
   Future<int> createServiceOrder({
-    required int customerId,
-    required int bicycleId,
+    int? customerId,
+    int? bicycleId,
+    String? guestCustomerName,
+    String? guestCustomerPhone,
+    String? guestBicycleBrand,
+    String? guestBicycleModel,
+    String? guestBicycleType,
+    String? guestBicycleColor,
+    String? guestBicycleSerialNumber,
     required String complaint,
     String? diagnosis,
     int estimatedCost = 0,
@@ -76,30 +83,35 @@ class ServiceRepository {
     }
 
     return db.transaction((txn) async {
-      final customer = await txn.query(
-        'customers',
-        columns: ['id'],
-        where: 'id = ?',
-        whereArgs: [customerId],
-        limit: 1,
-      );
-
-      if (customer.isEmpty) {
-        throw StateError('Pelanggan tidak ditemukan.');
-      }
-
-      final bicycle = await txn.query(
-        'bicycles',
-        columns: ['id'],
-        where: 'id = ? AND customer_id = ?',
-        whereArgs: [bicycleId, customerId],
-        limit: 1,
-      );
-
-      if (bicycle.isEmpty) {
-        throw StateError(
-          'Sepeda tidak ditemukan atau bukan milik pelanggan ini.',
+      Map<String, Object?>? registeredCustomer;
+      Map<String, Object?>? registeredBicycle;
+      if (customerId != null && bicycleId != null) {
+        final customers = await txn.query(
+          'customers',
+          columns: ['id'],
+          where: 'id = ?',
+          whereArgs: [customerId],
+          limit: 1,
         );
+        if (customers.isEmpty) throw StateError('Pelanggan tidak ditemukan.');
+        final bicycles = await txn.query(
+          'bicycles',
+          where: 'id = ? AND customer_id = ?',
+          whereArgs: [bicycleId, customerId],
+          limit: 1,
+        );
+        if (bicycles.isEmpty) {
+          throw StateError('Sepeda tidak ditemukan atau bukan milik pelanggan ini.');
+        }
+        registeredCustomer = customers.first;
+        registeredBicycle = bicycles.first;
+      } else if (customerId == null && bicycleId == null) {
+        if (_nullableText(guestCustomerName) == null ||
+            _nullableText(guestBicycleBrand) == null) {
+          throw ArgumentError('Nama pelanggan dan merek sepeda wajib diisi untuk Pelanggan Umum.');
+        }
+      } else {
+        throw ArgumentError('Data pelanggan dan sepeda tidak lengkap.');
       }
 
       final now = DateTime.now();
@@ -109,6 +121,27 @@ class ServiceRepository {
         'order_number': orderNumber,
         'customer_id': customerId,
         'bicycle_id': bicycleId,
+        'customer_name': registeredCustomer == null
+            ? _nullableText(guestCustomerName)
+            : null,
+        'customer_phone': registeredCustomer == null
+            ? _nullableText(guestCustomerPhone)
+            : null,
+        'bicycle_brand': registeredBicycle == null
+            ? _nullableText(guestBicycleBrand)
+            : null,
+        'bicycle_model': registeredBicycle == null
+            ? _nullableText(guestBicycleModel)
+            : null,
+        'bicycle_type': registeredBicycle == null
+            ? _nullableText(guestBicycleType)
+            : null,
+        'bicycle_color': registeredBicycle == null
+            ? _nullableText(guestBicycleColor)
+            : null,
+        'bicycle_serial_number': registeredBicycle == null
+            ? _nullableText(guestBicycleSerialNumber)
+            : null,
         'complaint': cleanComplaint,
         'diagnosis': _nullableText(diagnosis),
         'service_status': 'waiting',
@@ -224,13 +257,13 @@ class ServiceRepository {
     final rows = await db.rawQuery('''
       SELECT
         s.*,
-        c.name AS customer_name,
-        c.phone AS customer_phone,
-        b.brand AS bicycle_brand,
-        b.model AS bicycle_model,
-        b.bicycle_type AS bicycle_type,
-        b.color AS bicycle_color,
-        b.serial_number AS bicycle_serial_number
+        COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
+        COALESCE(s.customer_phone, c.phone) AS customer_phone,
+        COALESCE(s.bicycle_brand, b.brand) AS bicycle_brand,
+        COALESCE(s.bicycle_model, b.model) AS bicycle_model,
+        COALESCE(s.bicycle_type, b.bicycle_type) AS bicycle_type,
+        COALESCE(s.bicycle_color, b.color) AS bicycle_color,
+        COALESCE(s.bicycle_serial_number, b.serial_number) AS bicycle_serial_number
       FROM service_orders s
       LEFT JOIN customers c ON c.id = s.customer_id
       LEFT JOIN bicycles b ON b.id = s.bicycle_id
@@ -262,15 +295,15 @@ class ServiceRepository {
     final result = await db.rawQuery('''
       SELECT
         s.*,
-        c.name AS customer_name,
-        c.phone AS customer_phone,
+        COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
+        COALESCE(s.customer_phone, c.phone) AS customer_phone,
         c.address AS customer_address,
-        b.brand AS bicycle_brand,
-        b.model AS bicycle_model,
-        b.bicycle_type AS bicycle_type,
-        b.color AS bicycle_color,
+        COALESCE(s.bicycle_brand, b.brand) AS bicycle_brand,
+        COALESCE(s.bicycle_model, b.model) AS bicycle_model,
+        COALESCE(s.bicycle_type, b.bicycle_type) AS bicycle_type,
+        COALESCE(s.bicycle_color, b.color) AS bicycle_color,
         b.frame_size AS bicycle_frame_size,
-        b.serial_number AS bicycle_serial_number
+        COALESCE(s.bicycle_serial_number, b.serial_number) AS bicycle_serial_number
       FROM service_orders s
       LEFT JOIN customers c ON c.id = s.customer_id
       LEFT JOIN bicycles b ON b.id = s.bicycle_id
