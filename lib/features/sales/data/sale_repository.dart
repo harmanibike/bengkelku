@@ -580,7 +580,36 @@ class SaleRepository {
       }
 
       final cleanReason = reason?.trim();
-      final amountReceived = (sale['paid'] as int? ?? 0).clamp(0, total).toInt();
+      final cashPaidRows = await txn.rawQuery('''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM cash_transactions
+        WHERE reference_id = ? AND reference_type IN ('sale', 'sale_payment') AND transaction_type = 'income'
+      ''', [id]);
+      final amountReceived = (cashPaidRows.first['total'] as num?)?.toInt() ?? 0;
+      final walletPaidRows = await txn.rawQuery('''
+        SELECT COALESCE(SUM(amount), 0) AS total
+        FROM customer_wallet_ledger
+        WHERE reference_type = 'sale' AND reference_id = ? AND entry_type = 'sale_payment'
+      ''', [id]);
+      final walletRefund = (walletPaidRows.first['total'] as num?)?.toInt() ?? 0;
+      final customerId = sale['customer_id'] as int?;
+      if (walletRefund > 0 && customerId != null) {
+        final balanceRows = await txn.rawQuery(
+          'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+          [customerId],
+        );
+        final balance = balanceRows.isEmpty ? 0 : (balanceRows.first['balance_after'] as num?)?.toInt() ?? 0;
+        await txn.insert('customer_wallet_ledger', {
+          'customer_id': customerId, 'entry_type': 'refund', 'amount': walletRefund,
+          'balance_after': balance + walletRefund,
+          'description': 'Pengembalian saldo dari pembatalan penjualan $invoice',
+          'reference_type': 'sale_cancel', 'reference_id': id,
+          'payment_method': 'customer_wallet',
+          'created_by_id': AuthSession.instance.userId,
+          'created_by_name': AuthSession.instance.displayName,
+          'created_at': now,
+        });
+      }
       if (amountReceived > 0) {
         await txn.insert('cash_transactions', {
           'transaction_type': 'expense',
