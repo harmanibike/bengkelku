@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 import '../../../core/auth/activity_log_repository.dart';
 
 class ServicePricingRepository {
@@ -10,12 +11,14 @@ class ServicePricingRepository {
   static const String modeBoth = 'both';
 
   Future<bool> hasAdminPin() async {
+    AuthSession.instance.requireAdmin('Pengaturan harga jasa hanya dapat diakses Admin.');
     final db = await _db;
     final rows = await db.query('app_settings', columns: ['setting_value'], where: "setting_key = 'service_admin_pin_hash'", limit: 1);
     return rows.isNotEmpty && (rows.first['setting_value']?.toString().isNotEmpty ?? false);
   }
 
   Future<void> setupAdminPin(String pin) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengatur PIN harga jasa.');
     if (!RegExp(r'^\d{6,8}$').hasMatch(pin)) throw ArgumentError('PIN admin harus 6–8 angka.');
     final db = await _db;
     final salt = List<int>.generate(16, (_) => Random.secure().nextInt(256));
@@ -30,6 +33,7 @@ class ServicePricingRepository {
   }
 
   Future<bool> verifyAdminPin(String pin) async {
+    AuthSession.instance.requireAdmin('Verifikasi PIN harga jasa hanya untuk Admin.');
     final db = await _db;
     final rows = await db.query('app_settings', columns: ['setting_key', 'setting_value'], where: "setting_key IN ('service_admin_pin_salt','service_admin_pin_hash')");
     final values = {for (final row in rows) row['setting_key'].toString(): row['setting_value']?.toString() ?? ''};
@@ -40,6 +44,7 @@ class ServicePricingRepository {
   }
 
   Future<List<Map<String, Object?>>> getServices({bool activeOnly = false, String keyword = ''}) async {
+    AuthSession.instance.requireCashierOrAdmin('Daftar harga jasa hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final where = <String>[];
     final args = <Object?>[];
@@ -53,6 +58,7 @@ class ServicePricingRepository {
   }
 
   Future<int> saveService({int? id, required String name, String? category, String? description, required int standardPrice, required String reason}) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengelola harga jasa.');
     if (name.trim().isEmpty) throw ArgumentError('Nama jasa wajib diisi.');
     if (standardPrice < 0) throw ArgumentError('Harga tidak boleh negatif.');
     final db = await _db;
@@ -97,6 +103,7 @@ class ServicePricingRepository {
   }
 
   Future<void> deleteService(int id) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat menghapus master jasa.');
     final db = await _db;
     await db.transaction((txn) async {
       final rows = await txn.query(
@@ -130,6 +137,7 @@ class ServicePricingRepository {
   }
 
   Future<void> setActive(int id, bool active) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah status master jasa.');
     final db = await _db;
     await db.transaction((txn) async {
       final rows = await txn.query('service_catalog', columns: ['name'],
@@ -150,6 +158,7 @@ class ServicePricingRepository {
   }
 
   Future<List<Map<String, Object?>>> getPriceHistory() async {
+    AuthSession.instance.requireAdmin('Riwayat harga jasa hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('SELECT h.*, s.name AS service_name FROM service_price_history h JOIN service_catalog s ON s.id = h.service_id ORDER BY h.id DESC LIMIT 300');
   }
