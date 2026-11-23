@@ -56,7 +56,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
     int? purchaseId = invoices.first['id'] as int;
     final maxAmount = (invoices.first['remaining_amount'] as num?)?.toInt() ?? 0;
     final amountController = TextEditingController(
-      text: (available < maxAmount ? available : maxAmount).toString(),
+      text: formatCurrencyInput(available < maxAmount ? available : maxAmount),
     );
     final result = await showDialog<Map<String, int>>(
       context: context,
