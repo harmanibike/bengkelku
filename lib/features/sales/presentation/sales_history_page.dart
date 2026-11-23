@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
+
 import '../data/sale_repository.dart';
 import '../data/sale_return_repository.dart';
 import 'sale_returns_page.dart';
@@ -71,7 +73,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
   }
 
   Future<void> _addPayment(int id, int remaining) async {
-    final controller = TextEditingController(text: remaining.toString());
+    final controller = TextEditingController(text: formatCurrencyInput(remaining));
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -79,6 +81,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.number,
+          inputFormatters: const [CurrencyInputFormatter()],
           decoration: InputDecoration(labelText: 'Jumlah pembayaran (Rp)', helperText: 'Sisa tagihan: ${_rupiah(remaining)}'),
         ),
         actions: [
@@ -88,7 +91,7 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
       ),
     );
     if (confirmed != true || !mounted) { controller.dispose(); return; }
-    final amount = int.tryParse(controller.text.replaceAll('.', '').trim()) ?? 0;
+    final amount = parseCurrencyInput(controller.text);
     controller.dispose();
     try {
       await _repository.addSalePayment(id: id, amount: amount);
