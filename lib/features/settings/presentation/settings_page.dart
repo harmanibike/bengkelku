@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../business/presentation/business_profile_page.dart';
 import 'payment_methods_page.dart';
+import 'account_pages.dart';
+import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -43,6 +45,19 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(14),
         children: [
+          if (AuthSession.instance.isAdmin) ...[
+          const Text('Akun', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.admin_panel_settings_rounded,
+            color: const Color(0xFF5E35B1),
+            title: 'Akun & Hak Akses',
+            subtitle: 'Kelola akun Admin, Kasir, dan Mekanik',
+            page: const AccountManagementPage(),
+          ),
+          const SizedBox(height: 10),
+          ],
           const Text('Usaha', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 8),
           _item(
