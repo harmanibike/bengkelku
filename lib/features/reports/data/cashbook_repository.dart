@@ -57,7 +57,7 @@ class CashbookRepository {
   }) async {
     final db = await _db;
     return db.rawQuery('''
-      SELECT c.*,
+      SELECT * FROM (\n      SELECT c.*,
         CASE
           WHEN c.amount <= 0 THEN 'Nominal harus lebih dari nol'
           WHEN c.transaction_type NOT IN ('income', 'expense') THEN 'Jenis kas tidak valid'
