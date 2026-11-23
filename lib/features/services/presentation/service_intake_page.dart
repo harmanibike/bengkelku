@@ -50,7 +50,6 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   bool _searchingCustomers = false;
   int _customerSearchToken = 0;
 
-  List<Map<String, Object?>> _customers = [];
   List<Map<String, Object?>> _bicycles = [];
   List<Map<String, Object?>> _serviceCatalog = [];
   List<Map<String, Object?>> _mechanics = [];
@@ -104,10 +103,9 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
 
   Future<void> _loadCustomers() async {
     try {
-      final customers = await _customerRepository.getCustomers();
+      await _customerRepository.getCustomers();
       if (!mounted) return;
       setState(() {
-        _customers = customers;
         _loading = false;
       });
     } catch (error) {
