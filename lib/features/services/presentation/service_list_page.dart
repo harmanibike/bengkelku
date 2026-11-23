@@ -29,6 +29,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
   bool _showOutstandingOnly = false;
   late Future<List<Map<String, Object?>>> _ordersFuture;
   static const Map<String, String> _statusLabels = {
+    'active_queue': 'Antrian aktif',
     'waiting': 'Menunggu',
     'checking': 'Pemeriksaan',
     'in_progress': 'Dikerjakan',
