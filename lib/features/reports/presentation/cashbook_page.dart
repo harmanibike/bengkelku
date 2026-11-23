@@ -174,7 +174,7 @@ class _CashbookPageState extends State<CashbookPage> {
                   DropdownMenuItem(value:'income',child:Text('Kas masuk')),
                   DropdownMenuItem(value:'expense',child:Text('Kas keluar')),
                 ],
-                onChanged:(v){setState(()=>_type=v);_refresh();},
+                onChanged:(v){setState(()=>_type=v ?? 'all');_refresh();},
               )),
             ]),
             const SizedBox(height:10),
