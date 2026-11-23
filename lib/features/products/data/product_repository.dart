@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/activity_log_repository.dart';
+import '../../../core/auth/auth_session.dart';
 
 class ProductRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -12,6 +13,7 @@ class ProductRepository {
   }) async {
     final db = await _db;
     final query = keyword.trim();
+    AuthSession.instance.requireCashierOrAdmin('Akses produk tidak tersedia untuk akun Mekanik.');
     final where = <String>[];
     final args = <Object?>[];
     if (!includeInactive) {
@@ -31,6 +33,7 @@ class ProductRepository {
   }
 
   Future<int> addProduct({
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     String? sku,
     String? barcode,
     required String name,
@@ -98,6 +101,7 @@ class ProductRepository {
   }
 
   Future<int> updateProduct({
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     required int id,
     String? sku,
     String? barcode,
@@ -145,6 +149,7 @@ class ProductRepository {
   }
 
   Future<void> adjustStock({
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     required int productId,
     required int quantity,
     required bool isStockIn,
@@ -232,6 +237,7 @@ class ProductRepository {
   }
 
   Future<int> deactivateProduct(int id) async {
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
     return db.transaction((txn) async {
       final rows = await txn.query('products',
@@ -253,7 +259,8 @@ class ProductRepository {
     });
   }
 
-  Future<List<Map<String, Object?>>> getStockMovements({String keyword = '', String movementType = 'all'}) async {
+  Future<List<Map<String, Object?>>> getStockMovements({
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');String keyword = '', String movementType = 'all'}) async {
     final db = await _db;
     final term = keyword.trim();
     final where = <String>[];
@@ -278,6 +285,7 @@ class ProductRepository {
   }
 
   Future<List<Map<String, Object?>>> getStockHistory(int productId) async {
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
     return db.query(
       'stock_movements',
@@ -288,6 +296,7 @@ class ProductRepository {
   }
 
   Future<List<Map<String, Object?>>> getCostBatches(int productId) async {
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT b.*, p.invoice_number
@@ -299,6 +308,7 @@ class ProductRepository {
   }
 
   Future<int> countLowStock() async {
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
     final rows = await db.rawQuery(
       'SELECT COUNT(*) AS total FROM products WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock',
