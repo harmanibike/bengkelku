@@ -5,6 +5,7 @@ import '../../../core/formatters/currency_input_formatter.dart';
 import '../../products/data/product_repository.dart';
 import '../data/purchase_repository.dart';
 import '../data/supplier_repository.dart';
+import 'suppliers_page.dart';
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
@@ -453,12 +454,23 @@ class _PurchasesPageState extends State<PurchasesPage> {
     amount.dispose();
   }
 
+  void _openSuppliers() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const SuppliersPage()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pembelian Barang'),
-        actions: [IconButton(onPressed: _reload, icon: const Icon(Icons.refresh))],
+        actions: [
+          TextButton.icon(
+            onPressed: _openSuppliers,
+            icon: const Icon(Icons.local_shipping_outlined),
+            label: const Text('Pemasok'),
+          ),
+          IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _createPurchase,
