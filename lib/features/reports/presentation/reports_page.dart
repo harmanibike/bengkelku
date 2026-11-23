@@ -160,6 +160,54 @@ class _ReportsPageState extends State<ReportsPage> {
                       _metric('Utang Pemasok Saat Ini', _rupiah((_summary['supplier_payable_amount'] as num?)?.toInt() ?? 0), Icons.local_shipping_outlined, Colors.red),
                     ],
                   ),
+                  Builder(builder: (context) {
+                    final issues = (_summary['return_refund_audit_issues'] as List?) ?? [];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(issues.isEmpty ? Icons.verified_outlined : Icons.warning_amber_rounded,
+                                  color: issues.isEmpty ? Colors.green : Colors.orange),
+                                const SizedBox(width: 8),
+                                const Expanded(child: Text('Audit pengembalian uang retur',
+                                  style: TextStyle(fontWeight: FontWeight.w600))),
+                                Text('${issues.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            if (issues.isEmpty)
+                              const Text('Nilai refund pada nota retur cocok dengan kas keluar pada periode ini.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey))
+                            else ...[
+                              const Text('Perbedaan nilai refund nota dan kas keluar:',
+                                style: TextStyle(fontSize: 12)),
+                              const SizedBox(height: 6),
+                              ...issues.take(5).map((row) {
+                                final item = row as Map<String, Object?>;
+                                final difference = (item['difference'] as num?)?.toInt() ?? 0;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 3),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text('${item['return_number'] ?? '-'} • Nota ${item['invoice_number'] ?? '-'}',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                    Text('Refund nota: ${_rupiah((item['recorded_refund'] as num?)?.toInt() ?? 0)} | Kas keluar: ${_rupiah((item['cash_refund'] as num?)?.toInt() ?? 0)} | Selisih: ${_rupiah(difference)}',
+                                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                  ]),
+                                );
+                              }),
+                              if (issues.length > 5)
+                                Text('${issues.length - 5} retur lainnya perlu diperiksa.',
+                                  style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
