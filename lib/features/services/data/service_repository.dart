@@ -575,10 +575,10 @@ class ServiceRepository {
     return db.rawQuery('''
       SELECT
         s.*,
-        c.name AS customer_name,
-        c.phone AS customer_phone,
-        b.brand AS bicycle_brand,
-        b.model AS bicycle_model
+        COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
+        COALESCE(s.customer_phone, c.phone) AS customer_phone,
+        COALESCE(s.bicycle_brand, b.brand) AS bicycle_brand,
+        COALESCE(s.bicycle_model, b.model) AS bicycle_model
       FROM service_orders s
       LEFT JOIN customers c ON c.id = s.customer_id
       LEFT JOIN bicycles b ON b.id = s.bicycle_id
@@ -587,8 +587,8 @@ class ServiceRepository {
         AND (
           ? = ''
           OR s.order_number LIKE ?
-          OR COALESCE(c.name, '') LIKE ?
-          OR COALESCE(c.phone, '') LIKE ?
+          OR COALESCE(s.customer_name, c.name, '') LIKE ?
+          OR COALESCE(s.customer_phone, c.phone, '') LIKE ?
         )
       ORDER BY s.received_at ASC, s.id ASC
     ''', [term, '%$term%', '%$term%', '%$term%']);
