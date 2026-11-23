@@ -301,11 +301,15 @@ class ServiceRepository {
       final search = '%${keyword.trim()}%';
       conditions.add(
         '(s.order_number LIKE ? OR s.complaint LIKE ? '
-        'OR c.name LIKE ? OR c.phone LIKE ? '
-        'OR b.brand LIKE ? OR b.model LIKE ? '
-        'OR b.serial_number LIKE ?)',
+        'OR COALESCE(s.customer_name, c.name, \'\') LIKE ? '
+        'OR COALESCE(s.customer_phone, c.phone, \'\') LIKE ? '
+        'OR COALESCE(s.bicycle_brand, b.brand, \'\') LIKE ? '
+        'OR COALESCE(s.bicycle_model, b.model, \'\') LIKE ? '
+        'OR COALESCE(s.bicycle_type, b.bicycle_type, \'\') LIKE ? '
+        'OR COALESCE(s.bicycle_serial_number, b.serial_number, \'\') LIKE ?)',
       );
       arguments.addAll([
+        search,
         search,
         search,
         search,
