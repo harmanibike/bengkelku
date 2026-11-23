@@ -196,10 +196,10 @@ class _ReportsPageState extends State<ReportsPage> {
                             ),
                             const SizedBox(height: 6),
                             if (issues.isEmpty)
-                              const Text('Nilai refund pada nota retur cocok dengan kas keluar pada periode ini.',
+                              const Text('Nilai refund pada nota retur cocok dengan pengembalian kas dan saldo pelanggan pada periode ini.',
                                 style: TextStyle(fontSize: 12, color: Colors.grey))
                             else ...[
-                              const Text('Perbedaan nilai refund nota dan kas keluar:',
+                              const Text('Perbedaan nilai refund nota dengan pengembalian kas dan saldo pelanggan:',
                                 style: TextStyle(fontSize: 12)),
                               const SizedBox(height: 6),
                               ...issues.take(5).map((row) {
@@ -210,7 +210,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                     Text('${item['return_number'] ?? '-'} • Nota ${item['invoice_number'] ?? '-'}',
                                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                    Text('Refund nota: ${_rupiah((item['recorded_refund'] as num?)?.toInt() ?? 0)} | Kas keluar: ${_rupiah((item['cash_refund'] as num?)?.toInt() ?? 0)} | Selisih: ${_rupiah(difference)}',
+                                    Text('Refund: ${_rupiah((item['recorded_refund'] as num?)?.toInt() ?? 0)} | Kas: ${_rupiah((item['cash_refund'] as num?)?.toInt() ?? 0)} | Saldo: ${_rupiah((item['wallet_refund'] as num?)?.toInt() ?? 0)} | Selisih: ${_rupiah(difference)}',
                                       style: const TextStyle(fontSize: 11, color: Colors.grey)),
                                   ]),
                                 );
