@@ -284,6 +284,31 @@ Sesuai arahan, pengembangan sementara dibatasi pada empat area berikut. Fitur di
 
 Cetak transaksi langsung Bluetooth/USB/Wi-Fi, integrasi laci uang, papan antrian, dan kompatibilitas perangkat khusus masih perlu dilanjutkan dan diuji. Snapshot historis dokumen sudah tersedia untuk nota yang diterbitkan.
 
+## 16. Saldo deposit pelanggan dan uang tip
+
+- [x] Buku saldo pelanggan tersendiri melalui ledger mutasi; saldo tidak dicampur dengan omzet.
+- [x] Admin/Kasir dapat menerima deposit dari halaman pelanggan, memilih metode pembayaran, dan melihat saldo serta riwayat mutasi.
+- [x] Saldo deposit dapat dipakai sebagai metode pembayaran di POS, pelunasan penjualan, dan pembayaran servis.
+- [x] Pemakaian saldo dicatat sebagai pembayaran non-kas; tidak membuat pemasukan kas palsu.
+- [x] Pembatalan servis/penjualan dan retur penjualan mengembalikan bagian pembayaran yang berasal dari deposit ke saldo pelanggan; bagian pembayaran tunai dikembalikan melalui kas.
+- [x] Total titipan deposit pelanggan ditampilkan terpisah pada ringkasan laporan keuangan.
+- [x] Uang tip memiliki tabel/ledger terpisah dari nota penjualan/servis dan omzet; tip dapat dicatat pada pembayaran servis atau secara terpisah.
+- [x] Laporan tip memiliki filter periode, rekap per penerima/mekanik, status belum diserahkan/sudah diserahkan, dan riwayat tip.
+- [x] Penyerahan tip dicatat sebagai pengeluaran kas terpisah dan hanya dapat dikonfirmasi Admin.
+- [ ] Penarikan/refund deposit secara manual di luar pembatalan/retur transaksi.
+- [ ] Sinkronisasi saldo pelanggan dan tip lintas perangkat; saat ini data tetap lokal pada perangkat.
+
+**Catatan akuntansi:** Deposit merupakan titipan/kewajiban kepada pelanggan, bukan pendapatan bengkel. Tip bukan omzet jasa atau barang. Keduanya tetap muncul pada arus kas karena uang benar-benar diterima, tetapi tidak menambah metrik penjualan/pendapatan dan laba usaha. Penggunaan saldo deposit mengurangi kewajiban saldo pelanggan tanpa menambah kas masuk.
+
+## 17. Biaya modal sparepart servis berbasis FIFO
+
+- [x] Biaya modal sparepart servis dihitung dari batch FIFO yang benar-benar dikonsumsi saat nota dibuat.
+- [x] Snapshot biaya FIFO disimpan dalam alokasi sparepart dan riwayat biaya langsung servis.
+- [x] Penambahan sparepart yang disetujui menambah biaya modal berdasarkan batch FIFO yang dipakai.
+- [x] Pembatalan sparepart yang belum dipakai mengembalikan kuantitas dan mengurangi biaya modal berdasarkan alokasi batch asal.
+- [x] Perubahan biaya modal otomatis tercatat dalam riwayat lama/baru agar laporan periode selesai memakai snapshot yang berlaku.
+- [ ] Pengujian fisik alur FIFO servis, retur/pembatalan, dan laporan laba/rugi pada perangkat pengguna.
+
 ## Aturan wajib setiap perubahan
 
 1. Periksa kode, struktur database, dan alur transaksi sebelum mengubahnya.
