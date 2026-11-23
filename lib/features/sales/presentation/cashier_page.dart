@@ -163,6 +163,8 @@ class _CashierPageState extends State<CashierPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Total: ${_rupiah(_total)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 4),
+                const Text('Pelanggan: Pelanggan Umum (tanpa data pelanggan)'),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: selectedPaymentMethod,
