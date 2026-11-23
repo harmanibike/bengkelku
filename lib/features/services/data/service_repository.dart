@@ -1351,6 +1351,7 @@ class ServiceRepository {
     required int id,
     required int amount,
     int tipAmount = 0,
+    int walletDepositAmount = 0,
     String? tipRecipientName,
   }) async {
     if (AuthSession.instance.isMechanic) {
@@ -1359,14 +1360,14 @@ class ServiceRepository {
     if (amount <= 0) {
       throw ArgumentError('Jumlah pembayaran harus lebih dari nol.');
     }
-    if (tipAmount < 0) throw ArgumentError('Nominal tip tidak valid.');
+    if (tipAmount < 0 || walletDepositAmount < 0 || (tipAmount > 0 && walletDepositAmount > 0)) throw ArgumentError('Nominal tip atau deposit tidak valid. Pilih salah satu.');
 
     final db = await _db;
 
     return db.transaction((txn) async {
       final result = await txn.query(
         'service_orders',
-        columns: ['order_number', 'total_cost', 'down_payment', 'service_status', 'mechanic_name', 'assigned_mechanic_id'],
+        columns: ['order_number', 'total_cost', 'down_payment', 'service_status', 'mechanic_name', 'assigned_mechanic_id', 'customer_id'],
         where: 'id = ?',
         whereArgs: [id],
         limit: 1,
@@ -1386,7 +1387,10 @@ class ServiceRepository {
       final remaining = total - paid;
 
       if (amount > remaining) {
-        throw ArgumentError('Pembayaran melebihi sisa tagihan.');
+        throw ArgumentError('Pembayaran untuk tagihan melebihi sisa tagihan.');
+      }
+      if (walletDepositAmount > 0 && result.first['customer_id'] == null) {
+        throw StateError('Kelebihan pembayaran hanya dapat disimpan sebagai saldo untuk pelanggan terdaftar.');
       }
 
       final newPaid = paid + amount;
@@ -1401,6 +1405,36 @@ class ServiceRepository {
         where: 'id = ?',
         whereArgs: [id],
       );
+
+      if (walletDepositAmount > 0) {
+        final customerId = result.first['customer_id'] as int;
+        final walletRows = await txn.rawQuery(
+          'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+          [customerId],
+        );
+        final balance = walletRows.isEmpty ? 0 : (walletRows.first['balance_after'] as num?)?.toInt() ?? 0;
+        final ledgerId = await txn.insert('customer_wallet_ledger', {
+          'customer_id': customerId,
+          'entry_type': 'deposit',
+          'amount': walletDepositAmount,
+          'balance_after': balance + walletDepositAmount,
+          'description': 'Kelebihan pembayaran servis $orderNumber disimpan sebagai saldo pelanggan',
+          'reference_type': 'customer_deposit',
+          'payment_method': 'cash',
+          'created_by_id': AuthSession.instance.userId,
+          'created_by_name': AuthSession.instance.displayName,
+          'created_at': now.toIso8601String(),
+        });
+        await txn.insert('cash_transactions', {
+          'transaction_type': 'income',
+          'category': 'Deposit Pelanggan',
+          'description': 'Kelebihan pembayaran servis $orderNumber menjadi saldo deposit',
+          'amount': walletDepositAmount,
+          'reference_type': 'customer_deposit',
+          'reference_id': ledgerId,
+          'transaction_date': now.toIso8601String(),
+        });
+      }
 
       // Pembayaran lanjutan juga masuk ke kas, terhubung ke nota servis.
       await ActivityLogRepository.record(
