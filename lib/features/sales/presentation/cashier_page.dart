@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/formatters/currency_input_formatter.dart';
 import '../data/sale_repository.dart';
 import '../../customers/data/customer_repository.dart';
+import '../../customers/data/customer_wallet_repository.dart';
 import '../../settings/data/payment_methods_repository.dart';
 import 'barcode_scanner_page.dart';
 import '../../services/presentation/service_list_page.dart';
@@ -20,6 +21,7 @@ class CashierPage extends StatefulWidget {
 class _CashierPageState extends State<CashierPage> {
   final SaleRepository _repository = SaleRepository();
   final CustomerRepository _customerRepository = CustomerRepository();
+  final CustomerWalletRepository _walletRepository = CustomerWalletRepository();
   final PaymentMethodsRepository _paymentMethodsRepository = PaymentMethodsRepository();
   List<Map<String, String>> _paymentMethods = PaymentMethodsRepository.defaultMethods.map(Map<String, String>.from).toList();
   Map<String, String> _paymentDetails = {};
@@ -189,6 +191,9 @@ class _CashierPageState extends State<CashierPage> {
         items: _cart.values.map((item) => Map<String, Object?>.from(item)).toList(),
         buyerName: _buyerNameForHold.text,
       );
+      if (confirmedMethod == 'customer_wallet') {
+        await _repository.addSaleWalletPayment(id: id, amount: paid);
+      }
       if (!mounted) return;
       setState(() {
         _cart.clear();
@@ -397,10 +402,16 @@ class _CashierPageState extends State<CashierPage> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  items: _paymentMethods.map((method) => DropdownMenuItem(
-                    value: method['code'],
-                    child: Text(method['name']!),
-                  )).toList(),
+                  items: [
+                    ..._paymentMethods.map((method) => DropdownMenuItem(
+                      value: method['code'],
+                      child: Text(method['name']!),
+                    )),
+                    const DropdownMenuItem(
+                      value: 'customer_wallet',
+                      child: Text('Saldo Deposit Pelanggan'),
+                    ),
+                  ],
                   onChanged: (value) {
                     if (value != null) {
                       setDialogState(() => selectedPaymentMethod = value);
@@ -436,7 +447,13 @@ class _CashierPageState extends State<CashierPage> {
                   controller: paymentController,
                   keyboardType: TextInputType.number,
                   inputFormatters: const [CurrencyInputFormatter()],
-                  decoration: const InputDecoration(labelText: 'Uang diterima (Rp)', border: OutlineInputBorder()),
+                  decoration: InputDecoration(
+                    labelText: selectedPaymentMethod == 'customer_wallet' ? 'Nominal saldo digunakan (Rp)' : 'Uang diterima (Rp)',
+                    helperText: selectedPaymentMethod == 'customer_wallet'
+                        ? 'Pembayaran akan mengurangi saldo deposit pelanggan, bukan menambah kas.'
+                        : null,
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
               ],
             ),
@@ -454,13 +471,20 @@ class _CashierPageState extends State<CashierPage> {
       }
       final finalTotal = _total - discount;
       final paid = parseCurrencyInput(paymentController.text);
-      final paymentMethodLabel = _paymentMethods.firstWhere(
-        (method) => method['code'] == confirmedMethod,
-      )['name']!;
+      final paymentMethodLabel = confirmedMethod == 'customer_wallet'
+          ? 'Saldo Deposit Pelanggan'
+          : _paymentMethods.firstWhere((method) => method['code'] == confirmedMethod)['name']!;
       int? customerId = matchedCustomer?['id'] as int?;
-      if (paid < finalTotal && customerId == null) {
+      if ((paid < finalTotal || confirmedMethod == 'customer_wallet') && customerId == null) {
         customerId = await _chooseCustomer();
         if (customerId == null || !mounted) return;
+      }
+      if (confirmedMethod == 'customer_wallet') {
+        if (customerId == null) throw StateError('Pilih pelanggan terdaftar untuk menggunakan saldo deposit.');
+        if (paid <= 0) throw ArgumentError('Nominal saldo yang digunakan harus lebih dari nol.');
+        final walletBalance = await _walletRepository.getBalance(customerId);
+        if (paid > walletBalance) throw StateError('Saldo pelanggan tidak mencukupi. Saldo tersedia Rp$walletBalance.');
+        if (paid > finalTotal) throw ArgumentError('Saldo yang digunakan tidak boleh melebihi total belanja.');
       }
       setState(() => _saving = true);
       final id = await _repository.checkout(
@@ -469,7 +493,7 @@ class _CashierPageState extends State<CashierPage> {
           'quantity': item['quantity'],
           'unit_price': item['unit_price'],
         }).toList(),
-        paid: paid,
+        paid: confirmedMethod == 'customer_wallet' ? 0 : paid,
         paymentMethod: paymentMethodLabel,
         customerId: customerId,
         customerName: buyerNameController.text.trim().isEmpty ? 'Pelanggan Umum' : buyerNameController.text.trim(),
