@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 23;
+  static const int currentVersion = 24;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -145,6 +145,16 @@ class AppDatabase {
         track_stock INTEGER NOT NULL DEFAULT 1,
         description TEXT,
         is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT
+      )
+    ''');
+
+    // Master kategori produk. Nama kategori unik tanpa membedakan huruf besar/kecil.
+    batch.execute('''
+      CREATE TABLE product_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL COLLATE NOCASE UNIQUE,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT
       )
@@ -669,6 +679,7 @@ class AppDatabase {
 
     await batch.commit(noResult: true);
     await _seedDefaultServiceCatalog(db);
+    await _seedDefaultProductCategories(db);
   }
 
   Future<void> _upgradeDatabase(
@@ -676,6 +687,24 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    // Master kategori produk. Salin kategori teks lama agar tidak hilang.
+    if (oldVersion < 24) {
+      await db.execute('''
+        CREATE TABLE product_categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT
+        )
+      ''');
+      await db.execute('''
+        INSERT OR IGNORE INTO product_categories (name)
+        SELECT DISTINCT TRIM(category) FROM products
+        WHERE category IS NOT NULL AND TRIM(category) <> ''
+      ''');
+      await _seedDefaultProductCategories(db);
+    }
+
     // Riwayat aktivitas pengguna; migrasi aditif dan tidak mengubah transaksi lama.
     if (oldVersion < 21) {
       await db.execute('''
@@ -1169,6 +1198,24 @@ class AppDatabase {
 
   }
 
+
+  Future<void> _seedDefaultProductCategories(DatabaseExecutor db) async {
+    const categories = <String>[
+      'Sparepart',
+      'Aksesori',
+      'Ban dan Velg',
+      'Oli dan Pelumas',
+      'Peralatan',
+      'Lainnya',
+    ];
+    for (final name in categories) {
+      await db.insert(
+        'product_categories',
+        {'name': name},
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+  }
 
   Future<void> _seedDefaultServiceCatalog(DatabaseExecutor db) async {
     final existing = Sqflite.firstIntValue(
