@@ -21,8 +21,8 @@ class LocalApiServer {
     String serverName = 'BengkelKu Server',
   }) async {
     if (_server != null) return _server!.port;
-    if (port < 1 || port > 65535) {
-      throw ArgumentError.value(port, 'port', 'Port harus 1 sampai 65535.');
+    if (port < 0 || port > 65535) {
+      throw ArgumentError.value(port, 'port', 'Port harus 0 sampai 65535.');
     }
 
     final server = await HttpServer.bind(
