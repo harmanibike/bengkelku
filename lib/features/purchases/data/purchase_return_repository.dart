@@ -444,13 +444,38 @@ class PurchaseReturnRepository {
         where: 'purchase_return_id = ?',
         whereArgs: [returnId],
       );
+      final returnItemById = <int, Map<String, Object?>>{};
+      for (final item in returnItems) {
+        final itemId = (item['id'] as num?)?.toInt();
+        if (itemId != null) returnItemById[itemId] = item;
+      }
       final allocationByItem = <int, int>{};
       for (final allocation in allocations) {
         final itemId = (allocation['return_item_id'] as num?)?.toInt();
+        final batchId = (allocation['batch_id'] as num?)?.toInt();
         final quantity = (allocation['quantity'] as num?)?.toInt() ?? 0;
-        if (itemId != null) {
-          allocationByItem[itemId] = (allocationByItem[itemId] ?? 0) + quantity;
+        final returnItem = itemId == null ? null : returnItemById[itemId];
+        if (returnItem == null || batchId == null || quantity <= 0) {
+          throw StateError(
+            'Alokasi batch retur tidak valid. Pembatalan dihentikan untuk menjaga nilai persediaan.',
+          );
         }
+        final productId = (returnItem['product_id'] as num?)?.toInt();
+        final batches = await txn.query(
+          'inventory_cost_batches',
+          columns: ['product_id'],
+          where: 'id = ?',
+          whereArgs: [batchId],
+          limit: 1,
+        );
+        if (productId == null ||
+            batches.isEmpty ||
+            (batches.first['product_id'] as num?)?.toInt() != productId) {
+          throw StateError(
+            'Batch alokasi tidak sesuai dengan produk retur. Pembatalan dihentikan.',
+          );
+        }
+        allocationByItem[itemId!] = (allocationByItem[itemId] ?? 0) + quantity;
       }
 
       // Gunakan pergerakan stok saat retur dibuat sebagai sumber kebenaran.
@@ -483,6 +508,14 @@ class PurchaseReturnRepository {
         if (productId != null && quantity > 0) {
           expectedByProduct[productId] =
               (expectedByProduct[productId] ?? 0) + quantity;
+        }
+      }
+
+      for (final productId in recordedOutByProduct.keys) {
+        if (!expectedByProduct.containsKey(productId)) {
+          throw StateError(
+            'Riwayat stok retur memuat produk yang tidak ada pada detail retur. Pembatalan dihentikan.',
+          );
         }
       }
 
@@ -551,9 +584,8 @@ class PurchaseReturnRepository {
         });
       }
       for (final allocation in allocations) {
-        final batchId = (allocation['batch_id'] as num?)?.toInt();
-        final quantity = (allocation['quantity'] as num?)?.toInt() ?? 0;
-        if (batchId == null || quantity <= 0) continue;
+        final batchId = (allocation['batch_id'] as num).toInt();
+        final quantity = (allocation['quantity'] as num).toInt();
         final updated = await txn.rawUpdate(
           'UPDATE inventory_cost_batches SET quantity_remaining = quantity_remaining + ? WHERE id = ?',
           [quantity, batchId],
