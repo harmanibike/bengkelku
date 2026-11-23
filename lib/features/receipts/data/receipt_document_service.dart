@@ -122,6 +122,7 @@ class ReceiptDocumentService {
     required List<Map<String, Object?>> payments,
     required Map<String, String> profile,
   }) async {
+    final settings = await ReceiptSettingsRepository().getReceiptSettings();
     final logo = await _logo(profile);
     final doc = pw.Document();
     final height = 470.0 + payments.length * 25.0;
@@ -186,6 +187,7 @@ class ReceiptDocumentService {
     required Map<String, Object?> service,
     required Map<String, String> profile,
   }) async {
+    final settings = await ReceiptSettingsRepository().getReceiptSettings();
     final logo = await _logo(profile);
     final doc = pw.Document();
     final bicycle = [
@@ -250,6 +252,7 @@ class ReceiptDocumentService {
     required List<Map<String, Object?>> payments,
     required Map<String, String> profile,
   }) async {
+    final settings = await ReceiptSettingsRepository().getReceiptSettings();
     final logo = await _logo(profile);
     final doc = pw.Document();
     final height = 390.0 + payments.length * 25.0;
