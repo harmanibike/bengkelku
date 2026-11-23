@@ -256,7 +256,8 @@ class ReportRepository {
       'customer_receivable_count': (serviceReceivableRows.first['total'] as int? ?? 0) + (saleReceivableRows.first['total'] as int? ?? 0),
       'supplier_payable_amount': supplierPayableRows.first['amount'] as int? ?? 0,
       'supplier_payable_count': supplierPayableRows.first['total'] as int? ?? 0,
-      'return_refund_audit_issues': returnRefundAudit,\n      'low_stock': lowStock.first['total'] as int? ?? 0,
+      'return_refund_audit_issues': returnRefundAudit,
+      'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
       'latest': latest,
     };
