@@ -81,9 +81,9 @@ class _ProductListPageState extends State<ProductListPage> {
     final category = TextEditingController(text: product?['category']?.toString() ?? '');
     final brand = TextEditingController(text: product?['brand']?.toString() ?? '');
     final unit = TextEditingController(text: product?['unit']?.toString() ?? 'pcs');
-    final purchase = TextEditingController(text: product?['purchase_price']?.toString() ?? '0');
-    final selling = TextEditingController(text: product?['selling_price']?.toString() ?? '0');
-    final wholesale = TextEditingController(text: product?['wholesale_price']?.toString() ?? '0');
+    final purchase = TextEditingController(text: formatCurrencyInput(product?['purchase_price'] ?? 0));
+    final selling = TextEditingController(text: formatCurrencyInput(product?['selling_price'] ?? 0));
+    final wholesale = TextEditingController(text: formatCurrencyInput(product?['wholesale_price'] ?? 0));
     final stock = TextEditingController(text: '0');
     final minimum = TextEditingController(text: product?['minimum_stock']?.toString() ?? '0');
     final description = TextEditingController(text: product?['description']?.toString() ?? '');
