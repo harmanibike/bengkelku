@@ -98,6 +98,41 @@ class CustomerRepository {
     );
   }
 
+  Future<Map<String, Object?>?> findCustomerByNameOrPhone(String input) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mencari pelanggan.');
+    final keyword = input.trim();
+    if (keyword.length < 3) return null;
+
+    final db = await _db;
+    final customers = await db.query('customers', orderBy: 'name COLLATE NOCASE ASC');
+    final normalizedInput = keyword.toLowerCase().replaceAll(RegExp(r'\\s+'), ' ').trim();
+    final inputDigits = keyword.replaceAll(RegExp(r'[^0-9]'), '');
+
+    // Nomor HP dicocokkan setelah karakter pemisah diabaikan.
+    if (inputDigits.length >= 6) {
+      final phoneMatches = customers.where((customer) {
+        final phone = (customer['phone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+        return phone.isNotEmpty && phone == inputDigits;
+      }).toList();
+      if (phoneMatches.length == 1) return phoneMatches.first;
+      if (phoneMatches.length > 1) return null;
+    }
+
+    final nameMatches = customers.where((customer) {
+      final name = (customer['name'] ?? '').toString().toLowerCase().replaceAll(RegExp(r'\\s+'), ' ').trim();
+      return name == normalizedInput;
+    }).toList();
+    if (nameMatches.length == 1) return nameMatches.first;
+    if (nameMatches.length > 1) return null;
+
+    // Nama parsial hanya otomatis dipilih jika hasilnya tepat satu.
+    final partialMatches = customers.where((customer) {
+      final name = (customer['name'] ?? '').toString().toLowerCase();
+      return name.contains(normalizedInput);
+    }).toList();
+    return partialMatches.length == 1 ? partialMatches.first : null;
+  }
+
   Future<Map<String, Object?>?> getCustomerById(int id) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat pelanggan.');
     final db = await _db;
