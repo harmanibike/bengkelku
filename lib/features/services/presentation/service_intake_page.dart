@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/auth/auth_session.dart';
+
 import '../../settings/data/account_repository.dart';
 
 import '../../customers/data/customer_repository.dart';
@@ -528,6 +530,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         ],
                       ),
                       const SizedBox(height: 8),
+                      if (AuthSession.instance.isAdmin) ...[
                       Row(
                         children: [
                           Expanded(
@@ -546,6 +549,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           style: TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ),
+                      ],
                       Row(
                         children: [
                           Expanded(
