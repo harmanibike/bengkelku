@@ -4,6 +4,7 @@ import '../../business/presentation/business_profile_page.dart';
 import 'payment_methods_page.dart';
 import 'account_pages.dart';
 import 'activity_log_page.dart';
+import 'database_backup_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -65,6 +66,15 @@ class SettingsPage extends StatelessWidget {
             title: 'Akun & Hak Akses',
             subtitle: 'Kelola akun Admin, Kasir, dan Mekanik',
             page: const AccountManagementPage(),
+          ),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.backup_outlined,
+            color: const Color(0xFF0277BD),
+            title: 'Backup & Pemulihan Data',
+            subtitle: 'Buat salinan database atau pulihkan dari file backup',
+            page: const DatabaseBackupPage(),
           ),
           const SizedBox(height: 10),
           ],
