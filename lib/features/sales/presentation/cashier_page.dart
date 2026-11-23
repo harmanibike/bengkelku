@@ -20,6 +20,7 @@ class _CashierPageState extends State<CashierPage> {
   final CustomerRepository _customerRepository = CustomerRepository();
   final PaymentMethodsRepository _paymentMethodsRepository = PaymentMethodsRepository();
   List<Map<String, String>> _paymentMethods = PaymentMethodsRepository.defaultMethods.map(Map<String, String>.from).toList();
+  Map<String, String> _paymentDetails = {};
   final TextEditingController _search = TextEditingController();
   final TextEditingController _paid = TextEditingController();
   List<Map<String, Object?>> _products = [];
@@ -61,8 +62,9 @@ class _CashierPageState extends State<CashierPage> {
   Future<void> _loadPaymentMethods() async {
     try {
       final methods = await _paymentMethodsRepository.getMethods();
+      final details = await _paymentMethodsRepository.getPaymentDetails();
       if (!mounted) return;
-      setState(() => _paymentMethods = methods);
+      setState(() { _paymentMethods = methods; _paymentDetails = details; });
     } catch (_) {
       // Metode default tetap tersedia jika pengaturan belum dapat dibaca.
     }
@@ -248,6 +250,16 @@ class _CashierPageState extends State<CashierPage> {
     );
   }
 
+  Widget _paymentInfoRow(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(width: 112, child: Text(label, style: const TextStyle(color: Colors.black))),
+        Expanded(child: Text(value?.isNotEmpty == true ? value! : '-', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600))),
+      ]),
+    );
+  }
+
   Future<void> _checkout() async {
     if (_cart.isEmpty) return;
     _paid.text = _total.toString();
@@ -256,6 +268,7 @@ class _CashierPageState extends State<CashierPage> {
     final buyerNameController = TextEditingController(text: _buyerNameForHold.text);
     try {
       var discountAmount = 0;
+      var showPaymentDetails = false;
       var selectedPaymentMethod = _paymentMethods.any((method) => method['code'] == 'cash')
           ? 'cash'
           : _paymentMethods.first['code']!;
@@ -307,6 +320,41 @@ class _CashierPageState extends State<CashierPage> {
                     }
                   },
                 ),
+                if (selectedPaymentMethod == 'qris' || selectedPaymentMethod == 'bank_transfer') ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => setDialogState(() => showPaymentDetails = !showPaymentDetails),
+                      icon: Icon(selectedPaymentMethod == 'qris' ? Icons.qr_code_2_rounded : Icons.account_balance_rounded),
+                      label: Text(showPaymentDetails
+                          ? 'Sembunyikan ${selectedPaymentMethod == 'qris' ? 'QRIS' : 'Nomor Rekening'}'
+                          : 'Tampilkan ${selectedPaymentMethod == 'qris' ? 'QRIS' : 'Nomor Rekening'}'),
+                    ),
+                  ),
+                  if (showPaymentDetails)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.black12), borderRadius: BorderRadius.circular(10)),
+                      child: selectedPaymentMethod == 'qris'
+                          ? (_paymentDetails['qris_image_path']?.isNotEmpty == true && File(_paymentDetails['qris_image_path']!).existsSync()
+                              ? Column(children: [
+                                  const Text('Scan QRIS untuk membayar', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  Image.file(File(_paymentDetails['qris_image_path']!), height: 190, fit: BoxFit.contain),
+                                ])
+                              : const Text('Gambar QRIS belum diatur. Silakan isi melalui Pengaturan > Metode Pembayaran.', style: TextStyle(color: Colors.black)))
+                          : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              _paymentInfoRow('Bank', _paymentDetails['bank_name']),
+                              _paymentInfoRow('Nomor rekening', _paymentDetails['bank_account_number']),
+                              _paymentInfoRow('Atas nama', _paymentDetails['bank_account_holder']),
+                              if ((_paymentDetails['bank_account_number'] ?? '').isEmpty)
+                                const Text('Nomor rekening belum diatur. Silakan isi melalui Pengaturan > Metode Pembayaran.', style: TextStyle(color: Colors.black)),
+                            ]),
+                    ),
+                ],
                 const SizedBox(height: 10),
                 TextField(
                   controller: paymentController,
