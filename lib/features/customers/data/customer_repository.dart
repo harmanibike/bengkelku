@@ -120,19 +120,26 @@ class CustomerRepository {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat pelanggan.');
     final db = await _db;
     final search = '%${keyword.trim()}%';
+    final whereClause = keyword.trim().isEmpty
+        ? ''
+        : 'WHERE c.name LIKE ? OR c.phone LIKE ?';
+    final args = <Object?>[];
+    if (keyword.trim().isNotEmpty) args.addAll([search, search]);
+    final limitClause = limit == null ? '' : 'LIMIT ? OFFSET ?';
+    if (limit != null) args.addAll([limit, offset]);
 
-    return db.query(
-      'customers',
-      where: keyword.trim().isEmpty
-          ? null
-          : 'name LIKE ? OR phone LIKE ?',
-      whereArgs: keyword.trim().isEmpty
-          ? null
-          : [search, search],
-      orderBy: 'name COLLATE NOCASE ASC',
-      limit: limit,
-      offset: limit == null ? null : offset,
-    );
+    return db.rawQuery('''
+      SELECT c.*,
+        COALESCE((
+          SELECT SUM(l.points)
+          FROM loyalty_point_ledger l
+          WHERE l.customer_id = c.id
+        ), 0) AS loyalty_points
+      FROM customers c
+      $whereClause
+      ORDER BY c.name COLLATE NOCASE ASC
+      $limitClause
+    ''', args);
   }
 
   Future<Map<String, Object?>?> findCustomerByNameOrPhone(String input) async {
