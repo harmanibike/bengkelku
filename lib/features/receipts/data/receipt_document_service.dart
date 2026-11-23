@@ -320,13 +320,40 @@ class ReceiptDocumentService {
   }
 
   static pw.Widget _line(String label, String value, {bool bold = false}) {
+    final weight = bold ? pw.FontWeight.bold : pw.FontWeight.normal;
+    final isLongValue = value.length > 20;
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 1),
-      child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        pw.Expanded(flex: 5, child: pw.Text(label, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal))),
-        pw.SizedBox(width: 4),
-        pw.Expanded(flex: 6, child: pw.Text(value, textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal))),
-      ]),
+      child: isLongValue
+          ? pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                pw.Text(label, style: pw.TextStyle(fontSize: 8, fontWeight: weight)),
+                pw.Text(
+                  value,
+                  textAlign: pw.TextAlign.left,
+                  style: pw.TextStyle(fontSize: 7, fontWeight: weight),
+                ),
+              ],
+            )
+          : pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Expanded(
+                  flex: 5,
+                  child: pw.Text(label, style: pw.TextStyle(fontSize: 8, fontWeight: weight)),
+                ),
+                pw.SizedBox(width: 4),
+                pw.Expanded(
+                  flex: 6,
+                  child: pw.Text(
+                    value,
+                    textAlign: pw.TextAlign.right,
+                    style: pw.TextStyle(fontSize: 8, fontWeight: weight),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
