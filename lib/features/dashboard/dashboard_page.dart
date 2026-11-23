@@ -165,11 +165,6 @@ class _DashboardPageState extends State<DashboardPage> {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF16D9F2), Color(0xFF087BFA), Color(0xFF082FEA)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: Colors.white.withValues(alpha: 0.9),
@@ -183,10 +178,16 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.pedal_bike_rounded,
-                color: Colors.white,
-                size: 40,
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(
+                'assets/branding/bengkelku_logo.jpg',
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const ColoredBox(
+                  color: Color(0xFF0756D8),
+                  child: Icon(Icons.pedal_bike_rounded, color: Colors.white, size: 38),
+                ),
               ),
             ),
             const Spacer(),
