@@ -61,7 +61,7 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
   }
 
   String _message(Map<String, Object?> row, String template) {
-    final type = row['receivable_type'] == 'service' ? 'servis' : 'pembelian barang';
+    final type = row['receivable_type'] == 'service' ? 'servis' : 'penjualan barang';
     return template
         .replaceAll('{nama}', row['customer_name']?.toString() ?? 'Pelanggan')
         .replaceAll('{jenis}', type)
