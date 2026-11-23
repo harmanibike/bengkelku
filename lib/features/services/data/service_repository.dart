@@ -511,6 +511,9 @@ class ServiceRepository {
   Future<List<Map<String, Object?>>> getOutstandingServiceOrders({
     String keyword = '',
   }) async {
+    if (AuthSession.instance.isMechanic) {
+      throw StateError('Daftar piutang servis tidak tersedia untuk akun Mekanik.');
+    }
     final db = await _db;
     final term = keyword.trim();
     return db.rawQuery('''
@@ -537,6 +540,11 @@ class ServiceRepository {
 
   Future<List<Map<String, Object?>>> getServiceStatusHistory(int id) async {
     final db = await _db;
+    final session = AuthSession.instance;
+    if (session.isMechanic) {
+      final assigned = await db.query('service_orders', columns: ['id'], where: 'id = ? AND assigned_mechanic_id = ?', whereArgs: [id, session.userId], limit: 1);
+      if (assigned.isEmpty) throw StateError('Akses ditolak: servis bukan penugasan Anda.');
+    }
     return db.query(
       'service_status_history',
       where: 'service_order_id = ?',
