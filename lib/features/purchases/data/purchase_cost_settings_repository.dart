@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class PurchaseCostSettingsRepository {
   static const settingKey = 'purchase_cost_method';
@@ -19,6 +20,7 @@ class PurchaseCostSettingsRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
   Future<String> getMethod() async {
+    AuthSession.instance.requireAdmin('Pengaturan metode harga beli hanya dapat diakses Admin.');
     final db = await _db;
     final rows = await db.query(
       'app_settings',
@@ -32,6 +34,7 @@ class PurchaseCostSettingsRepository {
   }
 
   Future<void> setMethod(String method) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah metode harga beli.');
     if (!methods.containsKey(method)) {
       throw ArgumentError('Metode harga beli tidak dikenal.');
     }
@@ -48,6 +51,7 @@ class PurchaseCostSettingsRepository {
   }
 
   Future<List<Map<String, Object?>>> getProductBatches(int productId) async {
+    AuthSession.instance.requireAdmin('Riwayat batch biaya hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT b.*, p.invoice_number
