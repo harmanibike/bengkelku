@@ -37,7 +37,6 @@ class PurchaseRepository {
   }
 
   Future<int> createPurchase({
-    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     required String invoiceNumber,
     required int supplierId,
     required List<Map<String, Object?>> items,
@@ -47,6 +46,7 @@ class PurchaseRepository {
     String? notes,
     DateTime? purchaseDate,
   }) async {
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     final invoice = invoiceNumber.trim();
     if (invoice.isEmpty) throw ArgumentError('Nomor faktur wajib diisi.');
     if (items.isEmpty) throw ArgumentError('Minimal satu barang harus ditambahkan.');
@@ -234,10 +234,10 @@ class PurchaseRepository {
   }
 
   Future<void> cancelPurchase({
-    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     required int purchaseId,
     required String reason,
   }) async {
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     final note = reason.trim();
     if (note.isEmpty) throw ArgumentError('Alasan pembatalan wajib diisi.');
     final db = await _db;
