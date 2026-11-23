@@ -7,7 +7,8 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 21;
+  static const int currentVersion = 21;
+  static const int _databaseVersion = currentVersion;
 
   Database? _database;
 
