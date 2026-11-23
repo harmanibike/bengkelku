@@ -160,13 +160,28 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 
 ## 13. Multi-perangkat
 
-- [ ] Server lokal, koneksi Wi-Fi/LAN, dan perangkat klien.
-- [ ] API/WebSocket, sinkronisasi data, dan penghubung perangkat melalui QR.
-- [ ] Pengamanan perangkat baru, pencegahan transaksi ganda, dan resolusi konflik.
-- [ ] Kerja serentak lintas perangkat: satu perangkat melayani transaksi kasir sementara perangkat lain mengelola produk/stok dan melihat laporan dari database pusat yang sama.
-- [ ] Pembaruan stok dan laporan lintas perangkat setelah transaksi/penambahan stok dikonfirmasi Server.
-- [ ] Hak akses tetap mengikuti akun (Admin/Kasir/Mekanik), bukan dikunci berdasarkan jenis perangkat.
-- [ ] Status koneksi, refresh setelah reconnect, dan perlindungan agar transaksi Client tidak dianggap berhasil sebelum Server mengonfirmasi.
+### Fondasi yang sudah ada
+
+- [x] Pilihan Mode Perangkat ditampilkan untuk Admin; Mode Lokal tetap menjadi mode aktif dan aman.
+- [x] Penyimpanan alamat IP/host dan port Server pada pengaturan lokal perangkat Client.
+- [x] Validasi dasar alamat host dan rentang port.
+- [x] Pemeriksaan endpoint kesehatan API Client melalui kontrak `GET /api/v1/health`; respons harus mengidentifikasi `bengkelku_pos`, status `ok`, dan API versi 1.
+- [x] Tes otomatis untuk respons API valid, endpoint tidak tersedia, aplikasi yang salah, dan versi API yang tidak cocok.
+
+### Belum tersedia / belum boleh dianggap aktif
+
+- [ ] Layanan Server Android yang berjalan terpisah dari sesi login dan tetap melayani perangkat lain.
+- [ ] Endpoint kesehatan API pada Server; kontraknya sudah ditentukan, tetapi Server belum mengimplementasikannya.
+- [ ] Transport aman (TLS dan verifikasi identitas/pinning sertifikat) untuk seluruh komunikasi data.
+- [ ] Pairing QR, persetujuan Admin, token perangkat, daftar perangkat tepercaya, dan pencabutan akses.
+- [ ] Mode Client aktif dan pengalihan seluruh repository/transaksi ke database pusat.
+- [ ] API transaksi, produk, stok, pelanggan, pembelian, servis, dan laporan dengan pemeriksaan hak akses di Server.
+- [ ] WebSocket/notifikasi perubahan data dan mekanisme refresh setelah reconnect.
+- [ ] Idempotency key, transaksi atomik, audit request, dan perlindungan transaksi ganda.
+- [ ] Kerja serentak lintas perangkat dengan satu database pusat.
+- [ ] Pemulihan koneksi, penanganan Server mati, dan pengujian multi-HP secara fisik.
+
+**Catatan:** Menyimpan alamat Server atau menjalankan pemeriksaan jaringan/API tidak berarti Client sudah berbagi database. Sampai layanan Server, autentikasi, dan sinkronisasi selesai diuji, semua transaksi tetap menggunakan database lokal perangkat masing-masing.
 ## 14. Keamanan dan keandalan
 
 - [x] Database lokal SQLite.
