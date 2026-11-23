@@ -1,5 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../../core/auth/auth_session.dart';
+
 import '../../../core/database/app_database.dart';
 
 class ReceivableRepository {
@@ -9,6 +11,8 @@ class ReceivableRepository {
     String type = 'all',
     String keyword = '',
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Piutang hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     final term = keyword.trim();
     final rows = <Map<String, Object?>>[];
@@ -73,6 +77,8 @@ class ReceivableRepository {
     required String type,
     required int recordId,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Piutang hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     if (type == 'service') {
       final rows = await db.rawQuery('''
@@ -124,6 +130,8 @@ class ReceivableRepository {
   }
 
   Future<String> getTemplate() async {
+    AuthSession.instance.requireCashierOrAdmin('Piutang hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     final rows = await db.query(
       'app_settings',
@@ -138,6 +146,8 @@ class ReceivableRepository {
   }
 
   Future<void> saveTemplate(String value) async {
+    AuthSession.instance.requireCashierOrAdmin('Piutang hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     await db.insert(
       'app_settings',
@@ -155,6 +165,8 @@ class ReceivableRepository {
     required int recordId,
     required String phone,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Piutang hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     await db.insert('receivable_reminder_logs', {
       'receivable_type': type,
@@ -165,6 +177,8 @@ class ReceivableRepository {
   }
 
   Future<Map<String, Object?>?> getLastReminder(String type, int recordId) async {
+    AuthSession.instance.requireCashierOrAdmin('Piutang hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     final rows = await db.query(
       'receivable_reminder_logs',
