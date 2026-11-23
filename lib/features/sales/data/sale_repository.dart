@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/activity_log_repository.dart';
 
 class SaleRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -126,6 +127,13 @@ class SaleRepository {
         'notes': notes,
       });
 
+      await ActivityLogRepository.record(
+        txn,
+        action: 'sale_created',
+        description: 'Membuat penjualan $invoice dengan total Rp$subtotal.',
+        entityType: 'sale',
+        entityId: saleId,
+      );
       for (final item in checkedItems) {
         final product = item['product'] as Map<String, Object?>;
         final quantity = item['quantity'] as int;
@@ -264,6 +272,13 @@ class SaleRepository {
         'payment_status': nextStatus,
         'payment_method': paymentMethod ?? sale['payment_method'] ?? 'cash',
       }, where: 'id = ?', whereArgs: [id]);
+      await ActivityLogRepository.record(
+        txn,
+        action: 'sale_payment',
+        description: 'Mencatat pembayaran penjualan ${sale['invoice_number'] ?? id} sebesar Rp$amount.',
+        entityType: 'sale',
+        entityId: id,
+      );
       await txn.insert('cash_transactions', {
         'transaction_type': 'income',
         'category': 'Pembayaran Piutang Penjualan',
@@ -414,6 +429,13 @@ class SaleRepository {
         });
       }
 
+      await ActivityLogRepository.record(
+        txn,
+        action: 'sale_cancelled',
+        description: 'Membatalkan penjualan $invoice.',
+        entityType: 'sale',
+        entityId: id,
+      );
       return txn.update(
         'sales',
         {'payment_status': 'cancelled'},
