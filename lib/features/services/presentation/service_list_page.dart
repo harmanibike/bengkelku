@@ -668,6 +668,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final partChangeRequests = AuthSession.instance.isCashierOrAdmin
         ? await _repository.getServicePartChangeRequests(id)
         : <Map<String, Object?>>[];
+    final estimateHistory = AuthSession.instance.isCashierOrAdmin
+        ? await _repository.getServiceEstimateHistory(id)
+        : <Map<String, Object?>>[];
     final businessProfile = await BusinessProfileRepository().getProfile();
     if (!mounted) return;
     final action = await showDialog<String>(
@@ -713,6 +716,26 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 if (AuthSession.instance.isMechanic && const ['waiting', 'checking', 'in_progress'].contains(status))
                   OutlinedButton.icon(onPressed: () => Navigator.pop(dialogContext, 'part_add'),
                     icon: const Icon(Icons.add_box_outlined), label: const Text('Usulkan tambah sparepart')),
+                if (estimateHistory.isNotEmpty) ...[
+                  const Divider(),
+                  const Text('Riwayat perubahan estimasi', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...estimateHistory.map((entry) => Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${_dateLabel(entry['changed_at'])} • ${entry['changed_by_name'] ?? 'Admin/Kasir'}',
+                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        Text('Total: ${_rupiah(entry['old_total_cost'])} → ${_rupiah(entry['new_total_cost'])}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        if ((entry['reason']?.toString() ?? '').isNotEmpty)
+                          Text('Alasan: ${entry['reason']}', style: const TextStyle(fontSize: 11)),
+                        if ((entry['customer_approval_note']?.toString() ?? '').isNotEmpty)
+                          Text('Persetujuan pelanggan: ${entry['customer_approval_note']}', style: const TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  )),
+                ],
                 if (partChangeRequests.isNotEmpty) ...[
                   const Divider(),
                   const Text('Usulan perubahan sparepart', style: TextStyle(fontWeight: FontWeight.bold)),
