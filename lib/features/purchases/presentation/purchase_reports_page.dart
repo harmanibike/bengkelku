@@ -104,7 +104,7 @@ class _PurchaseReportsPageState extends State<PurchaseReportsPage> {
                 padding: const EdgeInsets.all(12),
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _period,
+                    initialValue: _period,
                     isDense: true,
                     decoration: const InputDecoration(labelText: 'Periode laporan'),
                     items: const [
