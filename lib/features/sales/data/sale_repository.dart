@@ -2,11 +2,13 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/activity_log_repository.dart';
+import '../../../core/auth/auth_session.dart';
 
 class SaleRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
   Future<List<Map<String, Object?>>> getSellableProducts({String keyword = ''}) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses penjualan.');
     final db = await _db;
     final term = keyword.trim();
     return db.query(
@@ -26,6 +28,8 @@ class SaleRepository {
     int? customerId,
     String? notes,
   }) async {
+    if (items.isEmpty)
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses penjualan.');
     if (items.isEmpty) throw ArgumentError('Keranjang masih kosong.');
     if (paid < 0) throw ArgumentError('Pembayaran tidak valid.');
 
@@ -242,6 +246,7 @@ class SaleRepository {
 
   /// Mencatat pembayaran susulan untuk penjualan yang masih memiliki piutang.
   Future<int> addSalePayment({required int id, required int amount, String? paymentMethod}) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses pembayaran.');
     if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari nol.');
     final db = await _db;
     return db.transaction((txn) async {
@@ -295,6 +300,7 @@ class SaleRepository {
   /// Membatalkan penjualan tanpa menghapus nota atau riwayat kas.
   /// Stok dibalik berdasarkan pergerakan stok asli dari transaksi tersebut.
   Future<int> cancelSale({required int id, String? reason}) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat membatalkan penjualan.');
     final db = await _db;
     return db.transaction((txn) async {
       final sales = await txn.query(
@@ -446,6 +452,7 @@ class SaleRepository {
   }
 
   Future<List<Map<String, Object?>>> getSales({String keyword = ''}) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses riwayat penjualan.');
     final db = await _db;
     final term = keyword.trim();
     return db.rawQuery('''
@@ -474,6 +481,7 @@ class SaleRepository {
   }
 
   Future<Map<String, Object?>?> getSaleById(int id) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses detail penjualan.');
     final db = await _db;
     final rows = await db.rawQuery('''
       SELECT sales.*, COALESCE(customers.name, 'Pelanggan Umum') AS customer_name,
@@ -489,6 +497,7 @@ class SaleRepository {
   }
 
   Future<List<Map<String, Object?>>> getSalePaymentHistory(int id) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses riwayat pembayaran.');
     final db = await _db;
     return db.query(
       'cash_transactions',
