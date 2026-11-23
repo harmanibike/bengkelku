@@ -95,11 +95,12 @@ class PurchaseReturnRepository {
   }
 
   Future<void> applyReturnCredit({
-    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     required int returnId,
     required int purchaseId,
     required int amount,
   }) async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
+
     if (amount <= 0) throw ArgumentError('Jumlah kredit harus lebih dari nol.');
     final db = await _db;
     await db.transaction((txn) async {
@@ -158,11 +159,12 @@ class PurchaseReturnRepository {
   }
 
   Future<void> settleReturn({
-    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     required int returnId,
     required int creditApplied,
     required int refundReceived,
   }) async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
+
     if (creditApplied < 0 || refundReceived < 0) {
       throw ArgumentError('Nilai penyelesaian tidak boleh negatif.');
     }
@@ -232,12 +234,13 @@ class PurchaseReturnRepository {
   }
 
   Future<int> createReturn({
-    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     required int purchaseId,
     required String returnNumber,
     required Map<int, int> quantities,
     String? notes,
   }) async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
+
     if (quantities.isEmpty || quantities.values.every((q) => q <= 0)) {
       throw ArgumentError('Pilih minimal satu barang dan jumlah retur.');
     }
@@ -392,10 +395,11 @@ class PurchaseReturnRepository {
   }
 
   Future<void> cancelReturn({
-    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     required int returnId,
     required String reason,
   }) async {
+    AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
+
     final note = reason.trim();
     if (note.isEmpty) throw ArgumentError('Alasan pembatalan wajib diisi.');
     final db = await _db;
