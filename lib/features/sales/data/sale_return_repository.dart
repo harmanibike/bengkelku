@@ -70,12 +70,13 @@ class SaleReturnRepository {
   }
 
   Future<int> createReturn({
-    AuthSession.instance.requireCashierOrAdmin('Retur penjualan hanya dapat diakses Admin dan Kasir.');
     required int saleId,
     required List<Map<String, Object?>> items,
     required int refundAmount,
     String? notes,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Retur penjualan hanya dapat diakses Admin dan Kasir.');
+
     if (items.isEmpty) throw ArgumentError('Pilih minimal satu barang untuk diretur.');
     if (refundAmount < 0) throw ArgumentError('Jumlah pengembalian uang tidak valid.');
 
