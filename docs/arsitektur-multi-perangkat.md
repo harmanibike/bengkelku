@@ -92,3 +92,34 @@ Semua mode memakai kode aplikasi, layar, modul, dan sistem akun yang sama.
 ## Batasan implementasi
 
 Dokumen ini adalah spesifikasi desain, bukan klaim bahwa fitur Server–Client telah tersedia. Fitur baru hanya dinyatakan selesai setelah kode, build CI, dan pengujian yang relevan diverifikasi. Build CI tidak menggantikan pengujian perangkat Android fisik.
+
+## Skenario kerja bersamaan yang wajib didukung
+
+Server dan Client bukan perangkat dengan tugas yang dikunci secara permanen. Keduanya menjalankan aplikasi dan modul yang sama; fitur yang dapat dipakai ditentukan oleh akun serta hak akses.
+
+Contoh penggunaan serentak:
+- HP 1 menjalankan Mode Server dan login sebagai Kasir. Kasir dapat membuat transaksi penjualan seperti biasa.
+- HP 2 menjalankan Mode Client dan login sebagai Admin. Admin dapat menambah/mengubah produk, menerima pembelian atau menambah stok, mengelola pelanggan, serta membuka laporan sesuai hak akses.
+- Ketika HP 1 menjual barang, stok pusat berkurang satu kali dan perubahan terlihat di HP 2.
+- Ketika HP 2 menambah stok, stok pusat bertambah satu kali dan perubahan terlihat di HP 1.
+- Laporan pada kedua perangkat membaca data pusat yang sama, sehingga rekap mencerminkan transaksi dan perubahan stok terbaru.
+
+Persyaratan teknis:
+1. Semua operasi tulis dari Server maupun Client melewati lapisan repository/use-case yang konsisten dan, pada Mode Server–Client, perubahan Client dikirim ke API Server.
+2. Server menjalankan validasi hak akses dan validasi stok terakhir sebelum menyimpan perubahan.
+3. Operasi yang saling memengaruhi stok, kas, pembayaran, pembelian, dan penjualan disimpan atomik.
+4. Client menerima pemberitahuan perubahan melalui WebSocket; bila koneksi notifikasi terputus, Client melakukan refresh terkontrol saat tersambung kembali.
+5. UI menampilkan status koneksi dan waktu pembaruan data. UI tidak boleh menampilkan perubahan seolah tersimpan di pusat sebelum Server mengonfirmasi.
+6. Konflik pada data yang sama harus ditolak atau diminta dimuat ulang; jangan menimpa perubahan terbaru secara diam-diam.
+7. Perangkat tidak dibatasi hanya sebagai kasir atau hanya sebagai pengelola stok. Pengguna tetap dapat berpindah modul sesuai izin akunnya.
+
+## Urutan teknis Tahap 1 yang lebih rinci
+
+1. Audit titik akses database dan repository untuk memastikan pemilihan sumber data dapat dilakukan tanpa mengubah perilaku Mode Lokal.
+2. Tambahkan konfigurasi mode perangkat yang persisten: Lokal, Server, atau Client. Nilai awal tetap Lokal.
+3. Tambahkan abstraksi status dan lifecycle Server yang terpisah dari AuthSession; pergantian akun tidak menghentikan layanan.
+4. Implementasikan layanan Android yang sesuai dengan batasan lifecycle/background Android, termasuk notifikasi foreground dan penanganan stop/start yang eksplisit.
+5. Tampilkan status, alamat LAN, dan kontrol layanan di Pengaturan untuk Admin.
+6. Uji Mode Lokal dengan database lama sebelum melanjutkan ke pairing dan API.
+
+Tahap 1 belum dianggap selesai hanya karena pilihan mode tampil. Server baru dinyatakan siap setelah lifecycle layanan Android dan keberlangsungan database lolos pengujian pada perangkat fisik.
