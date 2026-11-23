@@ -6,6 +6,8 @@ import '../../products/data/product_repository.dart';
 import '../data/purchase_repository.dart';
 import '../data/supplier_repository.dart';
 import 'suppliers_page.dart';
+import 'purchase_returns_page.dart';
+import 'supplier_debts_page.dart';
 
 class PurchasesPage extends StatefulWidget {
   const PurchasesPage({super.key});
@@ -458,16 +460,46 @@ class _PurchasesPageState extends State<PurchasesPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const SuppliersPage()));
   }
 
+  void _openPurchaseReturns() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchaseReturnsPage()));
+  }
+
+  void _openSupplierDebts() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplierDebtsPage()));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pembelian Barang'),
         actions: [
-          TextButton.icon(
-            onPressed: _openSuppliers,
-            icon: const Icon(Icons.local_shipping_outlined),
-            label: const Text('Pemasok'),
+          PopupMenuButton<String>(
+            tooltip: 'Menu pembelian lainnya',
+            onSelected: (value) {
+              switch (value) {
+                case 'suppliers':
+                  _openSuppliers();
+                case 'returns':
+                  _openPurchaseReturns();
+                case 'debts':
+                  _openSupplierDebts();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'suppliers', child: ListTile(
+                leading: Icon(Icons.local_shipping_outlined), title: Text('Pemasok'),
+                contentPadding: EdgeInsets.zero, dense: true,
+              )),
+              PopupMenuItem(value: 'returns', child: ListTile(
+                leading: Icon(Icons.assignment_return_outlined), title: Text('Retur Beli'),
+                contentPadding: EdgeInsets.zero, dense: true,
+              )),
+              PopupMenuItem(value: 'debts', child: ListTile(
+                leading: Icon(Icons.account_balance_wallet_outlined), title: Text('Hutang Pemasok'),
+                contentPadding: EdgeInsets.zero, dense: true,
+              )),
+            ],
           ),
           IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
         ],
