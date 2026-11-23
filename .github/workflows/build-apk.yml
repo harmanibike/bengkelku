@@ -81,7 +81,7 @@ jobs:
           permission = '    <uses-permission android:name="android.permission.CAMERA" />'
 
           if "android.permission.CAMERA" not in source:
-              source, count = re.subn(r'(<application\\b)', permission + "\\n\\n    \\1", source, count=1)
+              source, count = re.subn(r'(<application\b)', lambda match: permission + "\n\n" + match.group(1), source, count=1)
               if count != 1:
                   raise SystemExit("Tag application pada AndroidManifest.xml tidak ditemukan.")
               path.write_text(source)
