@@ -213,7 +213,7 @@ class ServiceRepository {
     final whereClause =
         conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}';
 
-    return db.rawQuery('''
+    final rows = await db.rawQuery('''
       SELECT
         s.*,
         c.name AS customer_name,
@@ -229,6 +229,19 @@ class ServiceRepository {
       $whereClause
       ORDER BY s.id DESC
     ''', arguments);
+    return AuthSession.instance.isMechanic ? rows.map(_withoutFinancialFields).toList() : rows;
+  }
+
+  Map<String, Object?> _withoutFinancialFields(Map<String, Object?> row) {
+    final safe = Map<String, Object?>.from(row);
+    for (final key in const [
+      'estimated_cost', 'labor_cost', 'parts_cost', 'direct_parts_cost',
+      'other_direct_cost', 'discount', 'total_cost', 'down_payment',
+      'remaining_payment',
+    ]) {
+      safe.remove(key);
+    }
+    return safe;
   }
 
   // Detail satu nota servis.
@@ -257,7 +270,8 @@ class ServiceRepository {
       LIMIT 1
     ''', [id, session.isMechanic ? session.userId : null, session.isMechanic ? session.userId : null]);
 
-    return result.isEmpty ? null : result.first;
+    if (result.isEmpty) return null;
+    return session.isMechanic ? _withoutFinancialFields(result.first) : result.first;
   }
 
   // Memperbarui hasil pemeriksaan dan rincian biaya secara atomik.
