@@ -2,11 +2,13 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/activity_log_repository.dart';
+import '../../../core/auth/auth_session.dart';
 
 class PurchaseRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
   Future<List<Map<String, Object?>>> getPurchases({String keyword = ''}) async {
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     final db = await _db;
     final term = keyword.trim();
     return db.rawQuery('''
@@ -18,11 +20,13 @@ class PurchaseRepository {
   }
 
   Future<List<Map<String, Object?>>> getPurchaseItems(int purchaseId) async {
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     final db = await _db;
     return db.query('purchase_items', where: 'purchase_id = ?', whereArgs: [purchaseId], orderBy: 'id ASC');
   }
 
   Future<List<Map<String, Object?>>> getPurchasePayments(int purchaseId) async {
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     final db = await _db;
     return db.query(
       'supplier_payments',
@@ -33,6 +37,7 @@ class PurchaseRepository {
   }
 
   Future<int> createPurchase({
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     required String invoiceNumber,
     required int supplierId,
     required List<Map<String, Object?>> items,
@@ -177,6 +182,7 @@ class PurchaseRepository {
   }
 
   Future<void> addPayment({required int purchaseId, required int amount, String? paymentMethod, String? notes}) async {
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari nol.');
     final db = await _db;
     await db.transaction((txn) async {
@@ -215,6 +221,7 @@ class PurchaseRepository {
   }
 
   Future<List<Map<String, Object?>>> getOutstandingBySupplier() async {
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT s.id AS supplier_id, s.name AS supplier_name, COUNT(p.id) AS invoice_count,
@@ -227,6 +234,7 @@ class PurchaseRepository {
   }
 
   Future<void> cancelPurchase({
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
     required int purchaseId,
     required String reason,
   }) async {
