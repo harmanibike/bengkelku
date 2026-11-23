@@ -163,7 +163,10 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Server lokal, koneksi Wi-Fi/LAN, dan perangkat klien.
 - [ ] API/WebSocket, sinkronisasi data, dan penghubung perangkat melalui QR.
 - [ ] Pengamanan perangkat baru, pencegahan transaksi ganda, dan resolusi konflik.
-
+- [ ] Kerja serentak lintas perangkat: satu perangkat melayani transaksi kasir sementara perangkat lain mengelola produk/stok dan melihat laporan dari database pusat yang sama.
+- [ ] Pembaruan stok dan laporan lintas perangkat setelah transaksi/penambahan stok dikonfirmasi Server.
+- [ ] Hak akses tetap mengikuti akun (Admin/Kasir/Mekanik), bukan dikunci berdasarkan jenis perangkat.
+- [ ] Status koneksi, refresh setelah reconnect, dan perlindungan agar transaksi Client tidak dianggap berhasil sebelum Server mengonfirmasi.
 ## 14. Keamanan dan keandalan
 
 - [x] Database lokal SQLite.
