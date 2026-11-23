@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
+
 import '../../../core/auth/auth_session.dart';
 
 import '../../settings/data/account_repository.dart';
@@ -180,8 +182,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   }
 
   int _amount(TextEditingController controller) {
-    final digits = controller.text.replaceAll(RegExp(r'[^0-9]'), '');
-    return int.tryParse(digits) ?? 0;
+    return parseCurrencyInput(controller.text);
   }
 
   int get _total {
@@ -278,7 +279,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       keyboardType: TextInputType.number,
       readOnly: readOnly,
       onTap: onTap,
-      inputFormatters: const [],
+      inputFormatters: const [CurrencyInputFormatter()],
       decoration: InputDecoration(
         labelText: label,
         prefixText: 'Rp ',
