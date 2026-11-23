@@ -255,7 +255,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 children: [
                   Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   SizedBox(height: 2),
-                  Text('Kelola servis, produk, dan transaksi', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                  Text(AuthSession.instance.isMechanic ? 'Lihat tugas servis yang ditugaskan' : 'Kelola servis dan transaksi', style: TextStyle(color: Colors.grey, fontSize: 10)),
                 ],
               ),
             ),
@@ -486,8 +486,10 @@ class _DashboardPageState extends State<DashboardPage> {
         _menuTile(title: 'Kasir', icon: Icons.shopping_cart_rounded, colors: const [Color(0xFF26A69A), Color(0xFF66BB6A)], onTap: _openCashier),
         _menuTile(title: 'Riwayat', icon: Icons.receipt_long_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openSalesHistory),
         _menuTile(title: 'Retur', icon: Icons.assignment_return_rounded, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: _openSaleReturns),
-        _menuTile(title: 'Produk', icon: Icons.inventory_2_rounded, colors: const [Color(0xFFEF8D32), Color(0xFFFFB74D)], onTap: _openProducts),
-        _menuTile(title: 'Stok', icon: Icons.bar_chart_rounded, colors: const [Color(0xFF039BE5), Color(0xFF4FC3F7)], onTap: _openProducts),
+        if (AuthSession.instance.isAdmin) ...[
+          _menuTile(title: 'Produk', icon: Icons.inventory_2_rounded, colors: const [Color(0xFFEF8D32), Color(0xFFFFB74D)], onTap: _openProducts),
+          _menuTile(title: 'Stok', icon: Icons.bar_chart_rounded, colors: const [Color(0xFF039BE5), Color(0xFF4FC3F7)], onTap: _openProducts),
+        ],
         _menuTile(title: 'Pelanggan', icon: Icons.people_alt_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openCustomers),
         _menuTile(title: 'Sepeda', icon: Icons.pedal_bike_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openBicycles),
       ],
