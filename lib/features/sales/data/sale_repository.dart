@@ -428,6 +428,7 @@ class SaleRepository {
     final term = keyword.trim();
     return db.rawQuery('''
       SELECT sales.*,
+             COALESCE(customers.name, 'Pelanggan Umum') AS customer_name,
              COALESCE(ret.returned_amount, 0) AS returned_amount,
              COALESCE(ret.refunded_amount, 0) AS refunded_amount,
              MAX(0, sales.total - sales.paid
@@ -453,7 +454,7 @@ class SaleRepository {
   Future<Map<String, Object?>?> getSaleById(int id) async {
     final db = await _db;
     final rows = await db.rawQuery('''
-      SELECT sales.*, customers.name AS customer_name,
+      SELECT sales.*, COALESCE(customers.name, 'Pelanggan Umum') AS customer_name,
              customers.phone AS customer_phone
       FROM sales
       LEFT JOIN customers ON customers.id = sales.customer_id
