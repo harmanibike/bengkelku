@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:image/image.dart' as img;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:pdf/pdf.dart';
 import 'package:cross_file/cross_file.dart';
@@ -37,8 +39,39 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     if (format != 'foto' || _imageBytes != null || _loadingImage) return;
     setState(() => _loadingImage = true);
     try {
-      final raster = await Printing.raster(widget.pdfBytes, pages: const [0], dpi: 180).first;
-      final bytes = await raster.toPng();
+      // Render every PDF page so the shared photo contains the complete
+      // receipt, including any pages created by long service/payment details.
+      final pages = <img.Image>[];
+      await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
+        final pageBytes = await page.toPng();
+        final decoded = img.decodeImage(pageBytes);
+        if (decoded != null) pages.add(decoded);
+      }
+      if (pages.isEmpty) {
+        throw StateError('Dokumen nota tidak memiliki halaman yang dapat dirender.');
+      }
+
+      final width = pages.fold<int>(
+        0,
+        (maximum, page) => page.width > maximum ? page.width : maximum,
+      );
+      final height = pages.fold<int>(
+        0,
+        (total, page) => total + page.height,
+      );
+      final combined = img.Image(width: width, height: height);
+      img.fill(combined, color: img.ColorRgb8(255, 255, 255));
+      var top = 0;
+      for (final page in pages) {
+        img.compositeImage(
+          combined,
+          page,
+          dstX: (width - page.width) ~/ 2,
+          dstY: top,
+        );
+        top += page.height;
+      }
+      final bytes = Uint8List.fromList(img.encodePng(combined));
       if (!mounted) return;
       setState(() {
         _imageBytes = bytes;
