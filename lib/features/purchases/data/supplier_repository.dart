@@ -1,11 +1,15 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../../core/auth/auth_session.dart';
+
 import '../../../core/database/app_database.dart';
 
 class SupplierRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
   Future<List<Map<String, Object?>>> getSuppliers({String keyword = ''}) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final db = await _db;
     final term = keyword.trim();
     return db.query(
@@ -17,6 +21,8 @@ class SupplierRepository {
   }
 
   Future<int> addSupplier({required String name, String? phone, String? address, String? email, String? notes}) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Nama pemasok wajib diisi.');
     final db = await _db;
@@ -27,6 +33,8 @@ class SupplierRepository {
   }
 
   Future<int> updateSupplier({required int id, required String name, String? phone, String? address, String? email, String? notes}) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final cleanName = name.trim();
     if (cleanName.isEmpty) throw ArgumentError('Nama pemasok wajib diisi.');
     final db = await _db;
@@ -37,12 +45,16 @@ class SupplierRepository {
   }
 
   Future<int> countPurchases(int supplierId) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final db = await _db;
     final rows = await db.rawQuery("SELECT COUNT(*) AS total FROM purchases WHERE supplier_id = ? AND status = 'active'", [supplierId]);
     return Sqflite.firstIntValue(rows) ?? 0;
   }
 
   Future<Map<String, Object?>> getSupplierSummary(int supplierId) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final db = await _db;
     final rows = await db.rawQuery('''
       SELECT COUNT(*) AS invoice_count,
@@ -59,6 +71,8 @@ class SupplierRepository {
   }
 
   Future<List<Map<String, Object?>>> getSuppliersWithDebt() async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final db = await _db;
     return db.rawQuery('''
       SELECT s.id AS supplier_id, s.name AS supplier_name, s.phone,
@@ -76,6 +90,8 @@ class SupplierRepository {
   }
 
   Future<List<Map<String, Object?>>> getPurchaseHistory(int supplierId) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final db = await _db;
     return db.rawQuery('''
       SELECT p.id, p.invoice_number, p.purchase_date, p.subtotal, p.discount,
@@ -97,6 +113,8 @@ class SupplierRepository {
   }
 
   Future<List<Map<String, Object?>>> getSupplierCreditApplications(int supplierId) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final db = await _db;
     return db.rawQuery('''
       SELECT a.id, a.amount, a.created_at, pr.return_number,
@@ -110,6 +128,8 @@ class SupplierRepository {
   }
 
   Future<List<Map<String, Object?>>> getSupplierPayments(int supplierId) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final db = await _db;
     return db.rawQuery('''
       SELECT sp.*, p.invoice_number
@@ -123,6 +143,8 @@ class SupplierRepository {
 
   /// Rincian ledger satu faktur: item, pembayaran, retur, dan pemakaian kredit.
   Future<Map<String, Object?>> getPurchaseLedgerDetail(int purchaseId) async {
+    AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
+
     final db = await _db;
     final invoices = await db.rawQuery('''
       SELECT p.*, s.name AS supplier_name
