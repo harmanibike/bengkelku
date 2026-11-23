@@ -10,6 +10,7 @@ import 'receipt_settings_page.dart';
 import 'cash_drawer_settings_page.dart';
 import 'printer_settings_page.dart';
 import 'loyalty_settings_page.dart';
+import '../../customers/presentation/loyalty_rewards_page.dart';
 import 'stock_reminder_settings_page.dart';
 import '../../../core/auth/auth_session.dart';
 
@@ -143,6 +144,19 @@ class SettingsPage extends StatelessWidget {
             subtitle: 'Pilih metode pembayaran yang tersedia di kasir',
             page: const PaymentMethodsPage(),
           ),
+          if (AuthSession.instance.isCashierOrAdmin) ...[
+            const SizedBox(height: 10),
+            const Text('Loyalty & Reward', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 8),
+            _item(
+              context: context,
+              icon: Icons.card_giftcard_rounded,
+              color: const Color(0xFF8E24AA),
+              title: 'Katalog Loyalty & Reward',
+              subtitle: 'Kelola hadiah dan tukarkan poin pelanggan',
+              page: const LoyaltyRewardsPage(),
+            ),
+          ],
           if (AuthSession.instance.isAdmin) ...[
             const SizedBox(height: 10),
             const Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
