@@ -20,6 +20,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
   final TextEditingController _searchController = TextEditingController();
 
   late Future<List<Map<String, Object?>>> _customersFuture;
+  bool _isImportingContacts = false;
 
   @override
   void initState() {
@@ -232,20 +233,40 @@ class _CustomerListPageState extends State<CustomerListPage> {
   }
 
   Future<void> _importPhoneContacts() async {
+    if (_isImportingContacts) return;
+    setState(() => _isImportingContacts = true);
     try {
       final allowed = await FlutterContacts.requestPermission(readonly: true);
       if (!allowed) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Izin membaca kontak tidak diberikan.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Izin membaca kontak tidak diberikan.')),
+        );
         return;
       }
-      final contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: true);
-      final usable = contacts.where((item) => item.displayName.trim().isNotEmpty && item.phones.any((phone) => phone.number.trim().isNotEmpty)).toList();
+
+      // Ambil nama dan nomor saja terlebih dahulu. Foto baru dimuat untuk
+      // kontak yang dipilih agar proses awal tidak membebani memori.
+      final contacts = await FlutterContacts.getContacts(
+        withProperties: true,
+        withPhoto: false,
+      );
+      final usable = contacts
+          .where((item) =>
+              item.displayName.trim().isNotEmpty &&
+              item.phones.any((phone) => phone.number.trim().isNotEmpty))
+          .toList();
+
       if (!mounted) return;
       if (usable.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada kontak dengan nama dan nomor telepon.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tidak ada kontak dengan nama dan nomor telepon.'),
+          ),
+        );
         return;
       }
+
       final selected = <int>{};
       final confirmed = await showDialog<bool>(
         context: context,
@@ -255,80 +276,142 @@ class _CustomerListPageState extends State<CustomerListPage> {
             content: SizedBox(
               width: 520,
               height: 420,
-              child: Column(children: [
-                Text('Pilih kontak yang ingin dimasukkan. ${usable.length} kontak tersedia.'),
-                const SizedBox(height: 8),
-                Expanded(child: ListView.builder(
-                  itemCount: usable.length,
-                  itemBuilder: (context, index) {
-                    final item = usable[index];
-                    return CheckboxListTile(
-                      value: selected.contains(index),
-                      onChanged: (value) => setDialogState(() {
-                        if (value == true) { selected.add(index); } else { selected.remove(index); }
-                      }),
-                      secondary: CircleAvatar(
-                        backgroundImage: item.photo == null ? null : MemoryImage(item.photo!),
-                        child: item.photo == null ? const Icon(Icons.person) : null,
-                      ),
-                      title: Text(item.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(item.phones.firstWhere((phone) => phone.number.trim().isNotEmpty).number),
-                      controlAffinity: ListTileControlAffinity.leading,
-                    );
-                  },
-                )),
-              ]),
+              child: Column(
+                children: [
+                  Text('Pilih kontak yang ingin dimasukkan. ${usable.length} kontak tersedia.'),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: usable.length,
+                      itemBuilder: (context, index) {
+                        final item = usable[index];
+                        final phone = item.phones.firstWhere(
+                          (entry) => entry.number.trim().isNotEmpty,
+                        ).number;
+                        return CheckboxListTile(
+                          value: selected.contains(index),
+                          onChanged: (value) => setDialogState(() {
+                            if (value == true) {
+                              selected.add(index);
+                            } else {
+                              selected.remove(index);
+                            }
+                          }),
+                          secondary: const CircleAvatar(
+                            child: Icon(Icons.person),
+                          ),
+                          title: Text(
+                            item.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(phone),
+                          controlAffinity: ListTileControlAffinity.leading,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
               TextButton(
                 onPressed: () => setDialogState(() {
-                  if (selected.length == usable.length) { selected.clear(); }
-                  else { selected.addAll(List<int>.generate(usable.length, (i) => i)); }
+                  if (selected.length == usable.length) {
+                    selected.clear();
+                  } else {
+                    selected.addAll(List<int>.generate(usable.length, (i) => i));
+                  }
                 }),
-                child: Text(selected.length == usable.length ? 'Batal Pilih Semua' : 'Pilih Semua'),
+                child: Text(
+                  selected.length == usable.length
+                      ? 'Batal Pilih Semua'
+                      : 'Pilih Semua',
+                ),
               ),
               FilledButton(
-                onPressed: selected.isEmpty ? null : () => Navigator.pop(dialogContext, true),
+                onPressed: selected.isEmpty
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
                 child: Text('Impor ${selected.length}'),
               ),
             ],
           ),
         ),
       );
+
       if (confirmed != true || !mounted) return;
 
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Menyiapkan ${selected.length} kontak untuk diimpor...'),
+          duration: const Duration(seconds: 30),
+        ),
+      );
+
       final existing = await _repository.getCustomers();
-      String normalizePhone(String value) => value.replaceAll(RegExp(r'[^0-9]'), '').replaceFirst(RegExp(r'^62'), '0');
-      final phones = existing.map((row) => normalizePhone(row['phone']?.toString() ?? '')).where((value) => value.isNotEmpty).toSet();
-      var imported = 0;
+      String normalizePhone(String value) => value
+          .replaceAll(RegExp(r'[^0-9]'), '')
+          .replaceFirst(RegExp(r'^62'), '0');
+      final phones = existing
+          .map((row) => normalizePhone(row['phone']?.toString() ?? ''))
+          .where((value) => value.isNotEmpty)
+          .toSet();
+
+      final rowsToImport = <Map<String, Object?>>[];
       var skipped = 0;
       for (final index in selected) {
-        final item = usable[index];
-        final name = item.displayName.trim();
-        final phone = item.phones.firstWhere((entry) => entry.number.trim().isNotEmpty).number.trim();
-        final normalized = normalizePhone(phone);
+        final basic = usable[index];
+        final basicPhone = basic.phones.firstWhere(
+          (entry) => entry.number.trim().isNotEmpty,
+        ).number.trim();
+        final normalized = normalizePhone(basicPhone);
         if (normalized.isNotEmpty && phones.contains(normalized)) {
           skipped++;
           continue;
         }
-        await _repository.addCustomer(
-          name: name,
-          phone: phone,
-          email: item.emails.isEmpty ? null : item.emails.first.address,
-          photoBase64: item.photo == null ? null : base64Encode(item.photo!),
+
+        // Detail/foto hanya diambil untuk kontak yang benar-benar dipilih.
+        final detail = await FlutterContacts.getContact(
+          basic.id,
+          withProperties: true,
+          withPhoto: true,
         );
+        final photo = detail?.photo;
+        rowsToImport.add({
+          'name': basic.displayName.trim(),
+          'phone': basicPhone,
+          'email': detail == null || detail.emails.isEmpty
+              ? null
+              : detail.emails.first.address,
+          'photo_base64': photo == null ? null : base64Encode(photo),
+        });
         if (normalized.isNotEmpty) phones.add(normalized);
-        imported++;
       }
+
+      final imported = await _repository.importCustomers(rowsToImport);
       if (!mounted) return;
       _refresh();
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$imported kontak diimpor, $skipped dilewati karena terdeteksi sudah ada.')),
+        SnackBar(
+          content: Text(
+            '$imported kontak diimpor, $skipped dilewati karena sudah terdaftar.',
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengimpor kontak: $error')));
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengimpor kontak: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isImportingContacts = false);
     }
   }
 
@@ -466,7 +549,17 @@ class _CustomerListPageState extends State<CustomerListPage> {
       appBar: AppBar(
         title: const Text('Data Pelanggan'),
         actions: [
-          IconButton(tooltip: 'Impor kontak', onPressed: _importPhoneContacts, icon: const Icon(Icons.contacts_outlined)),
+          IconButton(
+            tooltip: 'Impor kontak',
+            onPressed: _isImportingContacts ? null : _importPhoneContacts,
+            icon: _isImportingContacts
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.contacts_outlined),
+          ),
           TextButton.icon(
             onPressed: () {
               Navigator.push(
