@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int _databaseVersion = 19;
+  static const int _databaseVersion = 20;
 
   Database? _database;
 
@@ -262,6 +262,7 @@ class AppDatabase {
         down_payment INTEGER NOT NULL DEFAULT 0,
         remaining_payment INTEGER NOT NULL DEFAULT 0,
         mechanic_name TEXT,
+        assigned_mechanic_id INTEGER,
         received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         completed_at TEXT,
         notes TEXT,
@@ -634,6 +635,24 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    // Akun pengguna dan penugasan mekanik. Migrasi bersifat aditif:
+    // data servis lama dipertahankan dan tetap dapat diakses admin/kasir.
+    if (oldVersion < 20) {
+      await db.execute('''
+        CREATE TABLE app_users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          display_name TEXT NOT NULL,
+          username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+          role TEXT NOT NULL CHECK(role IN ('admin', 'cashier', 'mechanic')),
+          pin_hash TEXT NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT
+        )
+      ''');
+      await db.execute('ALTER TABLE service_orders ADD COLUMN assigned_mechanic_id INTEGER');
+      await db.execute('CREATE INDEX idx_service_assigned_mechanic ON service_orders(assigned_mechanic_id, service_status)');
+    }
     // Migrasi dari database versi 1 ke versi 2.
     if (oldVersion < 2) {
       await db.execute('''
