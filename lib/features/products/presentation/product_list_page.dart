@@ -22,6 +22,8 @@ class _ProductListPageState extends State<ProductListPage> {
   final TextEditingController _searchController = TextEditingController();
   late Future<List<Map<String, Object?>>> _productsFuture;
   bool _showInactive = false;
+  static const int _pageSize = 50;
+  int _page = 0;
 
   @override
   void initState() {
@@ -39,10 +41,12 @@ class _ProductListPageState extends State<ProductListPage> {
     _productsFuture = _repository.getProducts(
       keyword: _searchController.text,
       includeInactive: _showInactive,
+      limit: _pageSize,
+      offset: _page * _pageSize,
     );
   }
 
-  void _refresh() => setState(_loadProducts);
+  void _refresh() => setState(() { _page = 0; _loadProducts(); });
 
   void _openPurchaseCostSettings() {
     Navigator.push(
@@ -605,7 +609,7 @@ class _ProductListPageState extends State<ProductListPage> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
             title: const Text('Tampilkan produk nonaktif'),
             value: _showInactive,
-            onChanged: (value) => setState(() { _showInactive = value; _loadProducts(); }),
+            onChanged: (value) => setState(() { _showInactive = value; _page = 0; _loadProducts(); }),
           ),
           Expanded(
             child: FutureBuilder<List<Map<String, Object?>>>(
@@ -621,10 +625,39 @@ class _ProductListPageState extends State<ProductListPage> {
                   SizedBox(height: 5),
                   Text('Tekan tombol Tambah untuk memasukkan produk dan stok awal.', textAlign: TextAlign.center),
                 ])));
-                return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) => _productCard(products[index]),
+                return Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        itemCount: products.length,
+                        itemBuilder: (context, index) => _productCard(products[index]),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _page > 0
+                                ? () => setState(() { _page--; _loadProducts(); })
+                                : null,
+                            icon: const Icon(Icons.chevron_left),
+                            label: const Text('Sebelumnya'),
+                          ),
+                          Text('Halaman ${_page + 1}'),
+                          OutlinedButton.icon(
+                            onPressed: products.length == _pageSize
+                                ? () => setState(() { _page++; _loadProducts(); })
+                                : null,
+                            icon: const Icon(Icons.chevron_right),
+                            label: const Text('Berikutnya'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
