@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../data/business_settings_repository.dart';
+import '../../../core/notifications/stock_reminder_notification_service.dart';
 
 class StockReminderSettingsPage extends StatefulWidget {
   const StockReminderSettingsPage({super.key});
@@ -39,6 +40,11 @@ class _StockReminderSettingsPageState extends State<StockReminderSettingsPage> {
     setState(() => _saving = true);
     try {
       await _repository.saveStockReminderSettings(_settings);
+      if (_settings.enabled) {
+        await StockReminderNotificationService.instance.syncStockReminder();
+      } else {
+        await StockReminderNotificationService.instance.cancelStockReminder();
+      }
       _message('Pengaturan reminder stok berhasil disimpan.');
     } catch (error) {
       _message('Gagal menyimpan pengaturan: $error');
@@ -85,12 +91,37 @@ class _StockReminderSettingsPageState extends State<StockReminderSettingsPage> {
                   (value) => setState(() => _settings = _settings.copyWith(repeatDaily: value)),
                 ),
                 const SizedBox(height: 12),
-                const Card(
+                Card(
                   child: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text(
-                      'Catatan: halaman ini menyimpan aturan reminder. Notifikasi Android terjadwal, izin notifikasi, dan pemicu otomatis belum diaktifkan. Integrasi notifikasi akan dibuat terpisah agar reminder benar-benar muncul di perangkat.',
-                      style: TextStyle(fontSize: 12),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Notifikasi Android',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Izinkan notifikasi agar BengkelKu dapat mengingatkan stok menipis setiap hari. Pengingat hanya dijadwalkan jika ditemukan produk di bawah batas stok.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: _saving || !_settings.enabled
+                              ? null
+                              : () async {
+                                  final granted = await StockReminderNotificationService
+                                      .instance.requestPermissionAndSync();
+                                  if (!mounted) return;
+                                  _message(granted
+                                      ? 'Izin notifikasi aktif. Pengingat stok disiapkan jika ada stok menipis.'
+                                      : 'Izin notifikasi belum diberikan. Periksa izin aplikasi di Pengaturan Android.');
+                                },
+                          icon: const Icon(Icons.notifications_active_outlined),
+                          label: const Text('Izinkan Notifikasi'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
