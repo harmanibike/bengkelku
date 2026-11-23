@@ -490,6 +490,17 @@ class _CustomerListPageState extends State<CustomerListPage> {
     }
   }
 
+  String _formatWalletAmount(Object? value) {
+    final amount = (value as num?)?.toInt() ?? 0;
+    final digits = amount.toString();
+    final out = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) out.write('.');
+      out.write(digits[i]);
+    }
+    return 'Rp$out';
+  }
+
   Widget _buildCustomerCard(Map<String, Object?> customer) {
     final name = customer['name']?.toString() ?? 'Tanpa nama';
     final phone = customer['phone']?.toString() ?? '';
@@ -528,6 +539,14 @@ class _CustomerListPageState extends State<CustomerListPage> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 12),
                 ),
+              Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_outlined, size: 14, color: Color(0xFF1976D2)),
+                  const SizedBox(width: 4),
+                  Text('Saldo: ${_formatWalletAmount(customer['wallet_balance'])}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1976D2))),
+                ],
+              ),
               Row(
                 children: [
                   const Icon(Icons.stars_rounded, size: 14, color: Color(0xFFFFA000)),
