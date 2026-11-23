@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../business/presentation/business_profile_page.dart';
 import 'payment_methods_page.dart';
 import 'account_pages.dart';
+import 'activity_log_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -47,6 +48,15 @@ class SettingsPage extends StatelessWidget {
         children: [
           if (AuthSession.instance.isAdmin) ...[
           const Text('Akun', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.history_rounded,
+            color: const Color(0xFF455A64),
+            title: 'Riwayat Aktivitas',
+            subtitle: 'Lihat tindakan Admin, Kasir, dan Mekanik',
+            page: const ActivityLogPage(),
+          ),
           const SizedBox(height: 8),
           _item(
             context: context,
