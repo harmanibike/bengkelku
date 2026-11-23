@@ -8,6 +8,7 @@ import 'database_backup_page.dart';
 import 'device_mode_page.dart';
 import 'receipt_settings_page.dart';
 import 'cash_drawer_settings_page.dart';
+import 'printer_settings_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -103,6 +104,17 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 10),
           const Text('Transaksi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 8),
+          if (AuthSession.instance.isCashierOrAdmin) ...[
+          _item(
+            context: context,
+            icon: Icons.print_rounded,
+            color: const Color(0xFF1565C0),
+            title: 'Pengaturan Printer',
+            subtitle: 'Cari, hubungkan, pilih printer, dan tes cetak',
+            page: const PrinterSettingsPage(),
+          ),
+          const SizedBox(height: 8),
+          ],
           _item(
             context: context,
             icon: Icons.receipt_long_rounded,
