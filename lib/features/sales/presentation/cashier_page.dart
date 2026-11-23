@@ -306,7 +306,7 @@ class _CashierPageState extends State<CashierPage> {
 
   Future<void> _checkout() async {
     if (_cart.isEmpty) return;
-    _paid.text = _total.toString();
+    _paid.text = formatCurrencyInput(_total);
     final paymentController = TextEditingController(text: _paid.text);
     final discountController = TextEditingController(text: '0');
     final buyerNameController = TextEditingController(text: _buyerNameForHold.text);
