@@ -1,5 +1,6 @@
 
 import 'package:material_ui/material_ui.dart';
+import '../../../core/formatters/currency_input_formatter.dart';
 
 import '../../../core/auth/auth_session.dart';
 import '../../settings/data/account_repository.dart';
@@ -172,7 +173,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
     }
   }
 
-  Future<void> _addServicePayment(int id) async {
+  Future<void> _addServicePayment(int id, {int? remainingAmount}) async {
     final controller = TextEditingController();
     final amount = await showDialog<int>(
       context: context,
@@ -182,9 +183,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
           controller: controller,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
+          inputFormatters: const [CurrencyInputFormatter()],
+          decoration: InputDecoration(
             labelText: 'Jumlah pembayaran (Rp)',
-            border: OutlineInputBorder(),
+            helperText: remainingAmount == null
+                ? null
+                : 'Sisa tagihan: ${_rupiah(remainingAmount)}',
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
@@ -208,6 +213,12 @@ class _ServiceListPageState extends State<ServiceListPage> {
     );
     controller.dispose();
     if (amount == null || !mounted) return;
+    if (remainingAmount != null && amount > remainingAmount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pembayaran melebihi sisa tagihan ${_rupiah(remainingAmount)}.')),
+      );
+      return;
+    }
     try {
       await _repository.addPayment(id: id, amount: amount);
       if (!mounted) return;
@@ -359,10 +370,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
   Future<void> _assignMechanic(int serviceOrderId) async {
     try {
-      final accounts = await AccountRepository().getAccounts();
-      final mechanics = accounts.where((account) =>
-          account['role'] == 'mechanic' &&
-          (account['is_active'] as int? ?? 0) == 1).toList();
+      final mechanics = await AccountRepository().getActiveMechanics();
       if (!mounted) return;
       if (mechanics.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -754,6 +762,15 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   if (!AuthSession.instance.isMechanic)
                     Text(_rupiah(order['total_cost']),
                         style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (_showOutstandingOnly && AuthSession.instance.isCashierOrAdmin)
+                    TextButton.icon(
+                      onPressed: () => _addServicePayment(
+                        order['id'] as int,
+                        remainingAmount: (order['remaining_payment'] as num? ?? 0).toInt(),
+                      ),
+                      icon: const Icon(Icons.payments_outlined, size: 17),
+                      label: const Text('Bayar'),
+                    ),
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       if (value == 'status') _changeStatus(order);
