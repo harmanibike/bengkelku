@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/activity_log_repository.dart';
 import '../../../core/auth/auth_session.dart';
+import '../../../core/notifications/stock_reminder_notification_service.dart';
 
 class SaleRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -139,7 +140,7 @@ class SaleRepository {
     }
 
     final db = await _db;
-    return db.transaction((txn) async {
+    final saleId = await db.transaction((txn) async {
       final settingRows = await txn.query('app_settings', columns: ['setting_value'], where: 'setting_key = ?', whereArgs: ['purchase_cost_method'], limit: 1);
       final configuredMethod = settingRows.isEmpty ? 'weighted_average' : settingRows.first['setting_value']?.toString();
       final useBatchCost = configuredMethod == 'per_batch';
@@ -291,6 +292,8 @@ class SaleRepository {
       }
       return saleId;
     });
+    await StockReminderNotificationService.instance.syncStockReminder();
+    return saleId;
   }
 
   Future<int> _consumeCostBatches(
