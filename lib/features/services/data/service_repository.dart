@@ -1331,7 +1331,7 @@ class ServiceRepository {
     return db.transaction((txn) async {
       final result = await txn.query(
         'service_orders',
-        columns: ['order_number', 'total_cost', 'down_payment', 'service_status', 'mechanic_name'],
+        columns: ['order_number', 'total_cost', 'down_payment', 'service_status', 'mechanic_name', 'assigned_mechanic_id'],
         where: 'id = ?',
         whereArgs: [id],
         limit: 1,
@@ -1392,6 +1392,7 @@ class ServiceRepository {
           'amount': tipAmount,
           'source_type': 'service_order',
           'source_id': id,
+          'recipient_account_id': result.first['assigned_mechanic_id'],
           'recipient_name': recipient,
           'payment_method': 'cash',
           'status': 'held',
