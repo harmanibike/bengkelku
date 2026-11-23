@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
+
 import '../data/sale_repository.dart';
 import '../data/sale_return_repository.dart';
 
@@ -188,7 +190,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
       return;
     }
 
-    final refund = int.tryParse(_refundController.text.replaceAll('.', '').trim()) ?? 0;
+    final refund = parseCurrencyInput(_refundController.text);
     if (refund != _minimumRefund) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Jumlah pengembalian uang yang harus dicatat adalah ${_rupiah(_minimumRefund)}.')),
@@ -345,8 +347,8 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
                           keyboardType: TextInputType.number,
                           textAlign: TextAlign.center,
                           onChanged: (_) {
-                            if ((int.tryParse(_refundController.text.trim()) ?? 0) < _minimumRefund) {
-                              _refundController.text = _minimumRefund.toString();
+                            if (parseCurrencyInput(_refundController.text) < _minimumRefund) {
+                              _refundController.text = formatCurrencyInput(_minimumRefund);
                             }
                             setState(() {});
                           },
@@ -375,6 +377,7 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
                 controller: _refundController,
                 enabled: !_saving,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [CurrencyInputFormatter()],
                 decoration: InputDecoration(
                   labelText: 'Uang dikembalikan sekarang (Rp)',
                   helperText: 'Nominal wajib agar saldo tagihan dan kas tetap seimbang: ${_rupiah(_minimumRefund)}.',
