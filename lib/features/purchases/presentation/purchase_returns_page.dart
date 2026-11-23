@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
+
 import '../data/purchase_return_repository.dart';
 
 class PurchaseReturnsPage extends StatefulWidget {
@@ -86,7 +88,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                     purchaseId = value;
                     final target = invoices.firstWhere((item) => item['id'] == value);
                     final remaining = (target['remaining_amount'] as num?)?.toInt() ?? 0;
-                    amountController.text = (available < remaining ? available : remaining).toString();
+                    amountController.text = formatCurrencyInput(available < remaining ? available : remaining);
                   });
                 },
               ),
@@ -94,6 +96,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
               TextField(
                 controller: amountController,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [CurrencyInputFormatter()],
                 decoration: const InputDecoration(
                   labelText: 'Jumlah kredit yang digunakan',
                   prefixText: 'Rp ',
@@ -111,9 +114,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
             FilledButton(
               onPressed: () {
-                final amount = int.tryParse(
-                  amountController.text.replaceAll('.', '').replaceAll(',', ''),
-                ) ?? 0;
+                final amount = parseCurrencyInput(amountController.text);
                 if (purchaseId != null && amount > 0) {
                   Navigator.pop(dialogContext, {'purchase_id': purchaseId!, 'amount': amount});
                 }
@@ -240,6 +241,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
             TextField(
               controller: creditController,
               keyboardType: TextInputType.number,
+              inputFormatters: const [CurrencyInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Kredit untuk mengurangi utang faktur',
                 prefixText: 'Rp ',
@@ -250,6 +252,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
             TextField(
               controller: refundController,
               keyboardType: TextInputType.number,
+              inputFormatters: const [CurrencyInputFormatter()],
               decoration: const InputDecoration(
                 labelText: 'Uang yang benar-benar diterima',
                 prefixText: 'Rp ',
@@ -267,8 +270,8 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
           FilledButton(
             onPressed: () {
-              final credit = int.tryParse(creditController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0;
-              final refund = int.tryParse(refundController.text.replaceAll('.', '').replaceAll(',', '')) ?? 0;
+              final credit = parseCurrencyInput(creditController.text);
+              final refund = parseCurrencyInput(refundController.text);
               if (credit >= 0 && refund >= 0 && credit + refund > 0 && credit + refund <= pending) {
                 Navigator.pop(dialogContext, {'credit': credit, 'refund': refund});
               }
