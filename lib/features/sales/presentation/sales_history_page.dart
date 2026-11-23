@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/formatters/currency_input_formatter.dart';
 
 import '../data/sale_repository.dart';
+import '../../customers/data/customer_wallet_repository.dart';
 import '../data/sale_return_repository.dart';
 import 'sale_returns_page.dart';
 import '../../receipts/presentation/receipt_share_launcher.dart';
@@ -105,6 +106,56 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
     }
   }
 
+  Future<void> _paySaleFromWallet(Map<String, Object?> sale, Map<String, Object?> returnSummary) async {
+    final customerId = sale['customer_id'] as int?;
+    final id = sale['id'] as int;
+    if (customerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Penjualan pelanggan umum tidak dapat memakai saldo deposit.')));
+      return;
+    }
+    final total = (sale['total'] as num?)?.toInt() ?? 0;
+    final paid = (sale['paid'] as num?)?.toInt() ?? 0;
+    final returned = (returnSummary['returned_amount'] as num?)?.toInt() ?? 0;
+    final refunded = (returnSummary['refunded_amount'] as num?)?.toInt() ?? 0;
+    final remaining = (total - returned - paid + refunded).clamp(0, 1 << 62).toInt();
+    if (remaining <= 0) return;
+    final wallet = CustomerWalletRepository();
+    final balance = await wallet.getBalance(customerId);
+    if (!mounted) return;
+    if (balance <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saldo pelanggan masih kosong.')));
+      return;
+    }
+    final controller = TextEditingController(text: (balance < remaining ? balance : remaining).toString());
+    final amount = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bayar dari saldo pelanggan'),
+        content: TextField(controller: controller, keyboardType: TextInputType.number,
+          inputFormatters: const [CurrencyInputFormatter()],
+          decoration: InputDecoration(labelText: 'Nominal digunakan (Rp)', helperText: 'Saldo: ${_rupiah(balance)} • Sisa tagihan: ${_rupiah(remaining)}', border: const OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+          FilledButton(onPressed: () {
+            final value = int.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), ''));
+            if (value != null && value > 0) Navigator.pop(dialogContext, value);
+          }, child: const Text('Gunakan saldo')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (amount == null || !mounted) return;
+    try {
+      await _repository.addSaleWalletPayment(id: id, amount: amount);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pembayaran penjualan dari saldo berhasil.')));
+      _loadSales();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menggunakan saldo: $error')));
+    }
+  }
+
   Future<void> _showDetail(int id) async {
     try {
       final sale = await _repository.getSaleById(id);
@@ -191,6 +242,15 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
             ),
           ),
           actions: [
+            if (['partial', 'unpaid'].contains(sale['payment_status']?.toString()) && sale['customer_id'] != null)
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  _paySaleFromWallet(sale, returnSummary);
+                },
+                icon: const Icon(Icons.account_balance_wallet_outlined),
+                label: const Text('Bayar dari saldo'),
+              ),
             if (['partial', 'unpaid'].contains(sale['payment_status']?.toString()))
               TextButton.icon(
                 onPressed: () {
