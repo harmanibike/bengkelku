@@ -402,7 +402,18 @@ class ServiceRepository {
       whereArgs: [id],
       orderBy: 'id ASC',
     );
-    return session.isMechanic ? _withoutFinancialFields(service) : service;
+    if (session.isMechanic) {
+      service['items'] = (service['items'] as List)
+          .map((item) {
+            final safeItem = Map<String, Object?>.from(item as Map);
+            safeItem.remove('unit_price');
+            safeItem.remove('subtotal');
+            return safeItem;
+          })
+          .toList();
+      return _withoutFinancialFields(service);
+    }
+    return service;
   }
 
   // Memperbarui hasil pemeriksaan dan rincian biaya secara atomik.
