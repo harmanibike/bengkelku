@@ -56,6 +56,7 @@ class ServiceRepository {
     int? assignedMechanicId,
     String? notes,
     String? beforePhotoPath,
+    List<Map<String, Object?>> items = const [],
   }) async {
     if (AuthSession.instance.isMechanic) {
       throw StateError('Akun Mekanik tidak dapat membuat nota servis.');
@@ -69,7 +70,11 @@ class ServiceRepository {
 
     final estimated = _safeAmount(estimatedCost);
     final labor = _safeAmount(laborCost);
-    final parts = _safeAmount(partsCost);
+    final parts = items.isEmpty
+        ? _safeAmount(partsCost)
+        : items.fold<int>(0, (sum, item) => sum +
+            _safeAmount((item['unit_price'] as int? ?? 0)) *
+            ((item['quantity'] as int? ?? 0)));
     final directParts = _safeAmount(directPartsCost);
     final otherDirect = _safeAmount(otherDirectCost);
     final safeDiscount = _safeAmount(discount);
@@ -160,6 +165,84 @@ class ServiceRepository {
         'notes': _nullableText(notes),
         'before_photo_path': _nullableText(beforePhotoPath),
       });
+
+      // Simpan beberapa sparepart dalam nota yang sama. Barang berstok
+      // divalidasi dan dikurangi bersama transaksi nota agar tidak terjadi
+      // stok minus atau nota tersimpan tanpa mutasi stok yang lengkap.
+      for (final item in items) {
+        final productId = item['product_id'] as int?;
+        final quantity = item['quantity'] as int? ?? 0;
+        final unitPrice = _safeAmount(item['unit_price'] as int? ?? 0);
+        if (productId == null || quantity <= 0) {
+          throw ArgumentError('Data sparepart tidak valid.');
+        }
+        final productRows = await txn.query(
+          'products',
+          where: 'id = ? AND is_active = 1',
+          whereArgs: [productId],
+          limit: 1,
+        );
+        if (productRows.isEmpty) {
+          throw StateError('Sparepart tidak ditemukan atau sudah tidak aktif.');
+        }
+        final product = productRows.first;
+        final tracked = (product['track_stock'] as int? ?? 0) == 1;
+        final stockBefore = product['stock'] as int? ?? 0;
+        final name = product['name']?.toString() ?? 'Sparepart';
+        final subtotal = quantity * unitPrice;
+        await txn.insert('service_order_items', {
+          'service_order_id': serviceOrderId,
+          'product_id': productId,
+          'item_name': name,
+          'item_type': 'part',
+          'quantity': quantity,
+          'unit_price': unitPrice,
+          'subtotal': subtotal,
+        });
+        if (tracked) {
+          if (stockBefore < quantity) {
+            throw StateError('Stok $name tidak cukup. Tersedia $stockBefore, dibutuhkan $quantity.');
+          }
+          final batches = await txn.query(
+            'inventory_cost_batches',
+            where: 'product_id = ? AND quantity_remaining > 0',
+            whereArgs: [productId],
+            orderBy: 'received_at ASC, id ASC',
+          );
+          final batchBalance = batches.fold<int>(
+            0, (sum, batch) => sum + (batch['quantity_remaining'] as int? ?? 0));
+          if (batchBalance < quantity) {
+            throw StateError('Saldo batch stok $name tidak mencukupi. Periksa riwayat stok sebelum digunakan untuk servis.');
+          }
+          var remaining = quantity;
+          for (final batch in batches) {
+            if (remaining <= 0) break;
+            final available = batch['quantity_remaining'] as int? ?? 0;
+            if (available <= 0) continue;
+            final take = available < remaining ? available : remaining;
+            await txn.update('inventory_cost_batches', {
+              'quantity_remaining': available - take,
+            }, where: 'id = ?', whereArgs: [batch['id']]);
+            remaining -= take;
+          }
+          final stockAfter = stockBefore - quantity;
+          await txn.update('products', {
+            'stock': stockAfter,
+            'updated_at': now.toIso8601String(),
+          }, where: 'id = ?', whereArgs: [productId]);
+          await txn.insert('stock_movements', {
+            'product_id': productId,
+            'movement_type': 'out',
+            'quantity': quantity,
+            'stock_before': stockBefore,
+            'stock_after': stockAfter,
+            'reference_type': 'service_order',
+            'reference_id': serviceOrderId,
+            'notes': 'Sparepart digunakan untuk servis $orderNumber',
+            'created_at': now.toIso8601String(),
+          });
+        }
+      }
 
       await ActivityLogRepository.record(
         txn,
@@ -312,7 +395,14 @@ class ServiceRepository {
     ''', [id, session.isMechanic ? session.userId : null, session.isMechanic ? session.userId : null]);
 
     if (result.isEmpty) return null;
-    return session.isMechanic ? _withoutFinancialFields(result.first) : result.first;
+    final service = Map<String, Object?>.from(result.first);
+    service['items'] = await db.query(
+      'service_order_items',
+      where: 'service_order_id = ?',
+      whereArgs: [id],
+      orderBy: 'id ASC',
+    );
+    return session.isMechanic ? _withoutFinancialFields(service) : service;
   }
 
   // Memperbarui hasil pemeriksaan dan rincian biaya secara atomik.
