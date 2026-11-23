@@ -1,4 +1,8 @@
 
+import 'dart:convert';
+
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../data/customer_repository.dart';
@@ -61,6 +65,14 @@ class _CustomerListPageState extends State<CustomerListPage> {
     );
 
     final formKey = GlobalKey<FormState>();
+    String? photoBase64 = customer?['photo_base64']?.toString();
+
+    Future<void> choosePhoto(ImageSource source, StateSetter setDialogState) async {
+      final image = await ImagePicker().pickImage(source: source, imageQuality: 75, maxWidth: 512, maxHeight: 512);
+      if (image == null) return;
+      final bytes = await image.readAsBytes();
+      setDialogState(() => photoBase64 = base64Encode(bytes));
+    }
 
     try {
       final saved = await showDialog<bool>(
@@ -205,7 +217,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
     }
   }
 
-  Future<void> _deleteCustomer(
+${insert}  Future<void> _deleteCustomer(
     Map<String, Object?> customer,
   ) async {
     final confirmed = await showDialog<bool>(
