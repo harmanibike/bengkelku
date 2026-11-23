@@ -51,46 +51,50 @@ class CashbookRepository {
   }
 
   /// Pemeriksaan referensi buku kas tanpa mengubah transaksi.
+  /// Audit referensi dan arah transaksi kas. Tidak mengubah data.
   Future<List<Map<String, Object?>>> getReconciliationIssues({
     required DateTime start,
     required DateTime end,
   }) async {
     final db = await _db;
     return db.rawQuery('''
-      SELECT * FROM (\n      SELECT c.*,
-        CASE
-          WHEN c.amount <= 0 THEN 'Nominal harus lebih dari nol'
-          WHEN c.transaction_type NOT IN ('income', 'expense') THEN 'Jenis kas tidak valid'
-          WHEN c.reference_type IN ('sale', 'sale_payment', 'service_order', 'purchase_return_refund')
-            AND c.transaction_type != 'income' THEN 'Arah transaksi seharusnya kas masuk'
-          WHEN c.reference_type IN ('sale_cancel', 'service_order_cancellation', 'purchase_payment', 'purchase_cancel')
-            AND c.transaction_type != 'expense' THEN 'Arah transaksi seharusnya kas keluar'
-          WHEN c.reference_type IS NULL OR c.reference_type = '' THEN 'Sumber transaksi tidak tercatat'
-          WHEN c.reference_type = 'manual_cash' AND c.reference_id IS NOT NULL THEN 'Transaksi manual memiliki ID referensi'
-          WHEN c.reference_type IN ('sale', 'sale_payment', 'sale_cancel')
-            AND NOT EXISTS (SELECT 1 FROM sales s WHERE s.id = c.reference_id)
-            THEN 'Nota penjualan tidak ditemukan'
-          WHEN c.reference_type IN ('service_order', 'service_order_cancellation')
-            AND NOT EXISTS (SELECT 1 FROM service_orders s WHERE s.id = c.reference_id)
-            THEN 'Nota servis tidak ditemukan'
-          WHEN c.reference_type IN ('purchase_payment', 'purchase_cancel')
-            AND NOT EXISTS (SELECT 1 FROM purchases p WHERE p.id = c.reference_id)
-            THEN 'Faktur pembelian tidak ditemukan'
-          WHEN c.reference_type = 'purchase_return_refund'
-            AND NOT EXISTS (SELECT 1 FROM purchase_returns r WHERE r.id = c.reference_id)
-            THEN 'Dokumen retur pembelian tidak ditemukan'
-          WHEN c.reference_type NOT IN (
-            'manual_cash', 'sale', 'sale_payment', 'sale_cancel',
-            'service_order', 'service_order_cancellation',
-            'purchase_payment', 'purchase_cancel', 'purchase_return_refund'
-          ) THEN 'Jenis sumber transaksi belum dikenali'
-          ELSE NULL
-        END AS audit_issue
-      FROM cash_transactions c
-      WHERE datetime(c.transaction_date) >= datetime(?)
-        AND datetime(c.transaction_date) < datetime(?)
-      HAVING audit_issue IS NOT NULL
-      ORDER BY datetime(c.transaction_date) DESC, c.id DESC
+      SELECT audit_rows.*
+      FROM (
+        SELECT c.*,
+          CASE
+            WHEN c.amount <= 0 THEN 'Nominal harus lebih dari nol'
+            WHEN c.transaction_type NOT IN ('income', 'expense') THEN 'Jenis kas tidak valid'
+            WHEN c.reference_type IN ('sale', 'sale_payment', 'service_order', 'purchase_return_refund')
+              AND c.transaction_type != 'income' THEN 'Arah transaksi seharusnya kas masuk'
+            WHEN c.reference_type IN ('sale_cancel', 'service_order_cancellation', 'purchase_payment', 'purchase_cancel')
+              AND c.transaction_type != 'expense' THEN 'Arah transaksi seharusnya kas keluar'
+            WHEN c.reference_type IS NULL OR c.reference_type = '' THEN 'Sumber transaksi tidak tercatat'
+            WHEN c.reference_type = 'manual_cash' AND c.reference_id IS NOT NULL THEN 'Transaksi manual memiliki ID referensi'
+            WHEN c.reference_type IN ('sale', 'sale_payment', 'sale_cancel')
+              AND NOT EXISTS (SELECT 1 FROM sales s WHERE s.id = c.reference_id)
+              THEN 'Nota penjualan tidak ditemukan'
+            WHEN c.reference_type IN ('service_order', 'service_order_cancellation')
+              AND NOT EXISTS (SELECT 1 FROM service_orders s WHERE s.id = c.reference_id)
+              THEN 'Nota servis tidak ditemukan'
+            WHEN c.reference_type IN ('purchase_payment', 'purchase_cancel')
+              AND NOT EXISTS (SELECT 1 FROM purchases p WHERE p.id = c.reference_id)
+              THEN 'Faktur pembelian tidak ditemukan'
+            WHEN c.reference_type = 'purchase_return_refund'
+              AND NOT EXISTS (SELECT 1 FROM purchase_returns r WHERE r.id = c.reference_id)
+              THEN 'Dokumen retur pembelian tidak ditemukan'
+            WHEN c.reference_type NOT IN (
+              'manual_cash', 'sale', 'sale_payment', 'sale_cancel',
+              'service_order', 'service_order_cancellation',
+              'purchase_payment', 'purchase_cancel', 'purchase_return_refund'
+            ) THEN 'Jenis sumber transaksi belum dikenali'
+            ELSE NULL
+          END AS audit_issue
+        FROM cash_transactions c
+        WHERE datetime(c.transaction_date) >= datetime(?)
+          AND datetime(c.transaction_date) < datetime(?)
+      ) audit_rows
+      WHERE audit_issue IS NOT NULL
+      ORDER BY datetime(transaction_date) DESC, id DESC
     ''', [start.toIso8601String(), end.toIso8601String()]);
   }
 
