@@ -198,6 +198,75 @@ class ReportRepository {
       LIMIT 50
     ''', [from, until, from, until]);
 
+    // Audit retur pembelian: cocokkan nilai item, kredit pemasok, refund kas,
+    // dan kuantitas alokasi batch. Hanya-baca; tidak memperbaiki transaksi.
+    final purchaseReturnAudit = await db.rawQuery('''
+      SELECT
+        pr.id AS return_id,
+        pr.return_number,
+        p.invoice_number,
+        pr.total_amount,
+        COALESCE(items.item_total, 0) AS item_total,
+        pr.credit_applied,
+        COALESCE(credits.applied_total, 0) AS applied_credit_total,
+        pr.refund_received,
+        COALESCE(refunds.cash_refund, 0) AS cash_refund,
+        COALESCE(batch_issues.issue_count, 0) AS batch_issue_count
+      FROM purchase_returns pr
+      JOIN purchases p ON p.id = pr.purchase_id
+      LEFT JOIN (
+        SELECT purchase_return_id, SUM(subtotal) AS item_total
+        FROM purchase_return_items
+        GROUP BY purchase_return_id
+      ) items ON items.purchase_return_id = pr.id
+      LEFT JOIN (
+        SELECT return_id, SUM(amount) AS applied_total
+        FROM supplier_return_credit_applications
+        GROUP BY return_id
+      ) credits ON credits.return_id = pr.id
+      LEFT JOIN (
+        SELECT reference_id AS return_id, SUM(amount) AS cash_refund
+        FROM cash_transactions
+        WHERE reference_type = 'purchase_return_refund'
+          AND transaction_type = 'income'
+        GROUP BY reference_id
+      ) refunds ON refunds.return_id = pr.id
+      LEFT JOIN (
+        SELECT pri.purchase_return_id,
+          SUM(CASE WHEN COALESCE(prod.track_stock, 1) = 1
+            AND COALESCE(alloc.allocated_quantity, 0) != pri.quantity
+            THEN 1 ELSE 0 END) AS issue_count
+        FROM purchase_return_items pri
+        LEFT JOIN products prod ON prod.id = pri.product_id
+        LEFT JOIN (
+          SELECT return_item_id, SUM(quantity) AS allocated_quantity
+          FROM purchase_return_batch_allocations
+          GROUP BY return_item_id
+        ) alloc ON alloc.return_item_id = pri.id
+        GROUP BY pri.purchase_return_id
+      ) batch_issues ON batch_issues.purchase_return_id = pr.id
+      WHERE pr.status = 'active'
+        AND (
+          pr.total_amount != COALESCE(items.item_total, 0)
+          OR pr.credit_applied != COALESCE(credits.applied_total, 0)
+          OR pr.refund_received != COALESCE(refunds.cash_refund, 0)
+          OR COALESCE(batch_issues.issue_count, 0) > 0
+          OR pr.credit_applied + pr.refund_received > pr.total_amount
+        )
+        AND (
+          (datetime(pr.return_date) >= datetime(?) AND datetime(pr.return_date) < datetime(?))
+          OR EXISTS (
+            SELECT 1 FROM cash_transactions cash_check
+            WHERE cash_check.reference_type = 'purchase_return_refund'
+              AND cash_check.reference_id = pr.id
+              AND datetime(cash_check.transaction_date) >= datetime(?)
+              AND datetime(cash_check.transaction_date) < datetime(?)
+          )
+        )
+      ORDER BY pr.return_date DESC, pr.id DESC
+      LIMIT 50
+    ''', [from, until, from, until]);
+
     final lowStock = await db.rawQuery('''
       SELECT COUNT(*) AS total FROM products
       WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock
@@ -257,6 +326,7 @@ class ReportRepository {
       'supplier_payable_amount': supplierPayableRows.first['amount'] as int? ?? 0,
       'supplier_payable_count': supplierPayableRows.first['total'] as int? ?? 0,
       'return_refund_audit_issues': returnRefundAudit,
+      'purchase_return_audit_issues': purchaseReturnAudit,
       'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
       'latest': latest,
