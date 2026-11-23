@@ -1126,7 +1126,7 @@ class ServiceRepository {
     return db.transaction((txn) async {
       final rows = await txn.query(
         'service_orders',
-        columns: ['service_status', 'remaining_payment', 'order_number', 'assigned_mechanic_id', 'customer_id'],
+        columns: ['service_status', 'remaining_payment', 'down_payment', 'order_number', 'assigned_mechanic_id', 'customer_id'],
         where: 'id = ? AND (? IS NULL OR assigned_mechanic_id = ?)',
         whereArgs: [id, actingMechanicId, actingMechanicId],
         limit: 1,
@@ -1156,6 +1156,49 @@ class ServiceRepository {
       );
       if (updated != 1) {
         throw StateError('Status servis berubah. Muat ulang lalu coba lagi.');
+      }
+
+      // Saat Admin/Kasir menyelesaikan servis, gunakan deposit pelanggan
+      // otomatis untuk mengurangi sisa tagihan. Akun mekanik tidak menjalankan
+      // mutasi keuangan ketika hanya memperbarui status pekerjaan.
+      if (!session.isMechanic && (status == 'completed' || status == 'delivered')) {
+        final customerId = rows.first['customer_id'] as int?;
+        final remaining = (rows.first['remaining_payment'] as num?)?.toInt() ?? 0;
+        if (customerId != null && remaining > 0) {
+          final walletRows = await txn.rawQuery(
+            'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+            [customerId],
+          );
+          final balance = walletRows.isEmpty ? 0 : (walletRows.first['balance_after'] as num?)?.toInt() ?? 0;
+          final applied = balance < remaining ? balance : remaining;
+          if (applied > 0) {
+            final paid = (rows.first['down_payment'] as num?)?.toInt() ?? 0;
+            await txn.update('service_orders', {
+              'down_payment': paid + applied,
+              'remaining_payment': remaining - applied,
+            }, where: 'id = ?', whereArgs: [id]);
+            await txn.insert('customer_wallet_ledger', {
+              'customer_id': customerId,
+              'entry_type': 'service_payment',
+              'amount': applied,
+              'balance_after': balance - applied,
+              'description': 'Pembayaran otomatis dari saldo deposit servis ${rows.first['order_number'] ?? id}',
+              'reference_type': 'service_order',
+              'reference_id': id,
+              'payment_method': 'customer_wallet',
+              'created_by_id': AuthSession.instance.userId,
+              'created_by_name': AuthSession.instance.displayName,
+              'created_at': now,
+            });
+            await ActivityLogRepository.record(
+              txn,
+              action: 'service_wallet_auto_payment',
+              description: 'Menggunakan saldo pelanggan Rp$applied untuk pelunasan servis ${rows.first['order_number'] ?? id}.',
+              entityType: 'service_order',
+              entityId: id,
+            );
+          }
+        }
       }
 
       if (status == 'cancelled') {
