@@ -9,6 +9,13 @@ class AuthSession {
   bool get isAdmin => role == 'admin';
   bool get isCashier => role == 'cashier';
   bool get isMechanic => role == 'mechanic';
+  bool get isCashierOrAdmin => isCashier || isAdmin;
+  void requireAdmin(String message) {
+    if (!isAdmin) throw StateError(message);
+  }
+  void requireCashierOrAdmin(String message) {
+    if (!isCashierOrAdmin) throw StateError(message);
+  }
   void signIn(Map<String, Object?> user) { _user = Map<String, Object?>.from(user); }
   void signOut() { _user = null; }
 }
