@@ -534,6 +534,21 @@ class ServiceRepository {
     });
   }
 
+  Future<List<Map<String, Object?>>> getActiveSpareparts({String keyword = ''}) async {
+    final db = await _db;
+    final term = keyword.trim();
+    return db.query(
+      'products',
+      columns: ['id', 'name', 'selling_price', 'stock', 'track_stock'],
+      where: term.isEmpty
+          ? 'is_active = 1'
+          : 'is_active = 1 AND (name LIKE ? OR sku LIKE ? OR barcode LIKE ?)',
+      whereArgs: term.isEmpty ? null : ['%$term%', '%$term%', '%$term%'],
+      orderBy: 'name COLLATE NOCASE ASC',
+      limit: 100,
+    );
+  }
+
   // Mekanik hanya mengusulkan perubahan sparepart; tidak dapat mengubah stok/tagihan.
   Future<int> proposeServicePartChange({
     required int serviceOrderId,
