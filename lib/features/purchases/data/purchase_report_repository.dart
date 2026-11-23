@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class PurchaseReportRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -9,6 +10,7 @@ class PurchaseReportRepository {
     required DateTime start,
     required DateTime end,
   }) async {
+    AuthSession.instance.requireAdmin('Laporan pembelian hanya dapat diakses Admin.');
     final db = await _db;
     final from = start.toIso8601String();
     final until = end.toIso8601String();
