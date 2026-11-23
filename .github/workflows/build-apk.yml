@@ -108,6 +108,35 @@ jobs:
           print("Izin baca kontak Android disiapkan.")
           PY
 
+      - name: Declare Bluetooth permissions for thermal printers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          source = path.read_text()
+
+          permissions = [
+              '    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />',
+              '    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />',
+              '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />',
+              '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="28" />',
+              '    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />',
+              '    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />',
+          ]
+
+          missing = [item for item in permissions if item.split('"')[1] not in source]
+          if missing:
+              block = "\\n".join(missing) + "\\n\\n"
+              source, count = re.subn(r'(<application\\b)', lambda match: block + match.group(1), source, count=1)
+              if count != 1:
+                  raise SystemExit("Tag application pada AndroidManifest.xml tidak ditemukan.")
+              path.write_text(source)
+
+          print("Izin Bluetooth Android 6–16 disiapkan untuk koneksi printer.")
+          PY
+
       - name: Set Android app display name
         run: |
           python3 - <<'PY'
