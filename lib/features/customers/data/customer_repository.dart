@@ -111,7 +111,7 @@ class CustomerRepository {
     // Nomor HP dicocokkan setelah karakter pemisah diabaikan.
     if (inputDigits.length >= 6) {
       final phoneMatches = customers.where((customer) {
-        final phone = (customer['phone'] ?? '').toString().replaceAll(RegExp(r'[^0-9]'), '');
+        final phone = normalizePhone((customer['phone'] ?? '').toString());
         return phone.isNotEmpty && phone == inputDigits;
       }).toList();
       if (phoneMatches.length == 1) return phoneMatches.first;
