@@ -35,7 +35,8 @@ class _CashbookPageState extends State<CashbookPage> {
     final ledger = await _repo.getLedger(start: range.$1, end: range.$2, type: _type);
     final issues = await _repo.getReconciliationIssues(start: range.$1, end: range.$2);
     final supplierMismatches = await _repo.getSupplierPaymentMismatches(start: range.$1, end: range.$2);
-    return {...ledger, 'audit_issues': issues, 'supplier_mismatches': supplierMismatches};
+    final customerMismatches = await _repo.getCustomerPaymentMismatches(start: range.$1, end: range.$2);
+    return {...ledger, 'audit_issues': issues, 'supplier_mismatches': supplierMismatches, 'customer_mismatches': customerMismatches};
   }
 
   void _refresh() => setState(()=>_future=_load());
@@ -145,6 +146,7 @@ class _CashbookPageState extends State<CashbookPage> {
         final entries=(data['entries'] as List?) ?? [];
         final auditIssues=(data['audit_issues'] as List?) ?? [];
         final supplierMismatches=(data['supplier_mismatches'] as List?) ?? [];
+        final customerMismatches=(data['customer_mismatches'] as List?) ?? [];
         final income=(data['income'] as num?)?.toInt() ?? 0;
         final expense=(data['expense'] as num?)?.toInt() ?? 0;
         return RefreshIndicator(onRefresh:() async=>_refresh(),child:ListView(
@@ -272,6 +274,58 @@ class _CashbookPageState extends State<CashbookPage> {
                       }),
                       if (supplierMismatches.length > 8)
                         Text('Dan ${supplierMismatches.length - 8} faktur lainnya.', style: const TextStyle(fontSize: 10)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height:8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.people_alt_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(child: Text('Cocokkan pembayaran pelanggan', style: TextStyle(fontWeight: FontWeight.w600))),
+                      Text('${customerMismatches.length}', style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: customerMismatches.isEmpty ? Colors.green : Colors.deepOrange,
+                      )),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(
+                      customerMismatches.isEmpty
+                        ? 'Nilai pembayaran penjualan dan servis sesuai dengan riwayat kas masuk.'
+                        : 'Ada perbedaan nilai pembayaran pada nota pelanggan. Data tidak dikoreksi otomatis.',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    if (customerMismatches.isNotEmpty) ...[
+                      const Divider(height: 12),
+                      ...customerMismatches.take(8).map((raw) {
+                        final item = raw as Map<String, Object?>;
+                        final stored = (item['stored_paid_total'] as num?)?.toInt() ?? 0;
+                        final history = (item['payment_history_total'] as num?)?.toInt() ?? 0;
+                        final difference = (item['difference'] as num?)?.toInt() ?? 0;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${item['document_type']} ${item['document_number'] ?? '-'} • ${item['customer_name'] ?? '-'}',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              Text('Nilai tersimpan: ${_money(stored)}  |  Riwayat kas: ${_money(history)}',
+                                style: const TextStyle(fontSize: 10)),
+                              Text('Selisih: ${_money(difference)}',
+                                style: const TextStyle(fontSize: 10, color: Colors.deepOrange)),
+                            ],
+                          ),
+                        );
+                      }),
+                      if (customerMismatches.length > 8)
+                        Text('Dan ${customerMismatches.length - 8} nota lainnya.', style: const TextStyle(fontSize: 10)),
                     ],
                   ],
                 ),
