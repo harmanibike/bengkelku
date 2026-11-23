@@ -18,6 +18,9 @@ import 'package:bengkelku_pos/features/purchases/data/purchase_cost_settings_rep
 import 'package:bengkelku_pos/features/purchases/data/purchase_report_repository.dart';
 import 'package:bengkelku_pos/features/services/data/service_pricing_repository.dart';
 import 'package:bengkelku_pos/features/settings/data/device_mode_repository.dart';
+import 'package:bengkelku_pos/features/settings/data/payment_methods_repository.dart';
+import 'package:bengkelku_pos/features/settings/data/business_settings_repository.dart';
+import 'package:bengkelku_pos/features/settings/data/receipt_settings_repository.dart';
 
 void main() {
   setUp(() {
@@ -258,6 +261,40 @@ void main() {
       );
       await expectLater(
         devices.saveMode(DeviceModeRepository.localMode),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('cashier cannot change payment, loyalty, or receipt settings', () async {
+      AuthSession.instance.signIn({
+        'id': 8,
+        'role': 'cashier',
+        'display_name': 'Kasir Tes',
+      });
+      await expectLater(
+        PaymentMethodsRepository().saveEnabledCodes({'cash'}),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        BusinessSettingsRepository().saveLoyaltySettings(
+          const LoyaltySettings(enabled: true),
+        ),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        BusinessSettingsRepository().saveStockReminderSettings(
+          const StockReminderSettings(enabled: true),
+        ),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        ReceiptSettingsRepository().saveReceiptSettings(
+          const ReceiptPrintSettings(),
+        ),
+        throwsA(isA<StateError>()),
+      );
+      await expectLater(
+        ReceiptSettingsRepository().saveCashDrawerAutoOpen(true),
         throwsA(isA<StateError>()),
       );
     });
