@@ -102,17 +102,10 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   }
 
   Future<void> _loadCustomers() async {
-    try {
-      await _customerRepository.getCustomers();
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-      _showMessage('Gagal memuat pelanggan: $error');
-    }
+    // Daftar pelanggan dimuat secara pencarian saat pengguna mengetik,
+    // bukan mengambil seluruh tabel ketika formulir pertama dibuka.
+    if (!mounted) return;
+    setState(() => _loading = false);
   }
 
   Future<void> _searchCustomers(String keyword) async {
