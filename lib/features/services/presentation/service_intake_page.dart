@@ -1,5 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/auth/auth_session.dart';
+import '../../settings/data/account_repository.dart';
+
 import '../../customers/data/customer_repository.dart';
 import '../data/service_repository.dart';
 import '../data/service_pricing_repository.dart';
@@ -33,6 +36,8 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   List<Map<String, Object?>> _customers = [];
   List<Map<String, Object?>> _bicycles = [];
   List<Map<String, Object?>> _serviceCatalog = [];
+  List<Map<String, Object?>> _mechanics = [];
+  int? _selectedMechanicId;
   int? _selectedCatalogServiceId;
   bool _laborPriceUnlocked = false;
   int? _selectedCustomerId;
@@ -47,6 +52,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     super.initState();
     _loadCustomers();
     _loadServiceCatalog();
+    _loadMechanics();
   }
 
   @override
@@ -96,6 +102,17 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     }
   }
 
+
+  Future<void> _loadMechanics() async {
+    try {
+      final accounts = await AccountRepository().getAccounts();
+      if (!mounted) return;
+      setState(() => _mechanics = accounts.where((account) =>
+          account['role'] == 'mechanic' && (account['is_active'] as int? ?? 0) == 1).toList());
+    } catch (error) {
+      _showMessage('Gagal memuat daftar mekanik: $error');
+    }
+  }
 
   Future<void> _loadServiceCatalog() async {
     try {
@@ -215,7 +232,8 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
         otherDirectCost: _amount(_otherDirectCostController),
         discount: _amount(_discountController),
         downPayment: _amount(_downPaymentController),
-        mechanicName: _mechanicController.text,
+        mechanicName: _selectedMechanicId == null ? _mechanicController.text : _mechanics.firstWhere((m) => m['id'] == _selectedMechanicId)['display_name']?.toString(),
+        assignedMechanicId: _selectedMechanicId,
         notes: _notesController.text,
         beforePhotoPath: _beforePhotoPath,
       );
@@ -565,13 +583,24 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         ),
                       ),
                       _sectionTitle('Informasi tambahan', Icons.assignment_ind_outlined),
-                      TextFormField(
-                        controller: _mechanicController,
-                        decoration: const InputDecoration(
-                          labelText: 'Mekanik yang menangani',
-                          border: OutlineInputBorder(),
+                      if (_mechanics.isNotEmpty)
+                        DropdownButtonFormField<int>(
+                          initialValue: _selectedMechanicId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(labelText: 'Tugaskan kepada mekanik', border: OutlineInputBorder()),
+                          items: _mechanics.map((mechanic) => DropdownMenuItem<int>(
+                            value: mechanic['id'] as int,
+                            child: Text(mechanic['display_name']?.toString() ?? 'Mekanik'),
+                          )).toList(),
+                          onChanged: (value) => setState(() => _selectedMechanicId = value),
+                        )
+                      else
+                        TextFormField(
+                          controller: _mechanicController,
+                          decoration: const InputDecoration(labelText: 'Nama mekanik (opsional)', border: OutlineInputBorder()),
                         ),
-                      ),
+                      if (_mechanics.isNotEmpty)
+                        const Padding(padding: EdgeInsets.only(top: 5), child: Text('Penugasan ini menentukan servis yang terlihat pada akun Mekanik.', style: TextStyle(fontSize: 11, color: Colors.grey))),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _notesController,
