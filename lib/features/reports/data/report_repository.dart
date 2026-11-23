@@ -1,11 +1,13 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class ReportRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
   Future<Map<String, Object?>> getSummary({required DateTime start, required DateTime end}) async {
+    AuthSession.instance.requireCashierOrAdmin('Laporan keuangan hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final from = start.toIso8601String();
     final until = end.toIso8601String();
