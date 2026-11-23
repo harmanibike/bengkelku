@@ -24,7 +24,6 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
   final _accountNumber = TextEditingController();
   final _accountHolder = TextEditingController();
   String _qrisImagePath = '';
-  bool _detailsLoaded = false;
 
   @override
   void initState() {
@@ -50,7 +49,6 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         _bankName.text = details['bank_name'] ?? '';
         _accountNumber.text = details['bank_account_number'] ?? '';
         _accountHolder.text = details['bank_account_holder'] ?? '';
-        _detailsLoaded = true;
       });
     } catch (error) {
       if (mounted) _message('Gagal memuat detail pembayaran: $error');
