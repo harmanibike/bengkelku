@@ -89,6 +89,25 @@ jobs:
           print("Izin kamera disiapkan untuk pemindai barcode.")
           PY
 
+      - name: Declare Android contacts read permission
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          source = path.read_text()
+          permission = '    <uses-permission android:name="android.permission.READ_CONTACTS" />'
+
+          if "android.permission.READ_CONTACTS" not in source:
+              source, count = re.subn(r'(<application\\b)', lambda match: permission + "\\n\\n" + match.group(1), source, count=1)
+              if count != 1:
+                  raise SystemExit("Tag application pada AndroidManifest.xml tidak ditemukan.")
+              path.write_text(source)
+
+          print("Izin baca kontak Android disiapkan.")
+          PY
+
       - name: Set Android app display name
         run: |
           python3 - <<'PY'
