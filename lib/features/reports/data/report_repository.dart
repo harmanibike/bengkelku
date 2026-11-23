@@ -233,7 +233,7 @@ class ReportRepository {
       ) refunds ON refunds.return_id = pr.id
       LEFT JOIN (
         SELECT pri.purchase_return_id,
-          SUM(CASE WHEN COALESCE(prod.track_stock, 1) = 1
+          SUM(CASE WHEN prod.id IS NOT NULL AND COALESCE(prod.track_stock, 0) = 1
             AND COALESCE(alloc.allocated_quantity, 0) != pri.quantity
             THEN 1 ELSE 0 END) AS issue_count
         FROM purchase_return_items pri
