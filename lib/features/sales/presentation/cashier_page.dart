@@ -446,7 +446,16 @@ class _CashierPageState extends State<CashierPage> {
                   const Expanded(child: Text('Keranjang', style: TextStyle(fontWeight: FontWeight.bold))),
                   Text('${_cart.length} produk'),
                 ]),
-                if (_cart.isNotEmpty)
+                if (_cart.isNotEmpty) ...[
+                  TextField(
+                    controller: _buyerNameForHold,
+                    decoration: const InputDecoration(
+                      labelText: 'Nama pembeli (opsional)',
+                      hintText: 'Kosongkan = Pelanggan Umum',
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
                   SizedBox(
                     height: 116,
                     child: ListView(
@@ -469,6 +478,7 @@ class _CashierPageState extends State<CashierPage> {
                       }).toList(),
                     ),
                   ),
+                ],
                 const Divider(),
                 Row(children: [
                   const Expanded(child: Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold))),
