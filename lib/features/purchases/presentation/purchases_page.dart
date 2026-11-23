@@ -92,7 +92,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                     TextField(controller: invoice, decoration: const InputDecoration(labelText: 'Nomor faktur *')),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<int>(
-                      value: supplierId,
+                      initialValue: supplierId,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Pemasok *'),
                       items: suppliers.map((s) => DropdownMenuItem<int>(
@@ -105,7 +105,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                     const Text('Tambah barang', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
                     DropdownButtonFormField<int>(
-                      value: productId,
+                      initialValue: productId,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Produk'),
                       items: products.map((p) => DropdownMenuItem<int>(
