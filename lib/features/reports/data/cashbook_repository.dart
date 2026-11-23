@@ -186,9 +186,13 @@ class CashbookRepository {
         LEFT JOIN customers c ON c.id = s.customer_id
         LEFT JOIN (
           SELECT reference_id AS sale_id, SUM(amount) AS payment_total
-          FROM cash_transactions
-          WHERE reference_type IN ('sale', 'sale_payment')
-            AND transaction_type = 'income'
+          FROM (
+            SELECT reference_id, amount FROM cash_transactions
+            WHERE reference_type IN ('sale', 'sale_payment') AND transaction_type = 'income'
+            UNION ALL
+            SELECT reference_id, amount FROM customer_wallet_ledger
+            WHERE reference_type = 'sale' AND entry_type = 'sale_payment'
+          )
           GROUP BY reference_id
         ) pay ON pay.sale_id = s.id
         WHERE s.payment_status != 'cancelled'
@@ -218,9 +222,13 @@ class CashbookRepository {
         LEFT JOIN customers c ON c.id = s.customer_id
         LEFT JOIN (
           SELECT reference_id AS service_order_id, SUM(amount) AS payment_total
-          FROM cash_transactions
-          WHERE reference_type = 'service_order'
-            AND transaction_type = 'income'
+          FROM (
+            SELECT reference_id, amount FROM cash_transactions
+            WHERE reference_type = 'service_order' AND transaction_type = 'income'
+            UNION ALL
+            SELECT reference_id, amount FROM customer_wallet_ledger
+            WHERE reference_type = 'service_order' AND entry_type = 'service_payment'
+          )
           GROUP BY reference_id
         ) pay ON pay.service_order_id = s.id
         WHERE s.down_payment != COALESCE(pay.payment_total, 0)
