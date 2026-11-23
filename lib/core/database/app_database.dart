@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 30;
+  static const int currentVersion = 31;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -378,6 +378,7 @@ class AppDatabase {
         quantity INTEGER NOT NULL DEFAULT 1,
         unit_price INTEGER NOT NULL DEFAULT 0,
         subtotal INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
         FOREIGN KEY (service_order_id)
           REFERENCES service_orders(id)
           ON DELETE CASCADE,
@@ -386,6 +387,69 @@ class AppDatabase {
           ON DELETE SET NULL
       )
     ''');
+    batch.execute('''
+      CREATE TABLE service_part_allocations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_order_item_id INTEGER NOT NULL,
+        batch_id INTEGER NOT NULL,
+        quantity INTEGER NOT NULL CHECK(quantity > 0),
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (service_order_item_id) REFERENCES service_order_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (batch_id) REFERENCES inventory_cost_batches(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_service_part_allocations_item ON service_part_allocations(service_order_item_id)');
+    batch.execute('''
+      CREATE TABLE service_part_change_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_order_id INTEGER NOT NULL,
+        request_type TEXT NOT NULL CHECK(request_type IN ('add', 'cancel')),
+        service_order_item_id INTEGER,
+        product_id INTEGER,
+        item_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        unit_price INTEGER NOT NULL DEFAULT 0,
+        mechanic_note TEXT,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+        proposed_by_id INTEGER,
+        proposed_by_name TEXT,
+        proposed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        reviewed_by_id INTEGER,
+        reviewed_by_name TEXT,
+        customer_approved INTEGER NOT NULL DEFAULT 0,
+        customer_approval_note TEXT,
+        reviewed_at TEXT,
+        FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE RESTRICT,
+        FOREIGN KEY (service_order_item_id) REFERENCES service_order_items(id) ON DELETE RESTRICT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_service_part_change_requests_order ON service_part_change_requests(service_order_id, status, proposed_at)');
+    batch.execute('''
+      CREATE TABLE service_estimate_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_order_id INTEGER NOT NULL,
+        old_estimated_cost INTEGER NOT NULL DEFAULT 0,
+        new_estimated_cost INTEGER NOT NULL DEFAULT 0,
+        old_labor_cost INTEGER NOT NULL DEFAULT 0,
+        new_labor_cost INTEGER NOT NULL DEFAULT 0,
+        old_parts_cost INTEGER NOT NULL DEFAULT 0,
+        new_parts_cost INTEGER NOT NULL DEFAULT 0,
+        old_discount INTEGER NOT NULL DEFAULT 0,
+        new_discount INTEGER NOT NULL DEFAULT 0,
+        old_total_cost INTEGER NOT NULL DEFAULT 0,
+        new_total_cost INTEGER NOT NULL DEFAULT 0,
+        reason TEXT,
+        customer_approved INTEGER NOT NULL DEFAULT 0,
+        customer_approval_note TEXT,
+        changed_by_id INTEGER,
+        changed_by_name TEXT,
+        changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_service_estimate_history_order ON service_estimate_history(service_order_id, changed_at, id)');
 
     // Transaksi penjualan.
     batch.execute('''
@@ -1331,6 +1395,74 @@ class AppDatabase {
         )
       ''');
       await db.execute('CREATE INDEX idx_stock_opname_items_session ON stock_opname_items(session_id, product_name)');
+    }
+
+    // Perubahan estimasi dan usulan sparepart servis. Migrasi aditif.
+    if (oldVersion < 31) {
+      await db.execute('ALTER TABLE service_order_items ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
+      await db.execute('''
+        CREATE TABLE service_part_allocations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          service_order_item_id INTEGER NOT NULL,
+          batch_id INTEGER NOT NULL,
+          quantity INTEGER NOT NULL CHECK(quantity > 0),
+          unit_cost INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (service_order_item_id) REFERENCES service_order_items(id) ON DELETE RESTRICT,
+          FOREIGN KEY (batch_id) REFERENCES inventory_cost_batches(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_service_part_allocations_item ON service_part_allocations(service_order_item_id)');
+      await db.execute('''
+        CREATE TABLE service_part_change_requests (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          service_order_id INTEGER NOT NULL,
+          request_type TEXT NOT NULL CHECK(request_type IN ('add', 'cancel')),
+          service_order_item_id INTEGER,
+          product_id INTEGER,
+          item_name TEXT NOT NULL,
+          quantity INTEGER NOT NULL DEFAULT 1,
+          unit_price INTEGER NOT NULL DEFAULT 0,
+          mechanic_note TEXT,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+          proposed_by_id INTEGER,
+          proposed_by_name TEXT,
+          proposed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          reviewed_by_id INTEGER,
+          reviewed_by_name TEXT,
+          customer_approved INTEGER NOT NULL DEFAULT 0,
+          customer_approval_note TEXT,
+          reviewed_at TEXT,
+          FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE RESTRICT,
+          FOREIGN KEY (service_order_item_id) REFERENCES service_order_items(id) ON DELETE RESTRICT,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_service_part_change_requests_order ON service_part_change_requests(service_order_id, status, proposed_at)');
+      await db.execute('''
+        CREATE TABLE service_estimate_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          service_order_id INTEGER NOT NULL,
+          old_estimated_cost INTEGER NOT NULL DEFAULT 0,
+          new_estimated_cost INTEGER NOT NULL DEFAULT 0,
+          old_labor_cost INTEGER NOT NULL DEFAULT 0,
+          new_labor_cost INTEGER NOT NULL DEFAULT 0,
+          old_parts_cost INTEGER NOT NULL DEFAULT 0,
+          new_parts_cost INTEGER NOT NULL DEFAULT 0,
+          old_discount INTEGER NOT NULL DEFAULT 0,
+          new_discount INTEGER NOT NULL DEFAULT 0,
+          old_total_cost INTEGER NOT NULL DEFAULT 0,
+          new_total_cost INTEGER NOT NULL DEFAULT 0,
+          reason TEXT,
+          customer_approved INTEGER NOT NULL DEFAULT 0,
+          customer_approval_note TEXT,
+          changed_by_id INTEGER,
+          changed_by_name TEXT,
+          changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_service_estimate_history_order ON service_estimate_history(service_order_id, changed_at, id)');
     }
 
     // Antrian servis harian: nomor dimulai kembali dari 1 setiap tanggal.
