@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/activity_log_repository.dart';
 
 class ServicePricingRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -57,13 +58,40 @@ class ServicePricingRepository {
     final db = await _db;
     return db.transaction((txn) async {
       final now = DateTime.now().toIso8601String();
-      if (id == null) return txn.insert('service_catalog', {'name': name.trim(), 'category': _clean(category), 'description': _clean(description), 'standard_price': standardPrice, 'is_active': 1, 'created_at': now, 'updated_at': now});
-      final old = await txn.query('service_catalog', columns: ['standard_price'], where: 'id = ?', whereArgs: [id], limit: 1);
+      if (id == null) {
+        final newId = await txn.insert('service_catalog', {'name': name.trim(), 'category': _clean(category), 'description': _clean(description), 'standard_price': standardPrice, 'is_active': 1, 'created_at': now, 'updated_at': now});
+        await ActivityLogRepository.record(
+          txn,
+          action: 'service_catalog_created',
+          description: 'Menambahkan master jasa ${name.trim()} dengan harga Rp$standardPrice.',
+          entityType: 'service_catalog',
+          entityId: newId,
+        );
+        return newId;
+      }
+      final old = await txn.query('service_catalog', columns: ['standard_price', 'name'], where: 'id = ?', whereArgs: [id], limit: 1);
       if (old.isEmpty) throw StateError('Master jasa tidak ditemukan.');
       final oldPrice = old.first['standard_price'] as int? ?? 0;
       if (oldPrice != standardPrice && reason.trim().isEmpty) throw ArgumentError('Alasan perubahan harga wajib diisi.');
       await txn.update('service_catalog', {'name': name.trim(), 'category': _clean(category), 'description': _clean(description), 'standard_price': standardPrice, 'updated_at': now}, where: 'id = ?', whereArgs: [id]);
-      if (oldPrice != standardPrice) await txn.insert('service_price_history', {'service_id': id, 'old_price': oldPrice, 'new_price': standardPrice, 'change_reason': _clean(reason), 'changed_by': 'Admin', 'changed_at': now});
+      if (oldPrice != standardPrice) {
+        await txn.insert('service_price_history', {'service_id': id, 'old_price': oldPrice, 'new_price': standardPrice, 'change_reason': _clean(reason), 'changed_by': 'Admin', 'changed_at': now});
+        await ActivityLogRepository.record(
+          txn,
+          action: 'service_price_changed',
+          description: 'Mengubah harga jasa ${old.first['name']} dari Rp$oldPrice menjadi Rp$standardPrice. Alasan: ${reason.trim()}.',
+          entityType: 'service_catalog',
+          entityId: id,
+        );
+      } else {
+        await ActivityLogRepository.record(
+          txn,
+          action: 'service_catalog_updated',
+          description: 'Memperbarui master jasa ${name.trim()}.',
+          entityType: 'service_catalog',
+          entityId: id,
+        );
+      }
       return id;
     });
   }
@@ -73,7 +101,7 @@ class ServicePricingRepository {
     await db.transaction((txn) async {
       final rows = await txn.query(
         'service_catalog',
-        columns: ['id'],
+        columns: ['id', 'name'],
         where: 'id = ?',
         whereArgs: [id],
         limit: 1,
@@ -91,12 +119,34 @@ class ServicePricingRepository {
         where: 'id = ?',
         whereArgs: [id],
       );
+      await ActivityLogRepository.record(
+        txn,
+        action: 'service_catalog_deleted',
+        description: 'Menghapus master jasa ${rows.first['name']}.',
+        entityType: 'service_catalog',
+        entityId: id,
+      );
     });
   }
 
   Future<void> setActive(int id, bool active) async {
     final db = await _db;
-    await db.update('service_catalog', {'is_active': active ? 1 : 0, 'updated_at': DateTime.now().toIso8601String()}, where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      final rows = await txn.query('service_catalog', columns: ['name'],
+        where: 'id = ?', whereArgs: [id], limit: 1);
+      final changed = await txn.update('service_catalog',
+        {'is_active': active ? 1 : 0, 'updated_at': DateTime.now().toIso8601String()},
+        where: 'id = ?', whereArgs: [id]);
+      if (changed > 0) {
+        await ActivityLogRepository.record(
+          txn,
+          action: active ? 'service_catalog_activated' : 'service_catalog_deactivated',
+          description: '${active ? 'Mengaktifkan' : 'Menonaktifkan'} master jasa ${rows.isEmpty ? '#$id' : rows.first['name']}.',
+          entityType: 'service_catalog',
+          entityId: id,
+        );
+      }
+    });
   }
 
   Future<List<Map<String, Object?>>> getPriceHistory() async {
