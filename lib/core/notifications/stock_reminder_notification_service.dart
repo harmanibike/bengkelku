@@ -29,7 +29,7 @@ class StockReminderNotificationService {
       const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       ),
-    );
+    ).then((_) {});
     try {
       await _initializing;
       _initialized = true;
@@ -104,6 +104,7 @@ class StockReminderNotificationService {
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
       } else {
+        await _plugin.cancel(_notificationId);
         final today = DateTime.now();
         final dateKey =
             '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
