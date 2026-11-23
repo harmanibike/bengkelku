@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../data/customer_repository.dart';
+import 'customer_wallet_page.dart';
 import '../../receivables/presentation/receivables_page.dart';
 
 class CustomerListPage extends StatefulWidget {
@@ -542,13 +543,28 @@ class _CustomerListPageState extends State<CustomerListPage> {
         ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
-            if (value == 'edit') {
+            if (value == 'wallet') {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => CustomerWalletPage(
+                customerId: customer['id'] as int,
+                customerName: customer['name']?.toString() ?? 'Pelanggan',
+              )));
+            } else if (value == 'edit') {
               _showCustomerForm(customer: customer);
             } else if (value == 'delete') {
               _deleteCustomer(customer);
             }
           },
           itemBuilder: (context) => const [
+            PopupMenuItem(
+              value: 'wallet',
+              child: Row(
+                children: [
+                  Icon(Icons.account_balance_wallet_outlined),
+                  SizedBox(width: 10),
+                  Text('Saldo & Deposit'),
+                ],
+              ),
+            ),
             PopupMenuItem(
               value: 'edit',
               child: Row(
