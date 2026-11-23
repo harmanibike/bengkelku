@@ -49,6 +49,9 @@ class ServiceRepository {
     String? notes,
     String? beforePhotoPath,
   }) async {
+    if (AuthSession.instance.isMechanic) {
+      throw StateError('Akun Mekanik tidak dapat membuat nota servis.');
+    }
     final db = await _db;
 
     final cleanComplaint = complaint.trim();
@@ -262,6 +265,9 @@ class ServiceRepository {
     String? mechanicName,
     String? notes,
   }) async {
+    if (AuthSession.instance.isMechanic) {
+      throw StateError('Akun Mekanik hanya dapat memperbarui status dan dokumentasi tugasnya.');
+    }
     final db = await _db;
 
     return db.transaction((txn) async {
@@ -336,6 +342,9 @@ class ServiceRepository {
     required int directPartsCost,
     required int otherDirectCost,
   }) async {
+    if (!AuthSession.instance.isAdmin) {
+      throw StateError('Hanya Admin yang dapat mengubah biaya modal servis.');
+    }
     if (directPartsCost < 0 || otherDirectCost < 0) {
       throw ArgumentError('Biaya langsung tidak boleh negatif.');
     }
@@ -519,6 +528,12 @@ class ServiceRepository {
     String? beforePhotoPath,
     String? afterPhotoPath,
   }) async {
+    final session = AuthSession.instance;
+    if (session.isMechanic) {
+      final dbCheck = await _db;
+      final assigned = await dbCheck.query('service_orders', columns: ['id'], where: 'id = ? AND assigned_mechanic_id = ?', whereArgs: [id, session.userId], limit: 1);
+      if (assigned.isEmpty) throw StateError('Akses ditolak: servis bukan penugasan Anda.');
+    }
     final db = await _db;
     final values = <String, Object?>{};
 
@@ -545,6 +560,9 @@ class ServiceRepository {
     required int id,
     required int amount,
   }) async {
+    if (AuthSession.instance.isMechanic) {
+      throw StateError('Akun Mekanik tidak memiliki akses pembayaran.');
+    }
     if (amount <= 0) {
       throw ArgumentError('Jumlah pembayaran harus lebih dari nol.');
     }
@@ -616,6 +634,9 @@ class ServiceRepository {
   }
 
   Future<int> deleteServiceOrder(int id) async {
+    if (!AuthSession.instance.isAdmin) {
+      throw StateError('Hanya Admin yang dapat menghapus nota servis.');
+    }
     final db = await _db;
 
     return db.transaction((txn) async {
@@ -677,6 +698,9 @@ class ServiceRepository {
   // Penugasan hanya dapat diubah oleh alur administrasi; identitas akun
   // mekanik disimpan sebagai relasi, bukan hanya teks nama.
   Future<int> assignMechanic({required int serviceOrderId, int? mechanicId}) async {
+    if (!AuthSession.instance.isAdmin) {
+      throw StateError('Hanya Admin yang dapat mengubah penugasan mekanik.');
+    }
     final db = await _db;
     String? mechanicName;
     if (mechanicId != null) {
