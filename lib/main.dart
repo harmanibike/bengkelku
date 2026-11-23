@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 
 import 'core/database/app_database.dart';
 import 'core/theme/app_theme.dart';
-import 'features/dashboard/dashboard_page.dart';
+import 'features/settings/presentation/account_pages.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,7 +39,7 @@ class BengkelKuApp extends StatelessWidget {
         bottom: true,
         child: child ?? const SizedBox.shrink(),
       ),
-      home: const DashboardPage(),
+      home: const AuthGate(),
     );
   }
 }
