@@ -6,6 +6,7 @@ import '../../../core/auth/auth_session.dart';
 import '../../settings/data/account_repository.dart';
 
 import '../data/service_repository.dart';
+import '../../customers/data/customer_wallet_repository.dart';
 import '../../business/data/business_profile_repository.dart';
 import '../../business/presentation/business_identity_header.dart';
 import 'service_intake_page.dart';
@@ -23,6 +24,7 @@ class ServiceListPage extends StatefulWidget {
 
 class _ServiceListPageState extends State<ServiceListPage> {
   final ServiceRepository _repository = ServiceRepository();
+  final CustomerWalletRepository _walletRepository = CustomerWalletRepository();
   final TextEditingController _searchController = TextEditingController();
 
   String? _statusFilter;
@@ -171,6 +173,94 @@ class _ServiceListPageState extends State<ServiceListPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal mengubah status: $error')),
       );
+    }
+  }
+
+  Future<void> _payServiceFromWallet(Map<String, Object?> detail) async {
+    final customerId = detail['customer_id'] as int?;
+    final id = detail['id'] as int;
+    final remaining = (detail['remaining_payment'] as num?)?.toInt() ?? 0;
+    if (customerId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Servis pelanggan umum tidak dapat memakai saldo deposit.')));
+      return;
+    }
+    final balance = await _walletRepository.getBalance(customerId);
+    if (!mounted) return;
+    if (balance <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saldo pelanggan masih kosong.')));
+      return;
+    }
+    final controller = TextEditingController(text: (balance < remaining ? balance : remaining).toString());
+    final amount = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Bayar dari saldo pelanggan'),
+        content: TextField(controller: controller, keyboardType: TextInputType.number,
+          inputFormatters: const [CurrencyInputFormatter()],
+          decoration: InputDecoration(labelText: 'Nominal digunakan (Rp)', helperText: 'Saldo: ${_rupiah(balance)} • Sisa tagihan: ${_rupiah(remaining)}', border: const OutlineInputBorder())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+          FilledButton(onPressed: () {
+            final value = int.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), ''));
+            if (value != null && value > 0) Navigator.pop(dialogContext, value);
+          }, child: const Text('Gunakan saldo')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (amount == null || !mounted) return;
+    try {
+      await _repository.addWalletPayment(id: id, amount: amount);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pembayaran dari saldo pelanggan berhasil.')));
+      _refresh();
+      await _showDetail({'id': id});
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menggunakan saldo: $error')));
+    }
+  }
+
+  Future<void> _recordServiceTip(Map<String, Object?> detail) async {
+    final controller = TextEditingController();
+    final noteController = TextEditingController();
+    final amount = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Catat Uang Tip'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Mekanik: ${detail['mechanic_name'] ?? 'Belum ditentukan'}'),
+          const SizedBox(height: 8),
+          TextField(controller: controller, keyboardType: TextInputType.number,
+            inputFormatters: const [CurrencyInputFormatter()],
+            decoration: const InputDecoration(labelText: 'Nominal tip (Rp)', border: OutlineInputBorder())),
+          const SizedBox(height: 8),
+          TextField(controller: noteController, decoration: const InputDecoration(labelText: 'Catatan (opsional)', border: OutlineInputBorder())),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+          FilledButton(onPressed: () {
+            final value = int.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), ''));
+            if (value != null && value > 0) Navigator.pop(dialogContext, value);
+          }, child: const Text('Simpan tip')),
+        ],
+      ),
+    );
+    final note = noteController.text.trim();
+    controller.dispose();
+    noteController.dispose();
+    if (amount == null || !mounted) return;
+    try {
+      await _walletRepository.recordTip(
+        amount: amount, sourceType: 'service_order', sourceId: detail['id'] as int,
+        recipientName: detail['mechanic_name']?.toString(),
+        paymentMethod: 'cash', note: note,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Uang tip dicatat terpisah dari omzet.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mencatat tip: $error')));
     }
   }
 
@@ -955,6 +1045,19 @@ class _ServiceListPageState extends State<ServiceListPage> {
                     icon: const Icon(Icons.payments_outlined),
                     label: const Text('Catat Pembayaran'),
                   ),
+                if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
+                    detail['customer_id'] != null && status != 'cancelled')
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'wallet_payment'),
+                    icon: const Icon(Icons.account_balance_wallet_outlined),
+                    label: const Text('Bayar dari Saldo'),
+                  ),
+                if (AuthSession.instance.isCashierOrAdmin && status != 'cancelled')
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'tip'),
+                    icon: const Icon(Icons.volunteer_activism_outlined),
+                    label: const Text('Catat Uang Tip'),
+                  ),
                 FilledButton.icon(
                   onPressed: () => Navigator.pop(dialogContext, 'status'),
                   icon: const Icon(Icons.edit_outlined),
@@ -996,6 +1099,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
       await _editDirectCosts(detail);
     } else if (action == 'status') {
       await _changeStatus(detail);
+    } else if (action == 'wallet_payment') {
+      await _payServiceFromWallet(detail);
+    } else if (action == 'tip') {
+      await _recordServiceTip(detail);
     } else if (action == 'payment') {
       await _addServicePayment(id);
     } else if (action == 'before') {
