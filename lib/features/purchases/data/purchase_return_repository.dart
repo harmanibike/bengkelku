@@ -566,11 +566,6 @@ class PurchaseReturnRepository {
           'notes': 'Pembatalan retur ${row['return_number']}: $note',
         });
       }
-      for (final allocation in allocations) {
-        final itemId = (allocation['return_item_id'] as num?)?.toInt();
-        final quantity = (allocation['quantity'] as num?)?.toInt() ?? 0;
-        if (itemId != null) allocationByItem[itemId] = (allocationByItem[itemId] ?? 0) + quantity;
-      }
       for (final item in returnItems) {
         final itemId = (item['id'] as num?)?.toInt();
         final expected = (item['quantity'] as num?)?.toInt() ?? 0;
