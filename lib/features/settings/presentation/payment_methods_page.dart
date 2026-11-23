@@ -1,4 +1,9 @@
+import 'dart:io';
+
+import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../data/payment_methods_repository.dart';
 
@@ -14,11 +19,69 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
   late Future<Set<String>> _enabledFuture;
   Set<String> _enabled = {};
   bool _saving = false;
+  final _picker = ImagePicker();
+  final _bankName = TextEditingController();
+  final _accountNumber = TextEditingController();
+  final _accountHolder = TextEditingController();
+  String _qrisImagePath = '';
+  bool _detailsLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _enabledFuture = _repository.getEnabledCodes();
+    _loadPaymentDetails();
+  }
+
+  @override
+  void dispose() {
+    _bankName.dispose();
+    _accountNumber.dispose();
+    _accountHolder.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPaymentDetails() async {
+    try {
+      final details = await _repository.getPaymentDetails();
+      if (!mounted) return;
+      setState(() {
+        _qrisImagePath = details['qris_image_path'] ?? '';
+        _bankName.text = details['bank_name'] ?? '';
+        _accountNumber.text = details['bank_account_number'] ?? '';
+        _accountHolder.text = details['bank_account_holder'] ?? '';
+        _detailsLoaded = true;
+      });
+    } catch (error) {
+      if (mounted) _message('Gagal memuat detail pembayaran: $error');
+    }
+  }
+
+  Future<void> _chooseQrisImage() async {
+    try {
+      final image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 95,
+        maxWidth: 1600,
+      );
+      if (image == null) return;
+      final directory = await getApplicationDocumentsDirectory();
+      final targetDirectory = Directory(p.join(directory.path, 'payment_methods'));
+      if (!await targetDirectory.exists()) {
+        await targetDirectory.create(recursive: true);
+      }
+      final extension = p.extension(image.path).isEmpty ? '.jpg' : p.extension(image.path);
+      final destination = p.join(targetDirectory.path, 'qris$extension');
+      await File(image.path).copy(destination);
+      if (mounted) setState(() => _qrisImagePath = destination);
+    } catch (error) {
+      _message('Gagal memilih gambar QRIS: $error');
+    }
+  }
+
+  void _message(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _save() async {
@@ -31,6 +94,12 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
     setState(() => _saving = true);
     try {
       await _repository.saveEnabledCodes(_enabled);
+      await _repository.savePaymentDetails({
+        'qris_image_path': _qrisImagePath,
+        'bank_name': _bankName.text.trim(),
+        'bank_account_number': _accountNumber.text.trim(),
+        'bank_account_holder': _accountHolder.text.trim(),
+      });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Metode pembayaran berhasil disimpan.')),
@@ -91,6 +160,35 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
                   ),
                 );
               }),
+              const SizedBox(height: 16),
+              const Text('Detail Pembayaran', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text('Data berikut akan ditampilkan kasir ketika metode QRIS atau Transfer Bank dipilih.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 10),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('QRIS', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    if (_qrisImagePath.isNotEmpty && File(_qrisImagePath).existsSync())
+                      Center(child: Image.file(File(_qrisImagePath), height: 170, fit: BoxFit.contain)),
+                    Wrap(spacing: 8, children: [
+                      OutlinedButton.icon(onPressed: _saving ? null : _chooseQrisImage, icon: const Icon(Icons.photo_library_outlined), label: const Text('Pilih gambar QRIS')),
+                      if (_qrisImagePath.isNotEmpty) TextButton(onPressed: _saving ? null : () => setState(() => _qrisImagePath = ''), child: const Text('Hapus')),
+                    ]),
+                    const SizedBox(height: 8),
+                    const Divider(),
+                    const Text('Transfer Bank', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    TextField(controller: _bankName, decoration: const InputDecoration(labelText: 'Nama bank', hintText: 'Contoh: BCA / BRI / Mandiri')),
+                    const SizedBox(height: 8),
+                    TextField(controller: _accountNumber, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Nomor rekening')),
+                    const SizedBox(height: 8),
+                    TextField(controller: _accountHolder, decoration: const InputDecoration(labelText: 'Nama pemilik rekening')),
+                  ]),
+                ),
+              ),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
