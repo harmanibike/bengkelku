@@ -275,14 +275,14 @@ void main() {
         PaymentMethodsRepository().saveEnabledCodes({'cash'}),
         throwsA(isA<StateError>()),
       );
-      await expectLater(
-        BusinessSettingsRepository().saveLoyaltySettings(
+      expect(
+        () => BusinessSettingsRepository().saveLoyaltySettings(
           const LoyaltySettings(enabled: true),
         ),
         throwsA(isA<StateError>()),
       );
-      await expectLater(
-        BusinessSettingsRepository().saveStockReminderSettings(
+      expect(
+        () => BusinessSettingsRepository().saveStockReminderSettings(
           const StockReminderSettings(enabled: true),
         ),
         throwsA(isA<StateError>()),
