@@ -72,7 +72,7 @@ class StockReminderNotificationService {
       final db = await AppDatabase.instance.database;
       final count = await _lowStockCount(db, settings);
       if (count == 0) {
-        await _plugin.cancel(id: _notificationId);
+        await _plugin.cancel(_notificationId);
         return;
       }
 
@@ -96,11 +96,11 @@ class StockReminderNotificationService {
 
       if (settings.repeatDaily) {
         await _plugin.periodicallyShow(
-          id: _notificationId,
-          title: 'Pengingat Stok BengkelKu',
-          body: body,
-          repeatInterval: RepeatInterval.daily,
-          notificationDetails: details,
+          _notificationId,
+          'Pengingat Stok BengkelKu',
+          body,
+          RepeatInterval.daily,
+          details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
       } else {
@@ -116,10 +116,10 @@ class StockReminderNotificationService {
         );
         if (rows.isEmpty || rows.first['setting_value']?.toString() != dateKey) {
           await _plugin.show(
-            id: _notificationId,
-            title: 'Pengingat Stok BengkelKu',
-            body: body,
-            notificationDetails: details,
+            _notificationId,
+            'Pengingat Stok BengkelKu',
+            body,
+            details,
           );
           await db.insert('app_settings', {
             'setting_key': _lastShownKey,
