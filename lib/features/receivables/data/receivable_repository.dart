@@ -24,13 +24,13 @@ class ReceivableRepository {
           s.down_payment AS paid_amount,
           s.remaining_payment AS remaining_amount,
           s.service_status AS record_status,
-          c.name AS customer_name,
-          c.phone AS customer_phone
+          COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
+          COALESCE(s.customer_phone, c.phone) AS customer_phone
         FROM service_orders s
         LEFT JOIN customers c ON c.id = s.customer_id
         WHERE s.remaining_payment > 0
           AND s.service_status != 'cancelled'
-          AND (? = '' OR s.order_number LIKE ? OR COALESCE(c.name, '') LIKE ? OR COALESCE(c.phone, '') LIKE ?)
+          AND (? = '' OR s.order_number LIKE ? OR COALESCE(s.customer_name, c.name, '') LIKE ? OR COALESCE(s.customer_phone, c.phone, '') LIKE ?)
         ORDER BY s.received_at ASC, s.id ASC
       ''', [term, '%$term%', '%$term%', '%$term%']));
     }
@@ -76,7 +76,8 @@ class ReceivableRepository {
     final db = await _db;
     if (type == 'service') {
       final rows = await db.rawQuery('''
-        SELECT s.*, c.name AS customer_name, c.phone AS customer_phone
+        SELECT s.*, COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
+          COALESCE(s.customer_phone, c.phone) AS customer_phone
         FROM service_orders s
         LEFT JOIN customers c ON c.id = s.customer_id
         WHERE s.id = ? LIMIT 1
