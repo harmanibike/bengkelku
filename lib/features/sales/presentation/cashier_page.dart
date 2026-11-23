@@ -8,6 +8,7 @@ import '../data/sale_repository.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../settings/data/payment_methods_repository.dart';
 import 'barcode_scanner_page.dart';
+import '../../services/presentation/service_list_page.dart';
 
 class CashierPage extends StatefulWidget {
   const CashierPage({super.key});
@@ -110,6 +111,14 @@ class _CashierPageState extends State<CashierPage> {
         SnackBar(content: Text('Gagal mencari barcode: $error')),
       );
     }
+  }
+
+  Future<void> _openServicePayments() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => const ServiceListPage(showOutstandingOnly: true),
+      ),
+    );
   }
 
   Future<void> _loadProducts() async {
@@ -501,6 +510,33 @@ class _CashierPageState extends State<CashierPage> {
       appBar: AppBar(title: const Text('Kasir')),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+            child: Card(
+              margin: EdgeInsets.zero,
+              child: ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.build_circle_outlined,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                title: const Text(
+                  'Pembayaran Servis',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Lihat tagihan servis yang belum lunas'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _saving ? null : _openServicePayments,
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
