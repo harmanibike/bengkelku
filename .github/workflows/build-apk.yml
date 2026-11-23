@@ -319,6 +319,42 @@ jobs:
           print("Permission, receiver notifikasi, compileSdk 36, dan core library desugaring siap.")
           PY
 
+      - name: Install Android NDK with retry
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          NDK_VERSION="28.2.13676358"
+          NDK_DIR="$SDK_ROOT/ndk/$NDK_VERSION"
+
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "Android sdkmanager tidak ditemukan: $SDKMANAGER"
+            exit 1
+          fi
+
+          for attempt in 1 2 3; do
+            if [ -f "$NDK_DIR/source.properties" ]; then
+              echo "Android NDK $NDK_VERSION sudah terpasang."
+              exit 0
+            fi
+
+            echo "Menginstal Android NDK $NDK_VERSION (percobaan $attempt/3)."
+            rm -rf "$NDK_DIR"
+            if yes | "$SDKMANAGER" --install "ndk;$NDK_VERSION" &&
+               [ -f "$NDK_DIR/source.properties" ]; then
+              echo "Android NDK $NDK_VERSION berhasil dipasang."
+              exit 0
+            fi
+
+            rm -rf "$NDK_DIR"
+            if [ "$attempt" -lt 3 ]; then
+              sleep 10
+            fi
+          done
+
+          echo "Android NDK gagal dipasang setelah 3 percobaan."
+          exit 1
+
       - name: Install dependencies
         run: flutter pub get
 
