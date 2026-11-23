@@ -215,6 +215,32 @@ class _ServiceListPageState extends State<ServiceListPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pembayaran berhasil dicatat ke kas.')),
       );
+      final printReceipt = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Pembayaran berhasil'),
+          content: const Text(
+            'Apakah nota servis ingin dicetak atau dibagikan sekarang? '
+            'Nota akan memuat riwayat pembayaran dan sisa tagihan terbaru.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Nanti'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.print_outlined),
+              label: const Text('Cetak nota'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (printReceipt == true) {
+        await ReceiptShareLauncher.service(context, id);
+      }
+      if (!mounted) return;
       await _showDetail({'id': id});
     } catch (error) {
       if (!mounted) return;
