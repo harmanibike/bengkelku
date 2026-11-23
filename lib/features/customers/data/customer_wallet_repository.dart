@@ -141,6 +141,16 @@ class CustomerWalletRepository {
       WHERE datetime(received_at) >= datetime(?) AND datetime(received_at) < datetime(?)
       ORDER BY datetime(received_at) DESC, id DESC
     ''', [from, until]);
-    return {...rows.first, 'entries': entries};
+    final byRecipient = await db.rawQuery('''
+      SELECT COALESCE(NULLIF(TRIM(recipient_name), ''), 'Belum ditentukan') AS recipient,
+        SUM(CASE WHEN status != 'cancelled' THEN amount ELSE 0 END) AS received,
+        SUM(CASE WHEN status = 'held' THEN amount ELSE 0 END) AS held,
+        SUM(CASE WHEN status = 'handed_over' THEN amount ELSE 0 END) AS handed_over
+      FROM tip_transactions
+      WHERE datetime(received_at) >= datetime(?) AND datetime(received_at) < datetime(?)
+      GROUP BY COALESCE(NULLIF(TRIM(recipient_name), ''), 'Belum ditentukan')
+      ORDER BY received DESC, recipient COLLATE NOCASE
+    ''', [from, until]);
+    return {...rows.first, 'entries': entries, 'by_recipient': byRecipient};
   }
 }
