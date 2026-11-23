@@ -9,7 +9,10 @@ class BarcodeScannerPage extends StatefulWidget {
 }
 
 class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
+  final MobileScannerController _controller = MobileScannerController();
   bool _hasReturnedResult = false;
+  bool _isRetrying = false;
+  String? _retryError;
 
   void _handleDetection(BarcodeCapture capture) {
     if (_hasReturnedResult) return;
@@ -24,6 +27,31 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
     }
   }
 
+  Future<void> _retryCamera() async {
+    if (_isRetrying) return;
+    setState(() {
+      _isRetrying = true;
+      _retryError = null;
+    });
+
+    try {
+      await _controller.stop();
+      await _controller.start();
+    } catch (error) {
+      if (mounted) {
+        setState(() => _retryError = error.toString());
+      }
+    } finally {
+      if (mounted) setState(() => _isRetrying = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -36,7 +64,83 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          MobileScanner(onDetect: _handleDetection),
+          MobileScanner(
+            controller: _controller,
+            onDetect: _handleDetection,
+            errorBuilder: (context, error) {
+              final code = error.errorCode.toString().split('.').last;
+              final permissionDenied = code == 'permissionDenied';
+
+              return ColoredBox(
+                color: Colors.black,
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.camera_alt_outlined,
+                          color: Colors.white,
+                          size: 44,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          permissionDenied
+                              ? 'Izin kamera belum diberikan'
+                              : 'Kamera belum dapat dijalankan',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          permissionDenied
+                              ? 'Izinkan BengkelKu POS menggunakan kamera melalui Pengaturan aplikasi, lalu coba lagi.'
+                              : 'Periksa izin kamera dan pastikan kamera tidak sedang digunakan aplikasi lain. Kode: $code',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                        if (_retryError != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _retryError!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.orangeAccent,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        FilledButton.icon(
+                          onPressed: _isRetrying ? null : _retryCamera,
+                          icon: _isRetrying
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.refresh),
+                          label: Text(
+                            _isRetrying ? 'Mencoba...' : 'Coba Lagi',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
           IgnorePointer(
             child: Center(
               child: Container(
