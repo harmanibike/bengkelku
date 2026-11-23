@@ -109,6 +109,7 @@ class AccountRepository {
   }
 
   Future<List<Map<String, Object?>>> getAccounts() async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat melihat daftar akun.');
     final db = await _db;
     return db.query(
       'app_users',
