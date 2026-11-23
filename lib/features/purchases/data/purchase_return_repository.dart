@@ -301,6 +301,9 @@ class PurchaseReturnRepository {
         final returnItemId = await txn.insert('purchase_return_items', {
           ...item,
           'purchase_return_id': returnId,
+          // Isi eksplisit agar database hasil migrasi lama tidak meninggalkan
+          // NULL yang dikhususkan untuk retur historis sebelum versi 34.
+          'stock_deducted': 0,
         });
         final productId = item['product_id'] as int?;
         if (productId == null) continue;
