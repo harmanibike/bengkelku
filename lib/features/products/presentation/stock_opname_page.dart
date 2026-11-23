@@ -68,6 +68,10 @@ class _StockOpnamePageState extends State<StockOpnamePage> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Kembali')),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFD94343),
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Batalkan sesi')),
         ],
@@ -149,7 +153,10 @@ class _StockOpnamePageState extends State<StockOpnamePage> {
                       done ? 'Selesai' : 'Draft',
                       style: TextStyle(
                         fontSize: 11,
-                        color: done ? Colors.green : Colors.orange,
+                        fontWeight: FontWeight.w600,
+                        color: done
+                            ? const Color(0xFF2E9B59)
+                            : const Color(0xFFB77900),
                       ),
                     ),
                     if (!done)
@@ -157,6 +164,9 @@ class _StockOpnamePageState extends State<StockOpnamePage> {
                         tooltip: 'Batalkan draft',
                         visualDensity: VisualDensity.compact,
                         onPressed: () => _deleteDraft(row),
+                        style: IconButton.styleFrom(
+                          foregroundColor: const Color(0xFFD94343),
+                        ),
                         icon: const Icon(Icons.delete_outline, size: 20),
                       ),
                   ],
@@ -265,6 +275,10 @@ class _OpnameDetailPageState extends State<_OpnameDetailPage> {
             child: const Text('Periksa lagi')),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2E9B59),
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Terapkan')),
         ],
       ),
