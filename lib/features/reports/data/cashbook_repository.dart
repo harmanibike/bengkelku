@@ -204,7 +204,7 @@ class CashbookRepository {
           s.id AS record_id,
           s.order_number AS document_number,
           COALESCE(c.name, '-') AS customer_name,
-          s.down_payment AS stored_paid_total,
+          (s.total_cost - s.remaining_payment) AS stored_paid_total,
           COALESCE(pay.payment_total, 0) AS payment_history_total,
           s.down_payment - COALESCE(pay.payment_total, 0) AS difference
         FROM service_orders s
