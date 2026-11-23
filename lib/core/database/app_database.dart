@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 28;
+  static const int currentVersion = 29;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -1258,6 +1258,18 @@ class AppDatabase {
           WHERE h.service_order_id = s.id
         )
       ''');
+    }
+
+    // Identitas pelanggan umum disimpan langsung pada nota servis,
+    // sehingga tidak membuat record pelanggan/sepeda sementara.
+    if (oldVersion < 29) {
+      await db.execute("ALTER TABLE service_orders ADD COLUMN customer_name TEXT");
+      await db.execute("ALTER TABLE service_orders ADD COLUMN customer_phone TEXT");
+      await db.execute("ALTER TABLE service_orders ADD COLUMN bicycle_brand TEXT");
+      await db.execute("ALTER TABLE service_orders ADD COLUMN bicycle_model TEXT");
+      await db.execute("ALTER TABLE service_orders ADD COLUMN bicycle_type TEXT");
+      await db.execute("ALTER TABLE service_orders ADD COLUMN bicycle_color TEXT");
+      await db.execute("ALTER TABLE service_orders ADD COLUMN bicycle_serial_number TEXT");
     }
 
     // Arsip snapshot nota. Data transaksi lama tidak diubah atau dihapus.
