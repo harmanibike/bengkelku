@@ -1,5 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../../core/auth/auth_session.dart';
+
 import '../../../core/database/app_database.dart';
 
 class CashbookRepository {
@@ -10,6 +12,8 @@ class CashbookRepository {
     required DateTime end,
     String type = 'all',
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Buku kas hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     final from = start.toIso8601String();
     final until = end.toIso8601String();
@@ -56,6 +60,8 @@ class CashbookRepository {
     required DateTime start,
     required DateTime end,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Buku kas hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     return db.rawQuery('''
       SELECT audit_rows.*
@@ -117,6 +123,8 @@ class CashbookRepository {
     required DateTime start,
     required DateTime end,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Buku kas hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     return db.rawQuery('''
       SELECT p.id AS purchase_id, p.invoice_number, s.name AS supplier_name,
@@ -175,6 +183,8 @@ class CashbookRepository {
     required DateTime start,
     required DateTime end,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Buku kas hanya dapat diakses Admin dan Kasir.');
+
     final db = await _db;
     final from = start.toIso8601String();
     final until = end.toIso8601String();
@@ -272,6 +282,8 @@ class CashbookRepository {
     required int amount,
     DateTime? date,
   }) async {
+    AuthSession.instance.requireAdmin('Pencatatan transaksi kas manual hanya dapat dilakukan Admin.');
+
     if (!['income', 'expense'].contains(type)) {
       throw ArgumentError('Jenis transaksi tidak valid.');
     }
