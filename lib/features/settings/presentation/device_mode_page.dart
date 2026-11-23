@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import '../data/client_connection_service.dart';
+import '../data/local_api_server.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../data/device_mode_repository.dart';
@@ -14,10 +17,13 @@ class _DeviceModePageState extends State<DeviceModePage> {
   final DeviceModeRepository _repository = DeviceModeRepository();
   final ClientConnectionService _clientConnectionService =
       ClientConnectionService();
+  final LocalApiServer _localApiServer = LocalApiServer();
   late Future<String> _modeFuture;
   bool _saving = false;
   bool _savingClient = false;
   bool _testingClient = false;
+  bool _startingServer = false;
+  String? _serverMessage;
   late final TextEditingController _hostController;
   late final TextEditingController _portController;
   late final Future<void> _clientConfigFuture;
@@ -44,9 +50,47 @@ class _DeviceModePageState extends State<DeviceModePage> {
 
   @override
   void dispose() {
+    _localApiServer.stop();
     _hostController.dispose();
     _portController.dispose();
     super.dispose();
+  }
+
+  Future<void> _startLocalApiServer() async {
+    setState(() {
+      _startingServer = true;
+      _serverMessage = 'Menyalakan layanan pemeriksaan Server...';
+    });
+    try {
+      final port = await _localApiServer.start();
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: false,
+      );
+      final addresses = interfaces
+          .expand((interface) => interface.addresses)
+          .where((address) => !address.isLoopback)
+          .map((address) => address.address)
+          .toSet()
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _serverMessage = addresses.isEmpty
+            ? 'API aktif pada port $port. IP Wi-Fi belum terdeteksi; pastikan kedua HP berada pada jaringan yang sama.'
+            : 'API pemeriksaan aktif. Alamat Server: ${addresses.join(', ')}:$port';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _serverMessage = 'Gagal menyalakan API Server: $error');
+    } finally {
+      if (mounted) setState(() => _startingServer = false);
+    }
+  }
+
+  Future<void> _stopLocalApiServer() async {
+    await _localApiServer.stop();
+    if (!mounted) return;
+    setState(() => _serverMessage = 'API pemeriksaan Server dihentikan.');
   }
 
   Future<void> _saveClientConfig() async {
@@ -195,6 +239,54 @@ class _DeviceModePageState extends State<DeviceModePage> {
                   title: const Text('Mode Client', style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Perangkat terhubung ke Server untuk transaksi, input data, stok, dan laporan dari database pusat. Belum diaktifkan.'),
                   trailing: const Text('Tahap berikutnya', style: TextStyle(fontSize: 10)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Uji Layanan Server (Tahap Awal)',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Menyalakan endpoint pemeriksaan versi dan koneksi pada port 8765. Tahap ini belum membuka data transaksi atau database ke Client.',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: _startingServer || _localApiServer.isRunning
+                                  ? null
+                                  : _startLocalApiServer,
+                              icon: _startingServer
+                                  ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Icon(Icons.play_arrow),
+                              label: Text(_startingServer ? 'Menyalakan...' : 'Jalankan API'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _localApiServer.isRunning ? _stopLocalApiServer : null,
+                              icon: const Icon(Icons.stop),
+                              label: const Text('Hentikan API'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_serverMessage != null) ...[
+                        const SizedBox(height: 8),
+                        SelectableText(_serverMessage!, style: const TextStyle(fontSize: 11)),
+                      ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
