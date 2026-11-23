@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class SaleReturnRepository {
   Future<Database> get _db => AppDatabase.instance.database;
