@@ -7,6 +7,7 @@ class SaleReturnRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
   Future<List<Map<String, Object?>>> getReturnableItems(int saleId) async {
+    AuthSession.instance.requireCashierOrAdmin('Retur penjualan hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     return db.rawQuery('''
       SELECT
@@ -35,6 +36,7 @@ class SaleReturnRepository {
   }
 
   Future<List<Map<String, Object?>>> getReturns({String keyword = ''}) async {
+    AuthSession.instance.requireCashierOrAdmin('Retur penjualan hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final term = keyword.trim();
     return db.rawQuery('''
@@ -48,6 +50,7 @@ class SaleReturnRepository {
   }
 
   Future<Map<String, Object?>?> getReturnById(int id) async {
+    AuthSession.instance.requireCashierOrAdmin('Retur penjualan hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final rows = await db.rawQuery('''
       SELECT sr.*, s.invoice_number
@@ -67,6 +70,7 @@ class SaleReturnRepository {
   }
 
   Future<int> createReturn({
+    AuthSession.instance.requireCashierOrAdmin('Retur penjualan hanya dapat diakses Admin dan Kasir.');
     required int saleId,
     required List<Map<String, Object?>> items,
     required int refundAmount,
@@ -398,6 +402,7 @@ class SaleReturnRepository {
   }
 
   Future<Map<String, Object?>> getSaleReturnSummary(int saleId) async {
+    AuthSession.instance.requireCashierOrAdmin('Retur penjualan hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final rows = await db.rawQuery('''
       SELECT COALESCE(SUM(total_amount), 0) AS returned_amount,
