@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
+
 import '../../products/data/product_repository.dart';
 import '../data/purchase_repository.dart';
 import '../data/supplier_repository.dart';
@@ -79,7 +81,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
           final totalItems = items.fold<int>(0, (sum, item) => sum + (item['subtotal'] as int));
-          final grandTotal = totalItems - (int.tryParse(discount.text) ?? 0);
+          final grandTotal = totalItems - parseCurrencyInput(discount.text);
           return AlertDialog(
             title: const Text('Pembelian Baru'),
             content: SizedBox(
@@ -126,14 +128,14 @@ class _PurchasesPageState extends State<PurchasesPage> {
                         Expanded(child: TextField(controller: qty, keyboardType: TextInputType.number,
                           decoration: const InputDecoration(labelText: 'Jumlah'))),
                         const SizedBox(width: 8),
-                        Expanded(child: TextField(controller: cost, keyboardType: TextInputType.number,
+                        Expanded(child: TextField(controller: cost, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
                           decoration: const InputDecoration(labelText: 'Harga beli'))),
                         IconButton(
                           tooltip: 'Tambahkan barang',
                           onPressed: () {
                             final product = products.firstWhere((p) => p['id'] == productId);
                             final q = int.tryParse(qty.text) ?? 0;
-                            final price = int.tryParse(cost.text) ?? -1;
+                            final price = parseCurrencyInput(cost.text);
                             if (q <= 0 || price < 0) {
                               setDialogState(() => errorText = 'Jumlah dan harga beli harus valid.');
                               return;
@@ -186,12 +188,12 @@ class _PurchasesPageState extends State<PurchasesPage> {
                       }),
                     ],
                     const Divider(),
-                    TextField(controller: discount, keyboardType: TextInputType.number,
+                    TextField(controller: discount, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
                       decoration: const InputDecoration(labelText: 'Diskon pembelian')),
                     const SizedBox(height: 8),
                     Text('Total: ${_money(grandTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    TextField(controller: payment, keyboardType: TextInputType.number,
+                    TextField(controller: payment, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
                       decoration: const InputDecoration(labelText: 'Pembayaran awal')),
                     const SizedBox(height: 8),
                     TextField(controller: notes, maxLines: 2,
@@ -207,8 +209,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
               TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
               FilledButton(
                 onPressed: () {
-                  final d = int.tryParse(discount.text) ?? -1;
-                  final paid = int.tryParse(payment.text) ?? -1;
+                  final d = parseCurrencyInput(discount.text);
+                  final paid = parseCurrencyInput(payment.text);
                   if (invoice.text.trim().isEmpty || supplierId == null || items.isEmpty ||
                       d < 0 || paid < 0 || d > totalItems || paid > totalItems - d) {
                     setDialogState(() => errorText = 'Periksa faktur, barang, diskon, dan pembayaran.');
@@ -427,14 +429,14 @@ class _PurchasesPageState extends State<PurchasesPage> {
             Text('Faktur: ${row['invoice_number']}'),
             Text('Sisa utang: ${_money(remaining)}'),
             const SizedBox(height: 8),
-            TextField(controller: amount, keyboardType: TextInputType.number,
+            TextField(controller: amount, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
               decoration: const InputDecoration(labelText: 'Jumlah pembayaran')),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
           FilledButton(onPressed: () {
-            final n = int.tryParse(amount.text) ?? 0;
+            final n = parseCurrencyInput(amount.text);
             if (n > 0 && n <= remaining) Navigator.pop(dialogContext, n);
           }, child: const Text('Simpan')),
         ],
