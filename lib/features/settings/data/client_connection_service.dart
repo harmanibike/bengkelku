@@ -6,18 +6,44 @@ class ClientConnectionResult {
     required this.isApiReady,
     required this.message,
     this.serverName,
+    this.serverAppVersion,
     this.apiVersion,
+    this.versionCompatibilityKnown = false,
   });
 
   final bool isApiReady;
   final String message;
   final String? serverName;
+  final String? serverAppVersion;
   final int? apiVersion;
+  final bool versionCompatibilityKnown;
 }
 
 class ClientConnectionService {
   static const int supportedApiVersion = 1;
   static const String expectedApplicationId = 'bengkelku_pos';
+
+  // Keep this value in sync with the version field in pubspec.yaml.
+  static const String clientAppVersion = '1.0.0';
+
+  int _compareVersions(String left, String right) {
+    final leftParts = left.split('.').map(int.tryParse).toList();
+    final rightParts = right.split('.').map(int.tryParse).toList();
+    if (leftParts.any((part) => part == null) ||
+        rightParts.any((part) => part == null)) {
+      throw const FormatException('Format versi aplikasi tidak valid.');
+    }
+
+    final length = leftParts.length > rightParts.length
+        ? leftParts.length
+        : rightParts.length;
+    for (var i = 0; i < length; i++) {
+      final l = i < leftParts.length ? leftParts[i]! : 0;
+      final r = i < rightParts.length ? rightParts[i]! : 0;
+      if (l != r) return l.compareTo(r);
+    }
+    return 0;
+  }
 
   Future<ClientConnectionResult> checkServer({
     required String host,
@@ -55,7 +81,6 @@ class ClientConnectionService {
       final response = await request.close().timeout(
             const Duration(seconds: 5),
           );
-
       final body = await utf8.decoder.bind(response).join().timeout(
             const Duration(seconds: 3),
           );
@@ -87,6 +112,7 @@ class ClientConnectionService {
       final apiVersion = decoded['api_version'];
       final status = decoded['status']?.toString();
       final serverName = decoded['server_name']?.toString();
+      final serverAppVersion = decoded['app_version']?.toString();
 
       if (appId != expectedApplicationId || status != 'ok') {
         return const ClientConnectionResult(
@@ -102,15 +128,65 @@ class ClientConnectionService {
           message:
               'Versi API Server tidak cocok. Client mendukung API versi $supportedApiVersion.',
           serverName: serverName,
+          serverAppVersion: serverAppVersion,
           apiVersion: apiVersion is num ? apiVersion.toInt() : null,
         );
       }
 
+      final minClientVersion = decoded['min_client_version']?.toString();
+      final maxClientVersion = decoded['max_client_version']?.toString();
+      final hasVersionPolicy =
+          minClientVersion != null || maxClientVersion != null;
+
+      if (hasVersionPolicy) {
+        try {
+          if (minClientVersion != null &&
+              _compareVersions(clientAppVersion, minClientVersion) < 0) {
+            return ClientConnectionResult(
+              isApiReady: false,
+              message:
+                  'Client terlalu lama (v$clientAppVersion). Server mensyaratkan minimal v$minClientVersion. Perbarui APK Client.',
+              serverName: serverName,
+              serverAppVersion: serverAppVersion,
+              apiVersion: apiVersion.toInt(),
+              versionCompatibilityKnown: true,
+            );
+          }
+          if (maxClientVersion != null &&
+              _compareVersions(clientAppVersion, maxClientVersion) > 0) {
+            return ClientConnectionResult(
+              isApiReady: false,
+              message:
+                  'Versi Client v$clientAppVersion lebih baru dari batas Server (maksimal v$maxClientVersion). Perbarui APK Server.',
+              serverName: serverName,
+              serverAppVersion: serverAppVersion,
+              apiVersion: apiVersion.toInt(),
+              versionCompatibilityKnown: true,
+            );
+          }
+        } on FormatException {
+          return ClientConnectionResult(
+            isApiReady: false,
+            message:
+                'Server mengirim aturan kompatibilitas versi APK yang tidak valid.',
+            serverName: serverName,
+            serverAppVersion: serverAppVersion,
+            apiVersion: apiVersion.toInt(),
+            versionCompatibilityKnown: false,
+          );
+        }
+      }
+
       return ClientConnectionResult(
         isApiReady: true,
-        message: 'API BengkelKu Server siap dihubungi.',
+        message: hasVersionPolicy
+            ? 'Terhubung. APK Client v$clientAppVersion kompatibel dengan Server'
+                '${serverAppVersion == null ? '' : ' v$serverAppVersion'}.'
+            : 'API BengkelKu Server siap. Versi APK belum dilaporkan Server; kompatibilitas penuh akan diperiksa setelah Server mendukung info versi.',
         serverName: serverName,
+        serverAppVersion: serverAppVersion,
         apiVersion: apiVersion.toInt(),
+        versionCompatibilityKnown: hasVersionPolicy,
       );
     } on SocketException {
       return const ClientConnectionResult(
