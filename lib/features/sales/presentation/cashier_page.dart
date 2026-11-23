@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -25,6 +26,8 @@ class _CashierPageState extends State<CashierPage> {
   final Map<int, Map<String, Object?>> _cart = {};
   bool _loading = true;
   bool _saving = false;
+  int _heldCount = 0;
+  final TextEditingController _buyerNameForHold = TextEditingController();
 
   int get _total => _cart.values.fold(0, (sum, item) =>
       sum + (item['unit_price'] as int) * (item['quantity'] as int));
@@ -34,12 +37,14 @@ class _CashierPageState extends State<CashierPage> {
     super.initState();
     _loadProducts();
     _loadPaymentMethods();
+    _loadHeldCount();
   }
 
   @override
   void dispose() {
     _search.dispose();
     _paid.dispose();
+    _buyerNameForHold.dispose();
     super.dispose();
   }
 
@@ -116,6 +121,104 @@ class _CashierPageState extends State<CashierPage> {
     }
   }
 
+  Future<void> _loadHeldCount() async {
+    try {
+      final held = await _repository.getHeldTransactions();
+      if (!mounted) return;
+      setState(() => _heldCount = held.length);
+    } catch (_) {}
+  }
+
+  Future<void> _holdCurrentTransaction() async {
+    if (_cart.isEmpty || _saving) return;
+    try {
+      await _repository.holdTransaction(
+        items: _cart.values.map((item) => Map<String, Object?>.from(item)).toList(),
+        buyerName: _buyerNameForHold.text,
+      );
+      if (!mounted) return;
+      setState(() {
+        _cart.clear();
+        _buyerNameForHold.clear();
+      });
+      await _loadHeldCount();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Transaksi berhasil ditahan. Silakan layani pelanggan berikutnya.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menahan transaksi: $error')));
+    }
+  }
+
+  Future<void> _showHeldTransactions() async {
+    final held = await _repository.getHeldTransactions();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Transaksi Ditahan (${held.length})'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: held.isEmpty
+              ? const Text('Belum ada transaksi yang ditahan.')
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: held.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final row = held[index];
+                    final decoded = jsonDecode(row['items_json'].toString()) as List<dynamic>;
+                    final items = decoded.cast<Map<String, dynamic>>();
+                    final total = items.fold<int>(0, (sum, item) =>
+                        sum + ((item['unit_price'] as num).toInt() * (item['quantity'] as num).toInt()));
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(row['buyer_name']?.toString().trim().isNotEmpty == true
+                          ? row['buyer_name'].toString()
+                          : 'Pelanggan Umum'),
+                      subtitle: Text('${items.length} produk • ${_rupiah(total)}'),
+                      trailing: IconButton(
+                        tooltip: 'Hapus transaksi ditahan',
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () async {
+                          await _repository.deleteHeldTransaction(row['id'] as int);
+                          if (!dialogContext.mounted) return;
+                          Navigator.pop(dialogContext);
+                          await _loadHeldCount();
+                          await _showHeldTransactions();
+                        },
+                      ),
+                      onTap: () async {
+                        if (_cart.isNotEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Tahan atau selesaikan keranjang aktif terlebih dahulu.')),
+                          );
+                          return;
+                        }
+                        setState(() {
+                          _cart.clear();
+                          for (final item in items) {
+                            final id = (item['product_id'] as num).toInt();
+                            _cart[id] = Map<String, Object?>.from(item);
+                          }
+                          _buyerNameForHold.text = row['buyer_name']?.toString() ?? '';
+                        });
+                        await _repository.deleteHeldTransaction(row['id'] as int);
+                        if (!dialogContext.mounted) return;
+                        Navigator.pop(dialogContext);
+                        await _loadHeldCount();
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup'))],
+      ),
+    );
+  }
+
   Future<int?> _chooseCustomer() async {
     final customers = await _customerRepository.getCustomers();
     if (!mounted) return null;
@@ -150,7 +253,7 @@ class _CashierPageState extends State<CashierPage> {
     _paid.text = _total.toString();
     final paymentController = TextEditingController(text: _paid.text);
     final discountController = TextEditingController(text: '0');
-    final buyerNameController = TextEditingController();
+    final buyerNameController = TextEditingController(text: _buyerNameForHold.text);
     try {
       var discountAmount = 0;
       var selectedPaymentMethod = _paymentMethods.any((method) => method['code'] == 'cash')
@@ -251,6 +354,7 @@ class _CashierPageState extends State<CashierPage> {
       if (!mounted) return;
       setState(() {
         _cart.clear();
+        _buyerNameForHold.clear();
         _saving = false;
       });
       await _loadProducts();
@@ -370,6 +474,26 @@ class _CashierPageState extends State<CashierPage> {
                   const Expanded(child: Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold))),
                   Text(_rupiah(_total), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 ]),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _saving ? null : _showHeldTransactions,
+                        icon: const Icon(Icons.pause_circle_outline),
+                        label: Text('Ditahan ($_heldCount)'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _cart.isEmpty || _saving ? null : _holdCurrentTransaction,
+                        icon: const Icon(Icons.pause),
+                        label: const Text('Tahan Transaksi'),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
