@@ -721,6 +721,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
     ].where((part) => part.isNotEmpty).join(' ');
     final complaint = order['complaint']?.toString() ?? '';
     final number = order['order_number']?.toString() ?? '-';
+    final queueNumber = order['queue_number'];
+    final isPriority = (order['queue_priority'] as num? ?? 0).toInt() == 1;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -734,6 +736,14 @@ class _ServiceListPageState extends State<ServiceListPage> {
             children: [
               Row(
                 children: [
+                  if (queueNumber != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(8)),
+                      child: Text('A${queueNumber.toString().padLeft(3, '0')}', style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer)),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: Text(number,
                         style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -755,6 +765,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   ),
                 ],
               ),
+              if (isPriority) const Padding(padding: EdgeInsets.only(top: 6), child: Row(children: [Icon(Icons.priority_high, size: 16, color: Colors.deepOrange), SizedBox(width: 4), Text('Prioritas', style: TextStyle(color: Colors.deepOrange, fontSize: 12, fontWeight: FontWeight.bold))])),
               const SizedBox(height: 9),
               Text(customer, style: const TextStyle(fontWeight: FontWeight.w600)),
               if (bicycle.isNotEmpty)
@@ -798,10 +809,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
                     onSelected: (value) {
                       if (value == 'status') _changeStatus(order);
                       if (value == 'detail') _showDetail(order);
+                      if (value == 'priority') _setPriority(order, !isPriority);
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'detail', child: Text('Lihat detail')),
-                      PopupMenuItem(value: 'status', child: Text('Ubah status')),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'detail', child: Text('Lihat detail')),
+                      const PopupMenuItem(value: 'status', child: Text('Ubah status')),
+                      if (AuthSession.instance.isAdmin && const ['waiting', 'checking', 'in_progress'].contains(status))
+                        PopupMenuItem(value: 'priority', child: Text(isPriority ? 'Hapus prioritas' : 'Jadikan prioritas')),
                     ],
                   ),
                 ],
@@ -811,6 +825,19 @@ class _ServiceListPageState extends State<ServiceListPage> {
         ),
       ),
     );
+  }
+
+
+  Future<void> _setPriority(Map<String, Object?> order, bool priority) async {
+    try {
+      await _repository.setQueuePriority(serviceOrderId: order['id'] as int, priority: priority);
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(priority ? 'Servis ditandai sebagai prioritas.' : 'Prioritas servis dihapus.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengubah prioritas: $error')));
+    }
   }
 
   @override
