@@ -46,7 +46,7 @@ class ReceivableRepository {
           s.paid AS paid_amount,
           (s.total - COALESCE(ret.returned_amount, 0) - s.paid + COALESCE(ret.refunded_amount, 0)) AS remaining_amount,
           s.payment_status AS record_status,
-          c.name AS customer_name,
+          COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
           c.phone AS customer_phone
         FROM sales s
         LEFT JOIN customers c ON c.id = s.customer_id
@@ -59,7 +59,7 @@ class ReceivableRepository {
         ) ret ON ret.sale_id = s.id
         WHERE (s.total - COALESCE(ret.returned_amount, 0) - s.paid + COALESCE(ret.refunded_amount, 0)) > 0
           AND s.payment_status != 'cancelled'
-          AND (? = '' OR s.invoice_number LIKE ? OR COALESCE(c.name, '') LIKE ? OR COALESCE(c.phone, '') LIKE ?)
+          AND (? = '' OR s.invoice_number LIKE ? OR COALESCE(s.customer_name, c.name, '') LIKE ? OR COALESCE(c.phone, '') LIKE ?)
         ORDER BY s.transaction_date ASC, s.id ASC
       ''', [term, '%$term%', '%$term%', '%$term%']));
     }
@@ -93,8 +93,8 @@ class ReceivableRepository {
     }
     if (type == 'sale') {
       final rows = await db.rawQuery('''
-        SELECT s.*, c.name AS customer_name, c.phone AS customer_phone,
-          COALESCE(ret.returned_amount, 0) AS returned_amount,
+        SELECT s.*, COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
+          c.phone AS customer_phone, COALESCE(ret.returned_amount, 0) AS returned_amount,
           COALESCE(ret.refunded_amount, 0) AS refunded_amount
         FROM sales s
         LEFT JOIN customers c ON c.id = s.customer_id
