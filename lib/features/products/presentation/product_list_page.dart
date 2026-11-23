@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../data/product_repository.dart';
 import '../../purchases/presentation/purchase_cost_settings_page.dart';
+import 'product_category_page.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -65,6 +66,8 @@ class _ProductListPageState extends State<ProductListPage> {
       int.tryParse(controller.text.replaceAll('.', '').replaceAll(',', '').trim()) ?? 0;
 
   Future<void> _showProductForm({Map<String, Object?>? product}) async {
+    final categories = await _repository.getCategories();
+    if (!mounted) return;
     final editing = product != null;
     final sku = TextEditingController(text: product?['sku']?.toString() ?? '');
     final barcode = TextEditingController(text: product?['barcode']?.toString() ?? '');
@@ -181,7 +184,21 @@ class _ProductListPageState extends State<ProductListPage> {
                       const SizedBox(height: 10),
                       TextFormField(controller: barcode, decoration: const InputDecoration(labelText: 'Barcode', border: OutlineInputBorder())),
                       const SizedBox(height: 10),
-                      TextFormField(controller: category, decoration: const InputDecoration(labelText: 'Kategori', border: OutlineInputBorder())),
+                      DropdownButtonFormField<String>(
+                        value: categories.any((item) => item['name']?.toString() == category.text)
+                            ? category.text
+                            : '',
+                        decoration: const InputDecoration(labelText: 'Kategori', border: OutlineInputBorder()),
+                        isExpanded: true,
+                        items: [
+                          const DropdownMenuItem(value: '', child: Text('Tanpa kategori')),
+                          ...categories.map((item) => DropdownMenuItem<String>(
+                            value: item['name']?.toString() ?? '',
+                            child: Text(item['name']?.toString() ?? ''),
+                          )),
+                        ],
+                        onChanged: (value) => category.text = value ?? '',
+                      ),
                       const SizedBox(height: 10),
                       TextFormField(controller: brand, decoration: const InputDecoration(labelText: 'Merek', border: OutlineInputBorder())),
                       const SizedBox(height: 10),
@@ -539,6 +556,14 @@ class _ProductListPageState extends State<ProductListPage> {
       appBar: AppBar(
         title: const Text('Produk & Stok'),
         actions: [
+          IconButton(
+            tooltip: 'Kelola kategori produk',
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductCategoryPage()));
+              if (mounted) _refresh();
+            },
+            icon: const Icon(Icons.category_outlined),
+          ),
           PopupMenuButton<String>(
             tooltip: 'Pengelolaan harga produk',
             onSelected: (value) {
