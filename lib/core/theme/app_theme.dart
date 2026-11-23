@@ -43,15 +43,18 @@ class AppTheme {
         ),
       ),
       dialogTheme: DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        iconColor: Colors.black,
         insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
         constraints: const BoxConstraints(maxWidth: 560),
         titleTextStyle: const TextStyle(
-          color: Color(0xFF263238),
+          color: Colors.black,
           fontSize: 17,
           fontWeight: FontWeight.w700,
         ),
         contentTextStyle: const TextStyle(
-          color: Color(0xFF263238),
+          color: Colors.black,
           fontSize: 13,
           height: 1.3,
         ),
