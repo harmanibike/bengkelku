@@ -83,6 +83,7 @@ class _TipReportPageState extends State<TipReportPage> {
   @override
   Widget build(BuildContext context) {
     final entries = (_report['entries'] as List?) ?? const [];
+    final byRecipient = (_report['by_recipient'] as List?) ?? const [];
     return Scaffold(
       appBar: AppBar(title: const Text('Laporan Uang Tip')),
       body: _loading
@@ -121,6 +122,19 @@ class _TipReportPageState extends State<TipReportPage> {
                       Text('Jumlah catatan: ${_report['count'] ?? 0}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ]),
                   )),
+                  const SizedBox(height: 12),
+                  const Text('Rekap per penerima', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  if (byRecipient.isEmpty)
+                    const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Belum ada rekap penerima.')))
+                  else
+                    ...byRecipient.map((raw) {
+                      final row = Map<String, Object?>.from(raw as Map);
+                      return Card(child: ListTile(
+                        title: Text(row['recipient']?.toString() ?? 'Belum ditentukan'),
+                        subtitle: Text('Belum diserahkan: ${_rupiah(row['held'])} • Sudah diserahkan: ${_rupiah(row['handed_over'])}'),
+                        trailing: Text(_rupiah(row['received']), style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ));
+                    }),
                   const SizedBox(height: 12),
                   const Text('Rincian tip', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   if (entries.isEmpty)
