@@ -43,6 +43,35 @@ class CustomerRepository {
     });
   }
 
+  Future<int> importCustomers(List<Map<String, Object?>> customers) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola pelanggan.');
+    if (customers.isEmpty) return 0;
+    final db = await _db;
+
+    return db.transaction((txn) async {
+      var imported = 0;
+      for (final customer in customers) {
+        final name = (customer['name'] ?? '').toString().trim();
+        if (name.isEmpty) continue;
+        final id = await txn.insert('customers', {
+          'name': name,
+          'phone': (customer['phone'] as String?)?.trim(),
+          'email': (customer['email'] as String?)?.trim(),
+          'photo_base64': customer['photo_base64'],
+        });
+        await ActivityLogRepository.record(
+          txn,
+          action: 'customer_created',
+          description: 'Mengimpor pelanggan $name dari kontak telepon.',
+          entityType: 'customer',
+          entityId: id,
+        );
+        imported++;
+      }
+      return imported;
+    });
+  }
+
   Future<int> updateCustomer({
     required int id,
     required String name,
