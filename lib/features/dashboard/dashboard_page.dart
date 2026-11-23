@@ -249,13 +249,13 @@ class _DashboardPageState extends State<DashboardPage> {
               child: const Icon(Icons.storefront_rounded, color: Color(0xFF5C6BC0), size: 24),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  SizedBox(height: 2),
-                  Text(AuthSession.instance.isMechanic ? 'Lihat tugas servis yang ditugaskan' : 'Kelola servis dan transaksi', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                  const Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(AuthSession.instance.isMechanic ? 'Lihat tugas servis yang ditugaskan' : 'Kelola servis dan transaksi', style: const TextStyle(color: Colors.grey, fontSize: 10)),
                 ],
               ),
             ),
