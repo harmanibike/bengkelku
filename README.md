@@ -139,6 +139,15 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [ ] Laporan laba rugi bersih, biaya operasional teralokasi, payroll/komisi otomatis, dan validasi menyeluruh; saat ini tersedia arus kas serta ringkasan laba kotor barang/servis.
 - [ ] Filter periode yang konsisten dan ekspor PDF/Excel.
 
+## Kebijakan hak akses printer
+
+Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya EPOS RPP02N:
+
+- Admin dan Kasir boleh melihat status printer, mencari/menghubungkan printer, memilih printer utama, melakukan tes cetak, dan mencetak struk.
+- Hanya Admin yang boleh mengubah pengaturan printer lanjutan.
+- Koneksi yang direncanakan mencakup Bluetooth, USB, dan Wi-Fi/LAN sesuai kemampuan perangkat dan protokol printer.
+- Kebijakan ini adalah ketentuan desain; fitur koneksi langsung dan layar pengaturan printer tetap berstatus belum diimplementasikan sampai kode dan pengujian tersedia.
+
 ## 11. Nota, struk, dan pencetakan
 
 - [x] Generate dan pratinjau nota penjualan serta servis dalam format PDF.
