@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/activity_log_repository.dart';
 
 class StockOpnameRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -34,6 +35,13 @@ class StockOpnameRepository {
       final count = Sqflite.firstIntValue(await txn.rawQuery(
         'SELECT COUNT(*) FROM stock_opname_items WHERE session_id=?', [id])) ?? 0;
       if (count == 0) throw StateError('Tidak ada produk aktif yang melacak stok.');
+      await ActivityLogRepository.record(
+        txn,
+        action: 'stock_opname_created',
+        description: 'Membuat sesi stok opname dengan $count produk.',
+        entityType: 'stock_opname',
+        entityId: id,
+      );
       return id;
     });
   }
@@ -132,6 +140,16 @@ class StockOpnameRepository {
       await txn.update('stock_opname_sessions',
         {'status':'applied','applied_at':now},
         where:'id=?',whereArgs:[sessionId]);
+      final changedCount = items.where((item) =>
+        (item['counted_quantity'] as int? ?? item['system_quantity'] as int? ?? 0) !=
+        (item['system_quantity'] as int? ?? 0)).length;
+      await ActivityLogRepository.record(
+        txn,
+        action: 'stock_opname_applied',
+        description: 'Menerapkan stok opname ${sessions.first['opname_number']} dengan $changedCount produk mengalami perubahan stok.',
+        entityType: 'stock_opname',
+        entityId: sessionId,
+      );
     });
   }
 }
