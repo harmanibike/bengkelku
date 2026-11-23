@@ -704,7 +704,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 const SizedBox(height: 7),
                 Text(complaint, maxLines: 2, overflow: TextOverflow.ellipsis),
               ],
-              if ((order['remaining_payment'] as int? ?? 0) > 0) ...[
+              if (!AuthSession.instance.isMechanic && (order['remaining_payment'] as int? ?? 0) > 0) ...[
                 const SizedBox(height: 6),
                 Text(
                   'Sisa tagihan: ${_rupiah(order['remaining_payment'])}',
@@ -722,8 +722,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
                     child: Text(_dateLabel(order['received_at']),
                         style: const TextStyle(fontSize: 11, color: Colors.grey)),
                   ),
-                  Text(_rupiah(order['total_cost']),
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (!AuthSession.instance.isMechanic)
+                    Text(_rupiah(order['total_cost']),
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       if (value == 'status') _changeStatus(order);
