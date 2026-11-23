@@ -115,6 +115,8 @@ class CashbookRepository {
       LEFT JOIN (
         SELECT purchase_id, SUM(amount) AS payment_total
         FROM supplier_payments
+        WHERE datetime(payment_date) >= datetime(?)
+          AND datetime(payment_date) < datetime(?)
         GROUP BY purchase_id
       ) pay ON pay.purchase_id = p.id
       LEFT JOIN (
@@ -146,6 +148,7 @@ class CashbookRepository {
       )
       ORDER BY p.purchase_date DESC, p.id DESC
     ''', [
+      start.toIso8601String(), end.toIso8601String(),
       start.toIso8601String(), end.toIso8601String(),
       start.toIso8601String(), end.toIso8601String(),
       start.toIso8601String(), end.toIso8601String(),
