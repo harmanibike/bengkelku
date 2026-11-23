@@ -126,6 +126,22 @@ class AccountRepository {
     );
   }
 
+  /// Daftar akun mekanik aktif untuk penugasan servis.
+  /// Kasir boleh membaca nama mekanik, tetapi tidak dapat mengelola akun.
+  Future<List<Map<String, Object?>>> getActiveMechanics() async {
+    AuthSession.instance.requireCashierOrAdmin(
+      'Hanya Admin dan Kasir yang dapat melihat daftar mekanik.',
+    );
+    final db = await _db;
+    return db.query(
+      'app_users',
+      columns: ['id', 'display_name', 'role', 'is_active'],
+      where: 'role = ? AND is_active = ?',
+      whereArgs: ['mechanic', 1],
+      orderBy: 'display_name COLLATE NOCASE',
+    );
+  }
+
   Future<int> setAccountActive({
     required int id,
     required bool active,
