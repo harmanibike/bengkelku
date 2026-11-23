@@ -7,6 +7,7 @@ import '../../../core/auth/auth_session.dart';
 import '../../settings/data/account_repository.dart';
 
 import '../../customers/data/customer_repository.dart';
+import '../../products/data/product_repository.dart';
 import '../data/service_repository.dart';
 import '../data/service_pricing_repository.dart';
 import 'service_photo_helper.dart';
@@ -23,6 +24,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   final _customerRepository = CustomerRepository();
   final _serviceRepository = ServiceRepository();
   final _pricingRepository = ServicePricingRepository();
+  final _productRepository = ProductRepository();
 
   final _complaintController = TextEditingController();
   final _diagnosisController = TextEditingController();
@@ -52,6 +54,11 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   List<Map<String, Object?>> _bicycles = [];
   List<Map<String, Object?>> _serviceCatalog = [];
   List<Map<String, Object?>> _mechanics = [];
+  final _partSearchController = TextEditingController();
+  List<Map<String, Object?>> _partSearchResults = [];
+  List<Map<String, Object?>> _selectedParts = [];
+  bool _searchingParts = false;
+  int _partSearchToken = 0;
   int? _selectedMechanicId;
   int? _selectedCatalogServiceId;
   bool _laborPriceUnlocked = false;
@@ -83,6 +90,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     _downPaymentController.dispose();
     _mechanicController.dispose();
     _notesController.dispose();
+    _partSearchController.dispose();
     _customerSearchController.dispose();
     _guestNameController.dispose();
     _guestPhoneController.dispose();
@@ -175,6 +183,155 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     }
   }
 
+
+
+  Future<void> _searchParts(String keyword) async {
+    final token = ++_partSearchToken;
+    if (keyword.trim().isEmpty) {
+      if (mounted) setState(() { _partSearchResults = []; _searchingParts = false; });
+      return;
+    }
+    setState(() => _searchingParts = true);
+    try {
+      final results = await _productRepository.getProducts(keyword: keyword.trim(), limit: 20);
+      if (!mounted || token != _partSearchToken) return;
+      final selectedIds = _selectedParts.map((item) => item['product_id']).toSet();
+      setState(() {
+        _partSearchResults = results.where((item) => !selectedIds.contains(item['id'])).toList();
+        _searchingParts = false;
+      });
+    } catch (error) {
+      if (!mounted || token != _partSearchToken) return;
+      setState(() => _searchingParts = false);
+      _showMessage('Gagal mencari sparepart: $error');
+    }
+  }
+
+  void _refreshPartsTotal() {
+    final total = _selectedParts.fold<int>(0, (sum, item) =>
+      sum + ((item['quantity'] as int) * (item['unit_price'] as int)));
+    _partsController.text = total.toString();
+  }
+
+  void _addPart(Map<String, Object?> product) {
+    final tracked = (product['track_stock'] as int? ?? 0) == 1;
+    final stock = product['stock'] as int? ?? 0;
+    if (tracked && stock < 1) {
+      _showMessage('Stok ${product['name']} kosong.');
+      return;
+    }
+    setState(() {
+      _selectedParts.add({
+        'product_id': product['id'],
+        'item_name': product['name']?.toString() ?? 'Sparepart',
+        'unit': product['unit']?.toString() ?? 'pcs',
+        'quantity': 1,
+        'unit_price': product['selling_price'] as int? ?? 0,
+        'purchase_price': product['purchase_price'] as int? ?? 0,
+        'track_stock': tracked,
+        'stock_available': stock,
+      });
+      _partSearchController.clear();
+      _partSearchResults = [];
+      _refreshPartsTotal();
+    });
+  }
+
+  void _changePartQuantity(int index, int delta) {
+    final item = _selectedParts[index];
+    final next = (item['quantity'] as int) + delta;
+    if (next < 1) return;
+    if (item['track_stock'] == true && next > (item['stock_available'] as int)) {
+      _showMessage('Jumlah melebihi stok ${item['stock_available']}.');
+      return;
+    }
+    setState(() {
+      item['quantity'] = next;
+      _refreshPartsTotal();
+    });
+  }
+
+  void _removePart(int index) {
+    setState(() {
+      _selectedParts.removeAt(index);
+      _refreshPartsTotal();
+    });
+  }
+
+  Widget _servicePartsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Sparepart yang digunakan', Icons.settings_outlined),
+        const Text('Pilih beberapa barang dari katalog. Stok barang yang dilacak akan berkurang saat nota servis disimpan.'),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _partSearchController,
+          decoration: InputDecoration(
+            labelText: 'Cari sparepart / barang',
+            hintText: 'Nama, SKU, atau barcode',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _searchingParts
+              ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+              : IconButton(icon: const Icon(Icons.clear), onPressed: () {
+                  _partSearchController.clear();
+                  setState(() => _partSearchResults = []);
+                }),
+          ),
+          onChanged: _searchParts,
+        ),
+        if (_partSearchResults.isNotEmpty)
+          Container(
+            constraints: const BoxConstraints(maxHeight: 210),
+            margin: const EdgeInsets.only(top: 5),
+            decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(8)),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: _partSearchResults.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final product = _partSearchResults[index];
+                final tracked = (product['track_stock'] as int? ?? 0) == 1;
+                final stock = product['stock'] as int? ?? 0;
+                return ListTile(
+                  dense: true,
+                  title: Text(product['name']?.toString() ?? 'Barang'),
+                  subtitle: Text('Rp${product['selling_price'] ?? 0} • Stok: ${tracked ? stock : 'Tidak dilacak'}'),
+                  trailing: const Icon(Icons.add_circle_outline),
+                  enabled: !tracked || stock > 0,
+                  onTap: () => _addPart(product),
+                );
+              },
+            ),
+          ),
+        if (_selectedParts.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          ...List.generate(_selectedParts.length, (index) {
+            final item = _selectedParts[index];
+            final qty = item['quantity'] as int;
+            final price = item['unit_price'] as int;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Row(children: [
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(item['item_name'].toString(), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Text('Rp$price × $qty = Rp${price * qty}', style: Theme.of(context).textTheme.bodySmall),
+                  ])),
+                  IconButton(onPressed: () => _changePartQuantity(index, -1), icon: const Icon(Icons.remove_circle_outline)),
+                  Text('$qty'),
+                  IconButton(onPressed: () => _changePartQuantity(index, 1), icon: const Icon(Icons.add_circle_outline)),
+                  IconButton(onPressed: () => _removePart(index), icon: const Icon(Icons.delete_outline, color: Colors.red)),
+                ]),
+              ),
+            );
+          }),
+        ],
+      ],
+    );
+  }
 
   Future<void> _loadMechanics() async {
     try {
@@ -313,6 +470,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
         estimatedCost: _amount(_estimateController),
         laborCost: _amount(_laborController),
         partsCost: _amount(_partsController),
+        items: _selectedParts.map((item) => Map<String, Object?>.from(item)).toList(),
         directPartsCost: _amount(_directPartsCostController),
         otherDirectCost: _amount(_otherDirectCostController),
         discount: _amount(_discountController),
@@ -729,17 +887,11 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         const SizedBox(height: 8),
                       _moneyField('Estimasi biaya', _estimateController),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _moneyField('Jasa servis', _laborController, readOnly: !_laborPriceUnlocked, onTap: _laborPriceUnlocked ? null : _unlockLaborPrice),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _moneyField('Biaya sparepart', _partsController),
-                          ),
-                        ],
-                      ),
+                      _moneyField('Jasa servis', _laborController, readOnly: !_laborPriceUnlocked, onTap: _laborPriceUnlocked ? null : _unlockLaborPrice),
+                      const SizedBox(height: 10),
+                      _servicePartsSection(),
+                      const SizedBox(height: 8),
+                      _moneyField('Biaya sparepart', _partsController, readOnly: _selectedParts.isNotEmpty),
                       const SizedBox(height: 8),
                       if (AuthSession.instance.isAdmin) ...[
                       Row(
