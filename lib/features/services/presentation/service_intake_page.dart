@@ -35,6 +35,10 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   final _downPaymentController = TextEditingController(text: '0');
   final _mechanicController = TextEditingController();
   final _notesController = TextEditingController();
+  final _customerSearchController = TextEditingController();
+  List<Map<String, Object?>> _customerSearchResults = [];
+  bool _searchingCustomers = false;
+  int _customerSearchToken = 0;
 
   List<Map<String, Object?>> _customers = [];
   List<Map<String, Object?>> _bicycles = [];
@@ -71,6 +75,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     _downPaymentController.dispose();
     _mechanicController.dispose();
     _notesController.dispose();
+    _customerSearchController.dispose();
     super.dispose();
   }
 
@@ -87,6 +92,45 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       setState(() => _loading = false);
       _showMessage('Gagal memuat pelanggan: $error');
     }
+  }
+
+  Future<void> _searchCustomers(String keyword) async {
+    final token = ++_customerSearchToken;
+    if (keyword.trim().isEmpty) {
+      if (mounted) setState(() {
+        _customerSearchResults = [];
+        _searchingCustomers = false;
+      });
+      return;
+    }
+    setState(() => _searchingCustomers = true);
+    try {
+      final results = await _customerRepository.getCustomers(
+        keyword: keyword.trim(),
+        limit: 20,
+      );
+      if (!mounted || token != _customerSearchToken) return;
+      setState(() {
+        _customerSearchResults = results;
+        _searchingCustomers = false;
+      });
+    } catch (error) {
+      if (!mounted || token != _customerSearchToken) return;
+      setState(() => _searchingCustomers = false);
+      _showMessage('Gagal mencari pelanggan: $error');
+    }
+  }
+
+  void _selectCustomer(Map<String, Object?> customer) {
+    final id = customer['id'] as int;
+    _customerSearchController.text = customer['name']?.toString() ?? '';
+    setState(() {
+      _selectedCustomerId = id;
+      _selectedBicycleId = null;
+      _bicycles = [];
+      _customerSearchResults = [];
+    });
+    _loadBicycles(id);
   }
 
   Future<void> _loadBicycles(int customerId) async {
@@ -390,37 +434,92 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       _sectionTitle('Data pelanggan & sepeda', Icons.pedal_bike),
-                      DropdownButtonFormField<int>(
-                        initialValue: _selectedCustomerId,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Pelanggan *',
-                          border: OutlineInputBorder(),
+                      TextFormField(
+                        controller: _customerSearchController,
+                        decoration: InputDecoration(
+                          labelText: 'Cari pelanggan *',
+                          hintText: 'Ketik nama atau nomor HP',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchingCustomers
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(width: 18, height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2)),
+                                )
+                              : IconButton(
+                                  tooltip: 'Hapus pencarian',
+                                  onPressed: () {
+                                    _customerSearchController.clear();
+                                    setState(() {
+                                      _selectedCustomerId = null;
+                                      _selectedBicycleId = null;
+                                      _bicycles = [];
+                                      _customerSearchResults = [];
+                                    });
+                                  },
+                                  icon: const Icon(Icons.close),
+                                ),
+                          border: const OutlineInputBorder(),
                         ),
-                        items: _customers.map((customer) {
-                          final id = customer['id'] as int;
-                          final name = customer['name']?.toString() ?? '';
-                          final phone = customer['phone']?.toString() ?? '';
-                          return DropdownMenuItem(
-                            value: id,
-                            child: Text(
-                              phone.isEmpty ? name : '$name • $phone',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() {
-                            _selectedCustomerId = value;
-                            _selectedBicycleId = null;
-                            _bicycles = [];
-                          });
-                          _loadBicycles(value);
-                        },
-                        validator: (value) =>
-                            value == null ? 'Pilih pelanggan' : null,
+                        onChanged: _searchCustomers,
+                        validator: (_) => _selectedCustomerId == null
+                            ? 'Cari dan pilih pelanggan terlebih dahulu'
+                            : null,
                       ),
+                      if (_selectedCustomerId != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(children: [
+                            const Icon(Icons.check_circle, color: Colors.green, size: 18),
+                            const SizedBox(width: 6),
+                            Expanded(child: Text(
+                              'Pelanggan dipilih: ${_customerSearchController.text}',
+                              style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
+                            )),
+                            TextButton(
+                              onPressed: () => setState(() {
+                                _selectedCustomerId = null;
+                                _selectedBicycleId = null;
+                                _bicycles = [];
+                                _customerSearchController.clear();
+                              }),
+                              child: const Text('Ganti'),
+                            ),
+                          ]),
+                        ),
+                      if (_customerSearchResults.isNotEmpty && _selectedCustomerId == null)
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 220),
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Theme.of(context).dividerColor),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: _customerSearchResults.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final customer = _customerSearchResults[index];
+                              final name = customer['name']?.toString() ?? '-';
+                              final phone = customer['phone']?.toString() ?? '';
+                              return ListTile(
+                                dense: true,
+                                leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                                title: Text(name),
+                                subtitle: Text(phone.isEmpty ? 'Tanpa nomor HP' : phone),
+                                onTap: () => _selectCustomer(customer),
+                              );
+                            },
+                          ),
+                        )
+                      else if (_customerSearchController.text.trim().isNotEmpty &&
+                          _selectedCustomerId == null && !_searchingCustomers)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text('Pelanggan tidak ditemukan. Pilih mode Pelanggan Umum untuk pelanggan tanpa data terdaftar.',
+                            style: TextStyle(color: Colors.deepOrange)),
+                        ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
                         initialValue: _selectedBicycleId,
