@@ -64,9 +64,9 @@ class CashbookRepository {
           CASE
             WHEN c.amount <= 0 THEN 'Nominal harus lebih dari nol'
             WHEN c.transaction_type NOT IN ('income', 'expense') THEN 'Jenis kas tidak valid'
-            WHEN c.reference_type IN ('sale', 'sale_payment', 'service_order', 'purchase_return_refund')
+            WHEN c.reference_type IN ('sale', 'sale_payment', 'service_order', 'purchase_return_refund', 'customer_deposit', 'tip')
               AND c.transaction_type != 'income' THEN 'Arah transaksi seharusnya kas masuk'
-            WHEN c.reference_type IN ('sale_cancel', 'service_order_cancellation', 'purchase_payment', 'purchase_cancel')
+            WHEN c.reference_type IN ('sale_cancel', 'service_order_cancellation', 'purchase_payment', 'purchase_cancel', 'tip_handover')
               AND c.transaction_type != 'expense' THEN 'Arah transaksi seharusnya kas keluar'
             WHEN c.reference_type IS NULL OR c.reference_type = '' THEN 'Sumber transaksi tidak tercatat'
             WHEN c.reference_type = 'manual_cash' AND c.reference_id IS NOT NULL THEN 'Transaksi manual memiliki ID referensi'
@@ -82,10 +82,17 @@ class CashbookRepository {
             WHEN c.reference_type = 'purchase_return_refund'
               AND NOT EXISTS (SELECT 1 FROM purchase_returns r WHERE r.id = c.reference_id)
               THEN 'Dokumen retur pembelian tidak ditemukan'
+            WHEN c.reference_type = 'customer_deposit'
+              AND NOT EXISTS (SELECT 1 FROM customer_wallet_ledger w WHERE w.id = c.reference_id AND w.entry_type = 'deposit')
+              THEN 'Catatan deposit pelanggan tidak ditemukan'
+            WHEN c.reference_type IN ('tip', 'tip_handover')
+              AND NOT EXISTS (SELECT 1 FROM tip_transactions t WHERE t.id = c.reference_id)
+              THEN 'Catatan uang tip tidak ditemukan'
             WHEN c.reference_type NOT IN (
               'manual_cash', 'sale', 'sale_payment', 'sale_cancel',
               'service_order', 'service_order_cancellation',
-              'purchase_payment', 'purchase_cancel', 'purchase_return_refund'
+              'purchase_payment', 'purchase_cancel', 'purchase_return_refund',
+              'customer_deposit', 'tip', 'tip_handover'
             ) THEN 'Jenis sumber transaksi belum dikenali'
             ELSE NULL
           END AS audit_issue
