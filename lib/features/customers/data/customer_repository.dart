@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/activity_log_repository.dart';
+import '../../../core/auth/auth_session.dart';
 
 class CustomerRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -18,6 +19,7 @@ class CustomerRepository {
     String? email,
     String? notes,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola pelanggan.');
     final db = await _db;
 
     return db.transaction((txn) async {
@@ -47,6 +49,7 @@ class CustomerRepository {
     String? email,
     String? notes,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola pelanggan.');
     final db = await _db;
 
     return db.transaction((txn) async {
@@ -79,6 +82,7 @@ class CustomerRepository {
   Future<List<Map<String, Object?>>> getCustomers({
     String keyword = '',
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat pelanggan.');
     final db = await _db;
     final search = '%${keyword.trim()}%';
 
@@ -95,6 +99,7 @@ class CustomerRepository {
   }
 
   Future<Map<String, Object?>?> getCustomerById(int id) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat pelanggan.');
     final db = await _db;
     final result = await db.query(
       'customers',
@@ -107,6 +112,7 @@ class CustomerRepository {
   }
 
   Future<int> deleteCustomer(int id) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat menghapus pelanggan.');
     final db = await _db;
 
     // Riwayat transaksi tetap aman.
@@ -129,6 +135,7 @@ class CustomerRepository {
   }
 
   Future<int> countCustomers() async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat data pelanggan.');
     final db = await _db;
     final result = await db.rawQuery(
       'SELECT COUNT(*) AS total FROM customers',
@@ -153,6 +160,7 @@ class CustomerRepository {
     String? warrantyUntil,
     String? notes,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola sepeda pelanggan.');
     final db = await _db;
 
     return db.transaction((txn) async {
@@ -192,6 +200,7 @@ class CustomerRepository {
     String? warrantyUntil,
     String? notes,
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola sepeda pelanggan.');
     final db = await _db;
 
     return db.update(
@@ -217,6 +226,7 @@ class CustomerRepository {
     int? customerId,
     String keyword = '',
   }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat sepeda pelanggan.');
     final db = await _db;
     final conditions = <String>[];
     final arguments = <Object?>[];
@@ -253,6 +263,7 @@ class CustomerRepository {
   }
 
   Future<Map<String, Object?>?> getBicycleById(int id) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat sepeda pelanggan.');
     final db = await _db;
     final result = await db.query(
       'bicycles',
@@ -265,6 +276,7 @@ class CustomerRepository {
   }
 
   Future<int> deleteBicycle(int id) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat menghapus data sepeda.');
     final db = await _db;
 
     return db.delete(
@@ -275,6 +287,7 @@ class CustomerRepository {
   }
 
   Future<int> countBicycles() async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat data sepeda.');
     final db = await _db;
     final result = await db.rawQuery(
       'SELECT COUNT(*) AS total FROM bicycles',
