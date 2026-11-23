@@ -358,7 +358,7 @@ class ReceiptDocumentService {
                   child: pw.Text(
                     value,
                     textAlign: pw.TextAlign.right,
-                    style: pw.TextStyle(fontSize: 8, fontWeight: weight),
+                    style: pw.TextStyle(fontSize: 8 * (settings?.fontScale ?? 1), fontWeight: weight),
                   ),
                 ),
               ],
