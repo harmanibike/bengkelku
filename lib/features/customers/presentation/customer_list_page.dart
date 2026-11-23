@@ -1,7 +1,7 @@
 
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
+import 'package:image/image.dart' as img;
 
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -53,27 +53,17 @@ class _CustomerListPageState extends State<CustomerListPage> {
   // Simpan foto pelanggan dalam ukuran kecil agar kolom Base64 tidak
   // membengkak dan daftar pelanggan lebih ringan saat memuat foto.
   Future<Uint8List> _compressPhoto(Uint8List bytes) async {
-    final codec = await ui.instantiateImageCodec(
-      bytes,
-      targetWidth: 320,
-      targetHeight: 320,
-      allowUpscaling: false,
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return bytes;
+    final resized = img.copyResize(
+      decoded,
+      width: 320,
+      height: 320,
+      maintainAspect: true,
+      interpolation: img.Interpolation.average,
     );
-    try {
-      final frame = await codec.getNextFrame();
-      try {
-        final data = await frame.image.toByteData(
-          format: ui.ImageByteFormat.jpeg,
-        );
-        return data?.buffer.asUint8List() ?? bytes;
-      } finally {
-        frame.image.dispose();
-      }
-    } finally {
-      codec.dispose();
-    }
+    return Uint8List.fromList(img.encodeJpg(resized, quality: 70));
   }
-
   Future<void> _showCustomerForm({
     Map<String, Object?>? customer,
   }) async {
