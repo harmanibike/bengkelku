@@ -190,7 +190,7 @@ class _ProductListPageState extends State<ProductListPage> {
                       TextFormField(controller: barcode, decoration: const InputDecoration(labelText: 'Barcode', border: OutlineInputBorder())),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
-                        value: categories.any((item) => item['name']?.toString() == category.text)
+                        initialValue: categories.any((item) => item['name']?.toString() == category.text)
                             ? category.text
                             : '',
                         decoration: const InputDecoration(labelText: 'Kategori', border: OutlineInputBorder()),
