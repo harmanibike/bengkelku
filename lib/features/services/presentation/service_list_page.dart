@@ -665,6 +665,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
             ),
           ),
         ],
+      ),
     );
 
     if (!mounted) return;
