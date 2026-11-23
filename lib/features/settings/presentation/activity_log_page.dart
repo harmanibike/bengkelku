@@ -20,6 +20,16 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
     _logs = _repository.getRecent();
   }
 
+  Future<void> _reload() async {
+    final nextLogs = _repository.getRecent();
+    setState(() => _logs = nextLogs);
+    try {
+      await nextLogs;
+    } catch (_) {
+      // FutureBuilder displays the loading error.
+    }
+  }
+
   String _date(Object? value) {
     final date = DateTime.tryParse(value?.toString() ?? '')?.toLocal();
     if (date == null) return '-';
@@ -50,7 +60,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
         actions: [
           IconButton(
             tooltip: 'Muat ulang',
-            onPressed: () => setState(() => _logs = _repository.getRecent()),
+            onPressed: _reload,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -69,7 +79,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
             return const Center(child: Text('Belum ada aktivitas yang tercatat.'));
           }
           return RefreshIndicator(
-            onRefresh: () async => setState(() => _logs = _repository.getRecent()),
+            onRefresh: _reload,
             child: ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: logs.length,
