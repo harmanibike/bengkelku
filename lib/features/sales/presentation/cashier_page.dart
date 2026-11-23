@@ -368,6 +368,14 @@ class _CashierPageState extends State<CashierPage> {
                       ],
                     ),
                   )
+                if (matchedCustomer != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Saldo deposit tersedia: ${_rupiah((matchedCustomer!['wallet_balance'] as num?)?.toInt() ?? 0)}',
+                      style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+                    ),
+                  )
                 else if (buyerNameController.text.trim().length >= 3)
                   const Padding(
                     padding: EdgeInsets.only(top: 5),
