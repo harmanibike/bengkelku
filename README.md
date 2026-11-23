@@ -2,6 +2,16 @@
 
 Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepeda. Roadmap ini menjadi acuan resmi pengembangan dan harus mencerminkan kondisi kode yang benar-benar tersedia.
 
+## Ringkasan audit kode (24 November 2026)
+
+Audit ini adalah pemeriksaan statis terhadap struktur repository, halaman, repository data, database, dan tes yang tersedia. Status [x] berarti implementasi/fondasi ditemukan di kode, bukan jaminan semua alur telah lulus uji perangkat. Pipeline untuk perubahan antrian terbaru masih berjalan saat README ini diperbarui.
+
+**Sudah memiliki implementasi utama:** transaksi kasir dan stok; servis multi-sparepart dan pembayaran bertahap; pelanggan dan data sepeda; pembelian, pemasok, retur pembelian; piutang servis/penjualan; buku kas dan sebagian pemeriksaan rekonsiliasi; laporan dasar; akun Admin/Kasir/Mekanik; backup/restore lokal; format nota PDF/PNG; pengaturan printer Bluetooth dan tes cetak 58 mm; pengingat stok; loyalty/reward; serta fondasi antrian servis.
+
+**Belum lengkap atau belum terverifikasi:** cetak nota transaksi langsung ke printer thermal, USB/Wi-Fi printer, laci uang fisik, laporan keuangan lengkap dan ekspor, payroll/komisi, pengingat servis/garansi, papan pemanggilan antrian, dan mode server-client multi-perangkat. Seluruh transaksi saat ini tetap offline pada database lokal perangkat.
+
+**Tes otomatis yang ditemukan di repository:** formatter mata uang, generator dokumen nota, transisi status servis, pemeriksaan koneksi client-server, dan widget dasar. Cakupan tes repository/transaksi database masih terbatas; audit fisik pada HP, printer, kamera, dan skenario backup/restore tetap diperlukan.
+
 ## Keterangan status
 
 - [x] Implementasi/fondasi fitur sudah tersedia di kode aplikasi.
@@ -20,7 +30,8 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 ## 2. Pelanggan
 
 - [x] Fondasi penyimpanan dan daftar pelanggan.
-- [ ] Tambah, edit, arsip, validasi nomor telepon, dan pencarian pelanggan secara lengkap.
+- [x] Tambah, edit, dan pencarian pelanggan.
+- [ ] Arsip pelanggan dan validasi nomor telepon yang lebih ketat.
 - [ ] Riwayat pembelian dan servis dalam satu profil pelanggan.
 - [ ] Daftar sepeda milik pelanggan dan catatan khusus.
 - [x] Data pelanggan terhubung dengan transaksi/piutang yang memerlukan identitas pelanggan.
@@ -30,7 +41,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 ## 3. Data sepeda
 
 - [x] Fondasi data sepeda pelanggan.
-- [ ] Merek, model, jenis, warna, ukuran frame, dan nomor rangka.
+- [x] Merek, model, jenis, warna, ukuran frame, nomor rangka, dan catatan sepeda.
 - [ ] Foto sepeda dan riwayat kepemilikan.
 - [ ] Riwayat servis/penggantian komponen per sepeda.
 - [ ] Informasi garansi sepeda.
@@ -48,13 +59,32 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Profil usaha (nama, alamat, telepon, WhatsApp, email, website, nomor pajak, logo, dan catatan bawah nota).
 - [x] Identitas usaha ditampilkan pada detail transaksi penjualan dan detail servis.
 - [x] Biaya modal sparepart dan biaya langsung lain servis dicatat terpisah dari harga jual, serta ditampilkan pada detail nota; input dan koreksi biaya aktual tersedia dari detail nota; riwayat nilai lama/baru dan waktu perubahan tersimpan; tidak mengubah tagihan pelanggan atau mengurangi stok otomatis.
-- [ ] Nomor nota servis dan format nota yang dapat dikonfigurasi.
-- [ ] Keluhan, diagnosis, estimasi, foto sebelum/sesudah, dan catatan mekanik yang lengkap.
-- [ ] Penentuan mekanik, biaya jasa/spare part, komisi, dan diskon servis.
+- [x] Nomor nota servis otomatis dan pengaturan tampilan/format dokumen 58/80 mm.
+- [x] Keluhan, diagnosis, estimasi biaya, catatan, dan foto sebelum servis.
+- [x] Foto sebelum/sesudah dapat disimpan dan dilihat sebagai dokumentasi internal; foto tidak dimasukkan ke nota, PDF/PNG, cetak, atau WhatsApp.
+- [ ] Catatan mekanik terstruktur dan foto sesudah pada seluruh alur servis masih perlu audit.
+- [x] Penugasan mekanik Admin/Kasir dan saran otomatis mekanik dengan pekerjaan aktif paling sedikit; pilihan manual tetap tersedia.
+- [x] Beberapa sparepart dalam satu nota servis, kalkulasi subtotal, validasi stok, dan pengurangan stok secara transaksional.
+- [x] Biaya jasa, sparepart, diskon, DP, pembayaran bertahap, dan sisa tagihan.
+- [ ] Perhitungan komisi mekanik otomatis.
 - [ ] Garansi pekerjaan servis.
 - [x] Buat pratinjau nota servis dalam PDF dan foto PNG, serta bagikan melalui menu berbagi Android; pilihan chat WhatsApp dan pengiriman tetap dilakukan manual oleh pengguna.
 - [x] Bukti penerimaan sepeda saat masuk bengkel dan bukti pelunasan servis sebagai dokumen terpisah; keduanya memiliki snapshot arsip sendiri. Bukti pelunasan hanya dapat diterbitkan saat sisa tagihan nol.
 - [x] Snapshot nota servis yang diterbitkan menyimpan data servis, pembayaran, dan profil usaha; arsip dapat dibuka ulang tanpa membaca ulang data transaksi terkini.
+
+
+## 4A. Antrian servis dan penugasan mekanik
+
+- [x] Nomor antrian otomatis per tanggal, format A001, A002, dan seterusnya; nomor dimulai kembali dari A001 pada hari berikutnya.
+- [x] Nomor antrian dan tanggal disimpan pada nota servis; migrasi database versi 30 menambahkan kolom antrian tanpa menghapus riwayat servis lama.
+- [x] Filter daftar servis untuk menampilkan antrian aktif (Menunggu, Pemeriksaan, dan Dikerjakan).
+- [x] Urutan daftar antrian berdasarkan prioritas terlebih dahulu, lalu nomor antrian/FIFO.
+- [x] Admin dapat memberi atau menghapus tanda prioritas.
+- [x] Form penerimaan menyarankan mekanik aktif dengan jumlah pekerjaan aktif paling sedikit; Admin/Kasir dapat memilih mekanik lain secara manual.
+- [ ] Tampilan papan antrian khusus/monitor eksternal, pemanggilan nomor, notifikasi pelanggan, estimasi waktu tunggu, dan cetak tiket antrian.
+- [ ] Pengujian antrian pada beberapa transaksi serentak dan perangkat fisik.
+
+**Catatan implementasi:** status aktif yang dihitung sebagai beban mekanik adalah Menunggu, Pemeriksaan, dan Dikerjakan. Status Selesai, Diambil, dan Dibatalkan tidak dihitung. Nomor antrian lama sebelum migrasi tidak dibuat ulang secara retroaktif.
 
 ## 5. Kasir penjualan (POS)
 
@@ -117,11 +147,11 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 
 ## 9. Karyawan dan mekanik
 
-- [ ] Data karyawan dan mekanik.
-- [ ] Akun pengguna dan autentikasi.
-- [ ] Hak akses admin, kasir, mekanik, dan pengelola stok.
-- [ ] Riwayat pekerjaan dan komisi mekanik.
-- [ ] Laporan kinerja karyawan.
+- [x] Akun lokal Admin, Kasir, dan Mekanik dengan login username/PIN.
+- [x] Admin dapat membuat, mengubah, dan menonaktifkan akun; akun pertama dibuat sebagai Admin.
+- [x] Pembatasan akses dasar: pengelolaan akun oleh Admin; Kasir dapat mengelola transaksi kasir dan servis; Mekanik hanya mengakses pekerjaan yang ditugaskan.
+- [x] Riwayat aktivitas akun untuk tindakan yang telah diintegrasikan ke activity log.
+- [ ] Data karyawan/HR, pengelola stok sebagai role terpisah, komisi otomatis, dan laporan kinerja.
 
 ## 10. Laporan
 
@@ -174,7 +204,9 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - [x] Buka layanan cetak Android dari pratinjau PDF.
 - [x] Arsip snapshot nota yang pernah diterbitkan dan buka ulang dari riwayat nota per transaksi.
 - [x] Bukti penerimaan sepeda saat masuk bengkel dan bukti pelunasan servis sebagai dokumen terpisah; keduanya memiliki snapshot arsip sendiri. Bukti pelunasan hanya dapat diterbitkan saat sisa tagihan nol.
-- [ ] Cetak langsung printer thermal Bluetooth/USB/Wi-Fi yang didukung, termasuk pengaturan koneksi dan perangkat.
+- [x] Cari, hubungkan, simpan/pilih printer Bluetooth, putuskan koneksi, dan tes cetak ESC/POS 58 mm tersedia untuk Admin/Kasir.
+- [ ] Cetak nota transaksi langsung melalui printer thermal belum terhubung; transaksi masih dicetak melalui layanan cetak Android dari PDF.
+- [ ] Dukungan USB dan Wi-Fi/LAN belum tersedia/terverifikasi; tes 80 mm dan kompatibilitas lintas merek/model belum diverifikasi.
 - [x] Menu Pengaturan untuk tampilan dan format struk: 58/80 mm, logo, nama/alamat/kontak usaha, data pelanggan, catatan transaksi, catatan bawah, skala teks, dan kerapatan; pengaturan tersimpan lokal dan diterapkan pada generator PDF/PNG.
 - [x] Menu Pengaturan sakelar ON/OFF buka laci otomatis tersimpan lokal.
 - [ ] Perintah ESC/POS untuk tes buka, buka manual, dan buka otomatis setelah pembayaran berhasil tersimpan; menunggu integrasi printer langsung dan uji perangkat.
@@ -185,9 +217,13 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - [x] Profil usaha dan logo.
 - [x] Pengaturan harga jasa dan PIN admin untuk override harga.
 - [x] Pengaturan metode pembayaran yang aktif pada kasir.
-- [ ] Pengaturan pajak, mata uang, nomor nota, koneksi printer, perintah laci uang, diskon, dan akun pengguna.
+- [x] Pengaturan akun pengguna dan hak akses.
+- [x] Pengaturan metode pembayaran, profil usaha, harga jasa, format struk, dan opsi pengingat stok/loyalty.
+- [x] Penyimpanan printer Bluetooth utama dan tes cetak ESC/POS 58 mm.
+- [ ] Pengaturan pajak, mata uang dinamis, dan integrasi perintah laci uang.
 - [x] Pengaturan tampilan/format struk dan sakelar otomatis laci uang tersimpan di tabel app_settings.
-- [ ] Backup database, restore, dan ekspor data yang telah diuji.
+- [x] Menu backup dan restore database lokal tersedia dengan validasi file dan salinan pengaman sebelum pemulihan.
+- [ ] Ekspor data bisnis terpilih (CSV/Excel) dan pengujian pemulihan lintas versi/perangkat.
 
 ## 13. Multi-perangkat
 
@@ -219,22 +255,24 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - [x] Migrasi database bertahap sampai skema yang digunakan fitur saat ini; migrasi baru wajib diuji dan tidak boleh menghapus data lama.
 - [x] Pengujian otomatis dijalankan pada pipeline CI.
 - [x] Pipeline CI memiliki tahap build APK release dan verifikasi tanda tangan.
-- [ ] Backup/restore yang teruji pada perangkat.
+- [x] Backup database ke file .db dan pemulihan dari file backup dengan validasi integritas, versi, tabel penting, serta salinan pengaman sebelum restore.
+- [ ] Uji backup/restore pada berbagai perangkat dan skenario kegagalan.
 - [ ] Audit menyeluruh persistensi data setelah aplikasi ditutup/dibuka.
 - [ ] Uji perangkat fisik untuk alur utama, printer, kamera, dan berbagi file.
 - [ ] Pengamanan akun/hak akses dan pencatatan aktivitas pengguna.
 
 ## 15. Pengingat dan fitur tambahan
 
-- [x] Daftar piutang gabungan servis dan penjualan barang.
+- [x] Daftar piutang gabungan servis dan penjualan barang, termasuk pelanggan umum/guest.
 - [x] Filter/pencarian piutang dan rincian sisa tagihan.
 - [x] Rincian piutang per nota menampilkan total, pembayaran, sisa, serta riwayat pembayaran; penjualan juga menampilkan retur dan refund.
 - [x] Detail pemasok menampilkan riwayat faktur, pembayaran, kredit retur, dan nilai retur; faktur batal tidak dihitung sebagai utang aktif.
 - [x] Membuka WhatsApp dengan template pengingat yang dapat ditinjau pengguna.
 - [x] Log mencatat waktu WhatsApp dibuka untuk pengingat; aplikasi tidak mengirim pesan otomatis.
 - [ ] Pengingat servis berkala dan garansi.
-- [ ] Notifikasi stok minimum yang dapat dikonfigurasi.
-- [ ] Loyalitas, poin, voucher, multi-cabang, dan sinkronisasi cloud opsional.
+- [x] Pengaturan pengingat stok: aktif/nonaktif, batas Minimum Stok atau stok habis, izin notifikasi Android, dan pengingat berkala.
+- [x] Program poin loyalty: aturan perolehan poin dari transaksi penjualan yang memenuhi syarat, saldo/ledger, pembalikan poin saat pembatalan/retur, katalog reward, dan penukaran poin.
+- [ ] Voucher/diskon otomatis saat checkout, masa berlaku poin/reward, multi-cabang, dan sinkronisasi cloud.
 
 ## Prioritas pengerjaan saat ini
 
