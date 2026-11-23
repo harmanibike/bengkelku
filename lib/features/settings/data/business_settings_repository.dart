@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class LoyaltySettings {
   const LoyaltySettings({
@@ -120,12 +121,16 @@ class BusinessSettingsRepository {
   Future<LoyaltySettings> getLoyaltySettings() async =>
       LoyaltySettings.fromJson(await _read(_loyaltyKey) ?? {});
 
-  Future<void> saveLoyaltySettings(LoyaltySettings settings) =>
-      _write(_loyaltyKey, settings.toJson());
+  Future<void> saveLoyaltySettings(LoyaltySettings settings) {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah pengaturan poin.');
+    return _write(_loyaltyKey, settings.toJson());
+  }
 
   Future<StockReminderSettings> getStockReminderSettings() async =>
       StockReminderSettings.fromJson(await _read(_stockReminderKey) ?? {});
 
-  Future<void> saveStockReminderSettings(StockReminderSettings settings) =>
-      _write(_stockReminderKey, settings.toJson());
+  Future<void> saveStockReminderSettings(StockReminderSettings settings) {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah pengingat stok.');
+    return _write(_stockReminderKey, settings.toJson());
+  }
 }
