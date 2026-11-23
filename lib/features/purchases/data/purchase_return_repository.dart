@@ -308,6 +308,12 @@ class PurchaseReturnRepository {
           columns: ['stock', 'track_stock', 'purchase_price'],
           where: 'id = ?', whereArgs: [productId], limit: 1);
         if (products.isEmpty || (products.first['track_stock'] as int? ?? 1) != 1) continue;
+        await txn.update(
+          'purchase_return_items',
+          {'stock_deducted': 1},
+          where: 'id = ?',
+          whereArgs: [returnItemId],
+        );
         final before = products.first['stock'] as int? ?? 0;
         final quantity = item['quantity'] as int;
         if (before < quantity) {
@@ -505,7 +511,9 @@ class PurchaseReturnRepository {
       for (final item in returnItems) {
         final productId = (item['product_id'] as num?)?.toInt();
         final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-        if (productId != null && quantity > 0) {
+        final stockDeducted = (item['stock_deducted'] as num?)?.toInt();
+        // NULL = data lama tanpa snapshot; verifikasi wajib lewat movement history.
+        if (productId != null && quantity > 0 && stockDeducted != 0) {
           expectedByProduct[productId] =
               (expectedByProduct[productId] ?? 0) + quantity;
         }
@@ -545,8 +553,11 @@ class PurchaseReturnRepository {
         final itemId = (item['id'] as num?)?.toInt();
         final expected = (item['quantity'] as num?)?.toInt() ?? 0;
         final productId = (item['product_id'] as num?)?.toInt();
-        final stockWasDeducted =
-            productId != null && restoreByProduct.containsKey(productId);
+        final stockDeducted = (item['stock_deducted'] as num?)?.toInt();
+        final stockWasDeducted = productId != null &&
+            (stockDeducted == 1 ||
+                (stockDeducted == null &&
+                    restoreByProduct.containsKey(productId)));
         if (stockWasDeducted &&
             (itemId == null || (allocationByItem[itemId] ?? 0) != expected)) {
           throw StateError('Alokasi batch retur tidak lengkap. Pembatalan otomatis dihentikan untuk menjaga stok.');
