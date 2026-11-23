@@ -6,6 +6,8 @@ import 'account_pages.dart';
 import 'activity_log_page.dart';
 import 'database_backup_page.dart';
 import 'device_mode_page.dart';
+import 'receipt_settings_page.dart';
+import 'cash_drawer_settings_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -100,6 +102,24 @@ class SettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text('Transaksi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.receipt_long_rounded,
+            color: const Color(0xFF00897B),
+            title: 'Tampilan & Format Struk',
+            subtitle: 'Ukuran kertas, elemen nota, ukuran teks, dan jarak',
+            page: const ReceiptSettingsPage(),
+          ),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.point_of_sale_rounded,
+            color: const Color(0xFFEF6C00),
+            title: 'Laci Uang Otomatis',
+            subtitle: 'Atur buka otomatis setelah pembayaran berhasil',
+            page: const CashDrawerSettingsPage(),
+          ),
           const SizedBox(height: 8),
           _item(
             context: context,
