@@ -7,6 +7,12 @@ import '../../../core/auth/activity_log_repository.dart';
 class ServiceRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
+  void _requireSignedIn() {
+    if (AuthSession.instance.user == null) {
+      throw StateError('Silakan login untuk mengakses data servis.');
+    }
+  }
+
   static const List<String> serviceStatuses = [
     'waiting',
     'checking',
@@ -58,9 +64,7 @@ class ServiceRepository {
     String? beforePhotoPath,
     List<Map<String, Object?>> items = const [],
   }) async {
-    if (AuthSession.instance.isMechanic) {
-      throw StateError('Akun Mekanik tidak dapat membuat nota servis.');
-    }
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat membuat nota servis.');
     final db = await _db;
 
     final cleanComplaint = complaint.trim();
@@ -343,6 +347,7 @@ class ServiceRepository {
     String? status,
     int? assignedMechanicId,
   }) async {
+    _requireSignedIn();
     final db = await _db;
     final conditions = <String>[];
     final arguments = <Object?>[];
@@ -427,6 +432,7 @@ class ServiceRepository {
 
   // Detail satu nota servis.
   Future<Map<String, Object?>?> getServiceOrderById(int id) async {
+    _requireSignedIn();
     final db = await _db;
     final session = AuthSession.instance;
     if (session.isMechanic && session.userId == null) {
@@ -594,6 +600,7 @@ class ServiceRepository {
   }
 
   Future<List<Map<String, Object?>>> getActiveSpareparts({String keyword = ''}) async {
+    _requireSignedIn();
     final db = await _db;
     final term = keyword.trim();
     return db.query(
@@ -618,7 +625,7 @@ class ServiceRepository {
     String? mechanicNote,
   }) async {
     final session = AuthSession.instance;
-    if (!session.isMechanic) {
+    if (!session.isMechanic || session.userId == null) {
       throw StateError('Usulan sparepart hanya dapat dikirim melalui akun Mekanik.');
     }
     if (requestType != 'add' && requestType != 'cancel') {
@@ -1114,6 +1121,7 @@ class ServiceRepository {
     String? note,
     int? actingMechanicId,
   }) async {
+    _requireSignedIn();
     if (!serviceStatuses.contains(status)) {
       throw ArgumentError('Status servis tidak valid.');
     }
@@ -1273,9 +1281,7 @@ class ServiceRepository {
   Future<List<Map<String, Object?>>> getOutstandingServiceOrders({
     String keyword = '',
   }) async {
-    if (AuthSession.instance.isMechanic) {
-      throw StateError('Daftar piutang servis tidak tersedia untuk akun Mekanik.');
-    }
+    AuthSession.instance.requireCashierOrAdmin('Daftar piutang servis hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final term = keyword.trim();
     return db.rawQuery('''
@@ -1301,6 +1307,7 @@ class ServiceRepository {
   }
 
   Future<List<Map<String, Object?>>> getServiceStatusHistory(int id) async {
+    _requireSignedIn();
     final db = await _db;
     final session = AuthSession.instance;
     if (session.isMechanic) {
@@ -1321,6 +1328,7 @@ class ServiceRepository {
     String? beforePhotoPath,
     String? afterPhotoPath,
   }) async {
+    _requireSignedIn();
     final session = AuthSession.instance;
     if (session.isMechanic) {
       final dbCheck = await _db;
@@ -1397,9 +1405,7 @@ class ServiceRepository {
     int walletDepositAmount = 0,
     String? tipRecipientName,
   }) async {
-    if (AuthSession.instance.isMechanic) {
-      throw StateError('Akun Mekanik tidak memiliki akses pembayaran.');
-    }
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat memproses pembayaran servis.');
     if (amount <= 0) {
       throw ArgumentError('Jumlah pembayaran harus lebih dari nol.');
     }
@@ -1593,6 +1599,7 @@ class ServiceRepository {
   }
 
   Future<int> countServiceOrders({String? status}) async {
+    _requireSignedIn();
     final db = await _db;
     final session = AuthSession.instance;
 
