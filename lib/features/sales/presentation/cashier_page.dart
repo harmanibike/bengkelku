@@ -533,34 +533,100 @@ class _CashierPageState extends State<CashierPage> {
                 ? const Center(child: CircularProgressIndicator())
                 : _products.isEmpty
                     ? const Center(child: Text('Belum ada produk aktif. Tambahkan produk terlebih dahulu.'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        itemCount: _products.length,
-                        itemBuilder: (context, index) {
-                          final product = _products[index];
-                          final tracked = (product['track_stock'] as int? ?? 1) == 1;
-                          final stock = product['stock'] as int? ?? 0;
-                          return Card(
-                            child: ListTile(
-                              leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: SizedBox(
-                                  width: 52,
-                                  height: 52,
-                                  child: product['image_path'] != null && product['image_path'].toString().isNotEmpty
-                                      ? Image.file(File(product['image_path'].toString()), fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_outlined))
-                                      : const Icon(Icons.inventory_2_outlined),
-                                ),
-                              ),
-                              title: Text(product['name']?.toString() ?? '-'),
-                              subtitle: Text('${_rupiah(product['selling_price'] as int? ?? 0)} • ${tracked ? 'Stok: $stock' : 'Stok tidak dipantau'}'),
-                              trailing: IconButton(
-                                tooltip: 'Tambah ke keranjang',
-                                onPressed: tracked && stock <= 0 ? null : () => _addToCart(product),
-                                icon: const Icon(Icons.add_shopping_cart),
-                              ),
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final width = constraints.maxWidth;
+                          final columns = width >= 1100
+                              ? 5
+                              : width >= 800
+                                  ? 4
+                                  : width >= 560
+                                      ? 3
+                                      : 2;
+                          final isCompact = width < 560;
+                          return GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                            itemCount: _products.length,
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: columns,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: isCompact ? 0.78 : 0.88,
                             ),
+                            itemBuilder: (context, index) {
+                              final product = _products[index];
+                              final tracked = (product['track_stock'] as int? ?? 1) == 1;
+                              final stock = product['stock'] as int? ?? 0;
+                              final unavailable = tracked && stock <= 0;
+                              return Card(
+                                clipBehavior: Clip.antiAlias,
+                                margin: EdgeInsets.zero,
+                                child: InkWell(
+                                  onTap: unavailable ? null : () => _addToCart(product),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(9),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        Expanded(
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: product['image_path'] != null && product['image_path'].toString().isNotEmpty
+                                                ? Image.file(
+                                                    File(product['image_path'].toString()),
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.inventory_2_outlined, size: 34)),
+                                                  )
+                                                : const Center(child: Icon(Icons.inventory_2_outlined, size: 34)),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 7),
+                                        Text(
+                                          product['name']?.toString() ?? '-',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          _rupiah(product['selling_price'] as int? ?? 0),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          tracked ? 'Stok: $stock' : 'Stok tidak dipantau',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: unavailable ? Colors.red : Colors.black54,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        SizedBox(
+                                          height: 32,
+                                          child: FilledButton.tonalIcon(
+                                            onPressed: unavailable ? null : () => _addToCart(product),
+                                            icon: const Icon(Icons.add_shopping_cart, size: 16),
+                                            label: const Text('Tambah', style: TextStyle(fontSize: 11)),
+                                            style: FilledButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5),
+                                              visualDensity: VisualDensity.compact,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
