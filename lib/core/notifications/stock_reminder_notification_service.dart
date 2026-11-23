@@ -128,7 +128,6 @@ class StockReminderNotificationService {
             'updated_at': DateTime.now().toIso8601String(),
           }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
-        await _plugin.cancel(_notificationId);
       }
     } catch (_) {
       // Kegagalan notifikasi tidak boleh mengganggu transaksi atau operasi stok.
