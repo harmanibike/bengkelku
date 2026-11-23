@@ -98,6 +98,60 @@ class CashbookRepository {
     ''', [start.toIso8601String(), end.toIso8601String()]);
   }
 
+  /// Membandingkan riwayat pembayaran pemasok dengan kas keluar per faktur.
+  /// Hanya membaca data; tidak melakukan koreksi otomatis.
+  Future<List<Map<String, Object?>>> getSupplierPaymentMismatches({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT p.id AS purchase_id, p.invoice_number, s.name AS supplier_name,
+        COALESCE(pay.payment_total, 0) AS payment_history_total,
+        COALESCE(cash.cash_total, 0) AS cash_out_total,
+        COALESCE(pay.payment_total, 0) - COALESCE(cash.cash_total, 0) AS difference
+      FROM purchases p
+      LEFT JOIN suppliers s ON s.id = p.supplier_id
+      LEFT JOIN (
+        SELECT purchase_id, SUM(amount) AS payment_total
+        FROM supplier_payments
+        GROUP BY purchase_id
+      ) pay ON pay.purchase_id = p.id
+      LEFT JOIN (
+        SELECT reference_id AS purchase_id, SUM(amount) AS cash_total
+        FROM cash_transactions
+        WHERE reference_type = 'purchase_payment'
+          AND transaction_type = 'expense'
+          AND datetime(transaction_date) >= datetime(?)
+          AND datetime(transaction_date) < datetime(?)
+        GROUP BY reference_id
+      ) cash ON cash.purchase_id = p.id
+      WHERE (
+        COALESCE(pay.payment_total, 0) != COALESCE(cash.cash_total, 0)
+      )
+      AND (
+        EXISTS (
+          SELECT 1 FROM supplier_payments sp
+          WHERE sp.purchase_id = p.id
+            AND datetime(sp.payment_date) >= datetime(?)
+            AND datetime(sp.payment_date) < datetime(?)
+        )
+        OR EXISTS (
+          SELECT 1 FROM cash_transactions ct
+          WHERE ct.reference_type = 'purchase_payment'
+            AND ct.reference_id = p.id
+            AND datetime(ct.transaction_date) >= datetime(?)
+            AND datetime(ct.transaction_date) < datetime(?)
+        )
+      )
+      ORDER BY p.purchase_date DESC, p.id DESC
+    ''', [
+      start.toIso8601String(), end.toIso8601String(),
+      start.toIso8601String(), end.toIso8601String(),
+      start.toIso8601String(), end.toIso8601String(),
+    ]);
+  }
+
   Future<int> addManualTransaction({
     required String type,
     required String category,
