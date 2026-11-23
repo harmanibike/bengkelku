@@ -581,7 +581,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Tutup'),
           ),
-          if (AuthSession.instance.isAdmin)
+          if (AuthSession.instance.isCashierOrAdmin)
             OutlinedButton.icon(
               onPressed: () => Navigator.pop(dialogContext, 'assign_mechanic'),
               icon: const Icon(Icons.assignment_ind_outlined),
