@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/auth/auth_session.dart';
+import '../../core/notifications/stock_reminder_notification_service.dart';
 import '../settings/presentation/account_pages.dart';
 
 import '../bicycles/presentation/bicycle_list_page.dart';
@@ -37,6 +38,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     _summaryFuture = _loadTodaySummary();
+    StockReminderNotificationService.instance.syncStockReminder();
   }
 
   Future<Map<String, Object?>> _loadTodaySummary() {
@@ -52,6 +54,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final future = _loadTodaySummary();
     setState(() => _summaryFuture = future);
     await future;
+    await StockReminderNotificationService.instance.syncStockReminder();
   }
 
   int _number(Map<String, Object?>? data, String key) {
