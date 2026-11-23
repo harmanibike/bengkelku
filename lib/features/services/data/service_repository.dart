@@ -192,9 +192,14 @@ class ServiceRepository {
       ]);
     }
 
-    if (assignedMechanicId != null) {
+    final session = AuthSession.instance;
+    final effectiveMechanicId = session.isMechanic ? session.userId : assignedMechanicId;
+    if (session.isMechanic && effectiveMechanicId == null) {
+      throw StateError('Sesi mekanik tidak valid. Silakan login kembali.');
+    }
+    if (effectiveMechanicId != null) {
       conditions.add('s.assigned_mechanic_id = ?');
-      arguments.add(assignedMechanicId);
+      arguments.add(effectiveMechanicId);
     }
 
     if (status != null && status.trim().isNotEmpty) {
@@ -229,6 +234,10 @@ class ServiceRepository {
   // Detail satu nota servis.
   Future<Map<String, Object?>?> getServiceOrderById(int id) async {
     final db = await _db;
+    final session = AuthSession.instance;
+    if (session.isMechanic && session.userId == null) {
+      throw StateError('Sesi mekanik tidak valid. Silakan login kembali.');
+    }
     final result = await db.rawQuery('''
       SELECT
         s.*,
@@ -244,9 +253,9 @@ class ServiceRepository {
       FROM service_orders s
       LEFT JOIN customers c ON c.id = s.customer_id
       LEFT JOIN bicycles b ON b.id = s.bicycle_id
-      WHERE s.id = ?
+      WHERE s.id = ? AND (? IS NULL OR s.assigned_mechanic_id = ?)
       LIMIT 1
-    ''', [id]);
+    ''', [id, session.isMechanic ? session.userId : null, session.isMechanic ? session.userId : null]);
 
     return result.isEmpty ? null : result.first;
   }
@@ -678,18 +687,25 @@ class ServiceRepository {
 
   Future<int> countServiceOrders({String? status}) async {
     final db = await _db;
+    final session = AuthSession.instance;
 
     if (status != null && !serviceStatuses.contains(status)) {
       throw ArgumentError('Status servis tidak valid.');
     }
 
-    final result = await db.rawQuery(
-      status == null
-          ? 'SELECT COUNT(*) AS total FROM service_orders'
-          : 'SELECT COUNT(*) AS total FROM service_orders '
-              'WHERE service_status = ?',
-      status == null ? [] : [status],
-    );
+    final result = session.isMechanic
+        ? await db.rawQuery(
+            status == null
+                ? 'SELECT COUNT(*) AS total FROM service_orders WHERE assigned_mechanic_id = ?'
+                : 'SELECT COUNT(*) AS total FROM service_orders WHERE assigned_mechanic_id = ? AND service_status = ?',
+            status == null ? [session.userId] : [session.userId, status],
+          )
+        : await db.rawQuery(
+            status == null
+                ? 'SELECT COUNT(*) AS total FROM service_orders'
+                : 'SELECT COUNT(*) AS total FROM service_orders WHERE service_status = ?',
+            status == null ? [] : [status],
+          );
 
     return Sqflite.firstIntValue(result) ?? 0;
   }
