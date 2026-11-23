@@ -294,16 +294,54 @@ class SaleReturnRepository {
       }
 
       if (refundAmount > 0) {
-        await txn.insert('cash_transactions', {
-          'transaction_type': 'expense',
-          'category': 'Pengembalian Retur Penjualan',
-          'description': 'Pengembalian uang retur $returnNumber untuk nota ${sale['invoice_number']}',
-          'amount': refundAmount,
-          'reference_type': 'sale_return',
-          'reference_id': returnId,
-          'transaction_date': now.toIso8601String(),
-          'created_at': now.toIso8601String(),
-        });
+        final walletPaidRows = await txn.rawQuery('''
+          SELECT COALESCE(SUM(amount), 0) AS total
+          FROM customer_wallet_ledger
+          WHERE reference_type = 'sale' AND reference_id = ? AND entry_type = 'sale_payment'
+        ''', [saleId]);
+        final walletPreviouslyRefundedRows = await txn.rawQuery('''
+          SELECT COALESCE(SUM(w.amount), 0) AS total
+          FROM customer_wallet_ledger w
+          JOIN sale_returns sr ON sr.id = w.reference_id
+          WHERE w.reference_type = 'sale_return' AND w.entry_type = 'refund'
+            AND sr.sale_id = ?
+        ''', [saleId]);
+        final walletPaid = (walletPaidRows.first['total'] as num?)?.toInt() ?? 0;
+        final walletPreviouslyRefunded = (walletPreviouslyRefundedRows.first['total'] as num?)?.toInt() ?? 0;
+        final walletAvailable = (walletPaid - walletPreviouslyRefunded).clamp(0, 1 << 62).toInt();
+        final walletRefund = refundAmount < walletAvailable ? refundAmount : walletAvailable;
+        final cashRefund = refundAmount - walletRefund;
+        final customerId = sale['customer_id'] as int?;
+        if (walletRefund > 0) {
+          if (customerId == null) throw StateError('Pelanggan asal tidak ditemukan untuk pengembalian saldo.');
+          final balanceRows = await txn.rawQuery(
+            'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+            [customerId],
+          );
+          final balance = balanceRows.isEmpty ? 0 : (balanceRows.first['balance_after'] as num?)?.toInt() ?? 0;
+          await txn.insert('customer_wallet_ledger', {
+            'customer_id': customerId, 'entry_type': 'refund', 'amount': walletRefund,
+            'balance_after': balance + walletRefund,
+            'description': 'Pengembalian saldo dari retur $returnNumber',
+            'reference_type': 'sale_return', 'reference_id': returnId,
+            'payment_method': 'customer_wallet',
+            'created_by_id': AuthSession.instance.userId,
+            'created_by_name': AuthSession.instance.displayName,
+            'created_at': now.toIso8601String(),
+          });
+        }
+        if (cashRefund > 0) {
+          await txn.insert('cash_transactions', {
+            'transaction_type': 'expense',
+            'category': 'Pengembalian Retur Penjualan',
+            'description': 'Pengembalian uang retur $returnNumber untuk nota ${sale['invoice_number']}',
+            'amount': cashRefund,
+            'reference_type': 'sale_return',
+            'reference_id': returnId,
+            'transaction_date': now.toIso8601String(),
+            'created_at': now.toIso8601String(),
+          });
+        }
       }
 
       final effectiveTotal = total - totalPreviouslyReturned - returnTotal
