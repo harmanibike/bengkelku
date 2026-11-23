@@ -174,6 +174,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
   }
 
   Future<void> _addServicePayment(int id, {int? remainingAmount}) async {
+    final order = remainingAmount == null
+        ? await _repository.getServiceOrderById(id)
+        : null;
+    final outstanding = remainingAmount ??
+        (order?['remaining_payment'] as num? ?? 0).toInt();
+    if (outstanding <= 0 || !mounted) return;
+
     final controller = TextEditingController();
     final amount = await showDialog<int>(
       context: context,
@@ -185,10 +192,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
           keyboardType: TextInputType.number,
           inputFormatters: const [CurrencyInputFormatter()],
           decoration: InputDecoration(
-            labelText: 'Jumlah pembayaran (Rp)',
-            helperText: remainingAmount == null
-                ? null
-                : 'Sisa tagihan: ${_rupiah(remainingAmount)}',
+            labelText: 'Uang diterima (Rp)',
+            helperText: 'Sisa tagihan: ${_rupiah(outstanding)}. Jika uang lebih, kembalian dihitung otomatis.',
             border: const OutlineInputBorder(),
           ),
         ),
@@ -213,18 +218,19 @@ class _ServiceListPageState extends State<ServiceListPage> {
     );
     controller.dispose();
     if (amount == null || !mounted) return;
-    if (remainingAmount != null && amount > remainingAmount) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pembayaran melebihi sisa tagihan ${_rupiah(remainingAmount)}.')),
-      );
-      return;
-    }
+
+    final appliedAmount = amount > outstanding ? outstanding : amount;
+    final change = amount - appliedAmount;
     try {
-      await _repository.addPayment(id: id, amount: amount);
+      await _repository.addPayment(id: id, amount: appliedAmount);
       if (!mounted) return;
       _refresh();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pembayaran berhasil dicatat ke kas.')),
+        SnackBar(
+          content: Text(change > 0
+              ? 'Pembayaran lunas. Kembalian: ${_rupiah(change)}.'
+              : 'Pembayaran berhasil dicatat ke kas.'),
+        ),
       );
       final printReceipt = await showDialog<bool>(
         context: context,
