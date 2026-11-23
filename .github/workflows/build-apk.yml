@@ -223,6 +223,71 @@ jobs:
           print("Navigation bar Android diatur solid.")
           PY
 
+      - name: Configure Android scheduled stock notifications
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          permissions = [
+              '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />',
+              '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />',
+          ]
+          missing = [item for item in permissions if item.split('"')[1] not in source]
+          if missing:
+              block = "\\n".join(missing) + "\\n"
+              source, count = re.subn(r'(<application\\b)', lambda match: block + match.group(1), source, count=1)
+              if count != 1:
+                  raise SystemExit("Tag application AndroidManifest.xml tidak ditemukan.")
+          receivers = """
+              <receiver
+                  android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+                  android:exported="false" />
+              <receiver
+                  android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+                  android:exported="false">
+                  <intent-filter>
+                      <action android:name="android.intent.action.BOOT_COMPLETED" />
+                      <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                      <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                      <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                  </intent-filter>
+              </receiver>
+          """
+          if "com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" not in source:
+              source = source.replace("</application>", receivers + "\\n</application>", 1)
+          manifest.write_text(source)
+
+          gradle = Path("android/app/build.gradle.kts")
+          build = gradle.read_text()
+          build = re.sub(
+              r'compileSdk\\s*=\\s*flutter\\.compileSdkVersion',
+              'compileSdk = maxOf(flutter.compileSdkVersion, 35)',
+              build,
+              count=1,
+          )
+          compile_match = re.search(r'compileOptions\\s*\\{', build)
+          if not compile_match:
+              raise SystemExit("Blok compileOptions tidak ditemukan.")
+          compile_end = build.find("}", compile_match.end())
+          if compile_end < 0:
+              raise SystemExit("Penutup compileOptions tidak ditemukan.")
+          compile_block = build[compile_match.end():compile_end]
+          if "isCoreLibraryDesugaringEnabled" not in compile_block:
+              build = build[:compile_end] + "\\n        isCoreLibraryDesugaringEnabled = true" + build[compile_end:]
+          if "coreLibraryDesugaring(" not in build:
+              dependency_match = re.search(r'dependencies\\s*\\{', build)
+              if not dependency_match:
+                  build += '\\ndependencies {\\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\\n}\\n'
+              else:
+                  dependency_end = build.find("}", dependency_match.end())
+                  build = build[:dependency_end] + '\\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\\n' + build[dependency_end:]
+          gradle.write_text(build)
+          print("Permission, receiver notifikasi, compileSdk 35, dan core library desugaring siap.")
+          PY
+
       - name: Install dependencies
         run: flutter pub get
 
