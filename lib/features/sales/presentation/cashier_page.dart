@@ -494,13 +494,6 @@ class _CashierPageState extends State<CashierPage> {
       final cashApplied = paid.clamp(0, finalTotal).toInt();
       final walletPayment = (finalTotal - cashApplied).clamp(0, walletBalance).toInt();
       final paymentMethodLabel = _paymentMethods.firstWhere((method) => method['code'] == confirmedMethod)['name']!;
-      if (confirmedMethod == 'customer_wallet') {
-        if (customerId == null) throw StateError('Pilih pelanggan terdaftar untuk menggunakan saldo deposit.');
-        if (paid <= 0) throw ArgumentError('Nominal saldo yang digunakan harus lebih dari nol.');
-        final walletBalance = await _walletRepository.getBalance(customerId);
-        if (paid > walletBalance) throw StateError('Saldo pelanggan tidak mencukupi. Saldo tersedia Rp$walletBalance.');
-        if (paid > finalTotal) throw ArgumentError('Saldo yang digunakan tidak boleh melebihi total belanja.');
-      }
       setState(() => _saving = true);
       final id = await _repository.checkout(
         items: _cart.values.map((item) => {
