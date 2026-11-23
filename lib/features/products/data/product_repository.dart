@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/activity_log_repository.dart';
 
 class ProductRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -85,6 +86,13 @@ class ProductRepository {
           'notes': 'Stok awal produk',
         });
       }
+      await ActivityLogRepository.record(
+        txn,
+        action: 'product_created',
+        description: 'Menambahkan produk $name dengan stok awal ${trackStock ? initialStock : 0}.',
+        entityType: 'product',
+        entityId: id,
+      );
       return id;
     });
   }
@@ -106,22 +114,34 @@ class ProductRepository {
     String? imagePath,
   }) async {
     final db = await _db;
-    return db.update('products', {
-      'sku': _nullable(sku),
-      'barcode': _nullable(barcode),
-      'name': name.trim(),
-      'category': _nullable(category),
-      'brand': _nullable(brand),
-      'unit': unit.trim().isEmpty ? 'pcs' : unit.trim(),
-      'purchase_price': purchasePrice,
-      'selling_price': sellingPrice,
-      'wholesale_price': wholesalePrice,
-      'minimum_stock': minimumStock,
-      'track_stock': trackStock ? 1 : 0,
-      'description': _nullable(description),
-      'image_path': _nullable(imagePath),
-      'updated_at': DateTime.now().toIso8601String(),
-    }, where: 'id = ?', whereArgs: [id]);
+    return db.transaction((txn) async {
+      final updated = await txn.update('products', {
+        'sku': _nullable(sku),
+        'barcode': _nullable(barcode),
+        'name': name.trim(),
+        'category': _nullable(category),
+        'brand': _nullable(brand),
+        'unit': unit.trim().isEmpty ? 'pcs' : unit.trim(),
+        'purchase_price': purchasePrice,
+        'selling_price': sellingPrice,
+        'wholesale_price': wholesalePrice,
+        'minimum_stock': minimumStock,
+        'track_stock': trackStock ? 1 : 0,
+        'description': _nullable(description),
+        'image_path': _nullable(imagePath),
+        'updated_at': DateTime.now().toIso8601String(),
+      }, where: 'id = ?', whereArgs: [id]);
+      if (updated > 0) {
+        await ActivityLogRepository.record(
+          txn,
+          action: 'product_updated',
+          description: 'Memperbarui data produk $name.',
+          entityType: 'product',
+          entityId: id,
+        );
+      }
+      return updated;
+    });
   }
 
   Future<void> adjustStock({
@@ -201,15 +221,36 @@ class ProductRepository {
         'reference_id': productId,
         'notes': _nullable(notes),
       });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'stock_adjusted',
+        description: '${isStockIn ? 'Menambah' : 'Mengurangi'} stok ${rows.first['name']} sebanyak $quantity (stok $before menjadi $after). Alasan: ${_nullable(notes) ?? '-'}',
+        entityType: 'product',
+        entityId: productId,
+      );
     });
   }
 
   Future<int> deactivateProduct(int id) async {
     final db = await _db;
-    return db.update('products', {
-      'is_active': 0,
-      'updated_at': DateTime.now().toIso8601String(),
-    }, where: 'id = ?', whereArgs: [id]);
+    return db.transaction((txn) async {
+      final rows = await txn.query('products',
+        columns: ['name'], where: 'id = ?', whereArgs: [id], limit: 1);
+      final updated = await txn.update('products', {
+        'is_active': 0,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, where: 'id = ?', whereArgs: [id]);
+      if (updated > 0) {
+        await ActivityLogRepository.record(
+          txn,
+          action: 'product_deactivated',
+          description: 'Menonaktifkan produk ${rows.isEmpty ? '#$id' : rows.first['name']}.',
+          entityType: 'product',
+          entityId: id,
+        );
+      }
+      return updated;
+    });
   }
 
   Future<List<Map<String, Object?>>> getStockMovements({String keyword = '', String movementType = 'all'}) async {
