@@ -7,6 +7,65 @@ import '../../../core/auth/auth_session.dart';
 class ProductRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
+  Future<List<Map<String, Object?>>> getCategories() async {
+    AuthSession.instance.requireCashierOrAdmin('Akses kategori tidak tersedia untuk akun Mekanik.');
+    final db = await _db;
+    return db.query('product_categories', orderBy: 'name COLLATE NOCASE ASC');
+  }
+
+  Future<int> addCategory(String name) async {
+    AuthSession.instance.requireAdmin('Pengelolaan kategori hanya dapat diakses Admin.');
+    final value = name.trim();
+    if (value.isEmpty) throw ArgumentError('Nama kategori wajib diisi.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final id = await txn.insert('product_categories', {'name': value});
+      await ActivityLogRepository.record(txn,
+        action: 'product_category_created',
+        description: 'Menambahkan kategori produk $value.',
+        entityType: 'product_category', entityId: id);
+      return id;
+    });
+  }
+
+  Future<int> updateCategory({required int id, required String name}) async {
+    AuthSession.instance.requireAdmin('Pengelolaan kategori hanya dapat diakses Admin.');
+    final value = name.trim();
+    if (value.isEmpty) throw ArgumentError('Nama kategori wajib diisi.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('product_categories', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) throw StateError('Kategori tidak ditemukan.');
+      final oldName = rows.first['name'].toString();
+      final updated = await txn.update('product_categories', {
+        'name': value, 'updated_at': DateTime.now().toIso8601String(),
+      }, where: 'id = ?', whereArgs: [id]);
+      await txn.update('products', {'category': value}, where: 'category = ?', whereArgs: [oldName]);
+      await ActivityLogRepository.record(txn,
+        action: 'product_category_updated',
+        description: 'Mengubah kategori produk $oldName menjadi $value.',
+        entityType: 'product_category', entityId: id);
+      return updated;
+    });
+  }
+
+  Future<int> deleteCategory(int id) async {
+    AuthSession.instance.requireAdmin('Pengelolaan kategori hanya dapat diakses Admin.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('product_categories', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) return 0;
+      final name = rows.first['name'].toString();
+      await txn.update('products', {'category': null}, where: 'category = ?', whereArgs: [name]);
+      final deleted = await txn.delete('product_categories', where: 'id = ?', whereArgs: [id]);
+      await ActivityLogRepository.record(txn,
+        action: 'product_category_deleted',
+        description: 'Menghapus kategori produk $name. Produk terkait tetap disimpan tanpa kategori.',
+        entityType: 'product_category', entityId: id);
+      return deleted;
+    });
+  }
+
   Future<List<Map<String, Object?>>> getProducts({
     String keyword = '',
     bool includeInactive = false,
