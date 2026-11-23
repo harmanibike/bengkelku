@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
+
 import '../data/cashbook_repository.dart';
 
 class CashbookPage extends StatefulWidget {
@@ -107,7 +109,7 @@ class _CashbookPageState extends State<CashbookPage> {
               onChanged:(value){if(value!=null)setDialogState(()=>selectedCategory=value);},
             ),
             TextFormField(controller:description,decoration:const InputDecoration(labelText:'Keterangan'),validator:(v)=>v==null||v.trim().isEmpty?'Wajib diisi':null),
-            TextFormField(controller:amount,keyboardType:TextInputType.number,decoration:const InputDecoration(labelText:'Nominal (Rp)'),validator:(v){final n=int.tryParse(v?.replaceAll('.','').trim()??'');return n==null||n<=0?'Nominal tidak valid':null;}),
+            TextFormField(controller:amount,keyboardType:TextInputType.number,inputFormatters:const [CurrencyInputFormatter()],decoration:const InputDecoration(labelText:'Nominal (Rp)'),validator:(v){final n=parseCurrencyInput(v);return n==null||n<=0?'Nominal tidak valid':null;}),
           ]),
         )),
         actions:[
@@ -122,7 +124,7 @@ class _CashbookPageState extends State<CashbookPage> {
       try {
         await _repo.addManualTransaction(
           type:type,category:selectedCategory,description:description.text,
-          amount:int.parse(amount.text.replaceAll('.','').trim()));
+          amount:parseCurrencyInput(amount.text));
         _refresh();
         if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Transaksi kas disimpan.')));
       } catch(e) {
