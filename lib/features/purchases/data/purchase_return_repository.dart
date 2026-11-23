@@ -520,10 +520,9 @@ class PurchaseReturnRepository {
         }
       }
       if (allocations.isEmpty && restoreByProduct.isNotEmpty) {
-          throw StateError(
-            'Retur ini dibuat sebelum pencatatan alokasi batch tersedia. Pembatalan otomatis tidak aman; stok perlu diaudit terlebih dahulu.',
-          );
-        }
+        throw StateError(
+          'Retur ini dibuat sebelum pencatatan alokasi batch tersedia. Pembatalan otomatis tidak aman; stok perlu diaudit terlebih dahulu.',
+        );
       }
       for (final entry in restoreByProduct.entries) {
         final products = await txn.query(
