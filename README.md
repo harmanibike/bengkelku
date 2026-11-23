@@ -72,7 +72,7 @@ Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepe
 - [x] Buat pratinjau nota penjualan dalam PDF dan foto PNG, termasuk rincian item, pembayaran, retur, dan sisa tagihan; bagikan melalui menu berbagi Android.
 - [x] Cetak melalui layanan cetak Android dari pratinjau PDF.
 - [x] Snapshot nota penjualan yang diterbitkan menyimpan data transaksi, item, pembayaran, retur, dan profil usaha; arsip dapat dibuka ulang tanpa membaca ulang data transaksi terkini.
-- [ ] Uji hasil cetak pada printer fisik.
+- [ ] Uji hasil cetak pada printer fisik untuk kertas 58/80 mm dan seluruh variasi format.
 
 ## 6. Produk dan inventaris
 
@@ -164,7 +164,7 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - Admin dan Kasir boleh melihat status printer, mencari/menghubungkan printer, memilih printer utama, melakukan tes cetak, dan mencetak struk.
 - Hanya Admin yang boleh mengubah pengaturan printer lanjutan.
 - Koneksi yang direncanakan mencakup Bluetooth, USB, dan Wi-Fi/LAN sesuai kemampuan perangkat dan protokol printer.
-- Kebijakan ini adalah ketentuan desain; fitur koneksi langsung dan layar pengaturan printer tetap berstatus belum diimplementasikan sampai kode dan pengujian tersedia.
+- Layar pengaturan struk dan sakelar ON/OFF laci uang sudah tersedia dan disimpan lokal. Koneksi printer langsung serta perintah fisik untuk membuka laci (otomatis/manual/tes) belum diimplementasikan dan belum diuji pada perangkat.
 
 ## 11. Nota, struk, dan pencetakan
 
@@ -175,8 +175,9 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - [x] Arsip snapshot nota yang pernah diterbitkan dan buka ulang dari riwayat nota per transaksi.
 - [x] Bukti penerimaan sepeda saat masuk bengkel dan bukti pelunasan servis sebagai dokumen terpisah; keduanya memiliki snapshot arsip sendiri. Bukti pelunasan hanya dapat diterbitkan saat sisa tagihan nol.
 - [ ] Cetak langsung printer thermal Bluetooth/USB/Wi-Fi yang didukung, termasuk pengaturan koneksi dan perangkat.
-- [ ] Pengaturan laci uang otomatis ON/OFF, tes buka, dan buka manual dengan pengamanan setelah pembayaran berhasil tersimpan.
-- [ ] Pengaturan tampilan dan format struk (58/80 mm, elemen yang ditampilkan, ukuran teks, jarak, catatan bawah, dan pratinjau) yang diterapkan konsisten pada PDF, PNG, dan cetak langsung.
+- [x] Menu Pengaturan untuk tampilan dan format struk: 58/80 mm, logo, nama/alamat/kontak usaha, data pelanggan, catatan transaksi, catatan bawah, skala teks, dan kerapatan; pengaturan tersimpan lokal dan diterapkan pada generator PDF/PNG.
+- [x] Menu Pengaturan sakelar ON/OFF buka laci otomatis tersimpan lokal.
+- [ ] Perintah ESC/POS untuk tes buka, buka manual, dan buka otomatis setelah pembayaran berhasil tersimpan; menunggu integrasi printer langsung dan uji perangkat.
 - [ ] Cetak label harga dan barcode.
 
 ## 12. Pengaturan aplikasi
@@ -184,7 +185,8 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - [x] Profil usaha dan logo.
 - [x] Pengaturan harga jasa dan PIN admin untuk override harga.
 - [x] Pengaturan metode pembayaran yang aktif pada kasir.
-- [ ] Pengaturan pajak, mata uang, nomor nota, printer, laci uang, tampilan/format struk, diskon, dan akun pengguna.
+- [ ] Pengaturan pajak, mata uang, nomor nota, koneksi printer, perintah laci uang, diskon, dan akun pengguna.
+- [x] Pengaturan tampilan/format struk dan sakelar otomatis laci uang tersimpan di tabel app_settings.
 - [ ] Backup database, restore, dan ekspor data yang telah diuji.
 
 ## 13. Multi-perangkat
