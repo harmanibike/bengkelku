@@ -146,7 +146,7 @@ class ReceivableRepository {
   }
 
   Future<void> saveTemplate(String value) async {
-    AuthSession.instance.requireCashierOrAdmin('Piutang hanya dapat diakses Admin dan Kasir.');
+    AuthSession.instance.requireAdmin('Pengaturan template pengingat hanya dapat diubah Admin.');
 
     final db = await _db;
     await db.insert(
