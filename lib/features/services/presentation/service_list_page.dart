@@ -426,6 +426,152 @@ class _ServiceListPageState extends State<ServiceListPage> {
     }
   }
 
+
+  Future<void> _proposePartChange(int serviceId, {int? cancelItemId}) async {
+    final noteController = TextEditingController();
+    if (cancelItemId != null) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Usulkan pembatalan sparepart'),
+          content: TextField(controller: noteController, maxLines: 2,
+            decoration: const InputDecoration(labelText: 'Alasan / catatan', border: OutlineInputBorder())),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Kirim usulan')),
+          ],
+        ),
+      );
+      final note = noteController.text.trim();
+      noteController.dispose();
+      if (confirmed != true) return;
+      try {
+        await _repository.proposeServicePartChange(serviceOrderId: serviceId, requestType: 'cancel',
+          serviceOrderItemId: cancelItemId, mechanicNote: note);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usulan dikirim ke Admin/Kasir.')));
+        await _showDetail({'id': serviceId});
+      } catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengirim usulan: $error')));
+      }
+      return;
+    }
+
+    final products = await _repository.getActiveSpareparts();
+    if (!mounted) return;
+    if (products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Belum ada sparepart aktif.')));
+      return;
+    }
+    int? selectedId = products.first['id'] as int?;
+    final quantityController = TextEditingController(text: '1');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Usulkan penambahan sparepart'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            DropdownButtonFormField<int>(
+              initialValue: selectedId, isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Sparepart', border: OutlineInputBorder()),
+              items: products.map((p) => DropdownMenuItem<int>(value: p['id'] as int,
+                child: Text(p['name']?.toString() ?? 'Sparepart', overflow: TextOverflow.ellipsis))).toList(),
+              onChanged: (value) => setDialogState(() => selectedId = value),
+            ),
+            const SizedBox(height: 8),
+            TextField(controller: quantityController, keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder())),
+            const SizedBox(height: 8),
+            TextField(controller: noteController, maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Alasan / catatan', border: OutlineInputBorder())),
+            const SizedBox(height: 8),
+            const Text('Usulan belum mengubah stok atau tagihan. Admin/Kasir akan meminta izin pelanggan dan menentukan harga.',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Kirim usulan')),
+          ],
+        ),
+      ),
+    );
+    final quantity = int.tryParse(quantityController.text.trim()) ?? 0;
+    final note = noteController.text.trim();
+    quantityController.dispose();
+    noteController.dispose();
+    if (confirmed != true) return;
+    try {
+      await _repository.proposeServicePartChange(serviceOrderId: serviceId, requestType: 'add',
+        productId: selectedId, quantity: quantity, mechanicNote: note);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usulan dikirim. Stok dan tagihan belum berubah.')));
+      await _showDetail({'id': serviceId});
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengirim usulan: $error')));
+    }
+  }
+
+  Future<void> _reviewPartChange(int serviceId, Map<String, Object?> request) async {
+    final isAdd = request['request_type'] == 'add';
+    final priceController = TextEditingController();
+    final noteController = TextEditingController();
+    bool customerApproved = false;
+    final result = await showDialog<Map<String, Object?>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(isAdd ? 'Tinjau penambahan sparepart' : 'Tinjau pembatalan sparepart'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('${request['item_name']} • Qty ${request['quantity']}\nCatatan mekanik: ${request['mechanic_note'] ?? '-'}'),
+            if (isAdd) ...[
+              const SizedBox(height: 8),
+              TextField(controller: priceController, keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Harga jual per unit (Rp)', border: OutlineInputBorder())),
+            ],
+            CheckboxListTile(contentPadding: EdgeInsets.zero, value: customerApproved,
+              onChanged: (v) => setDialogState(() => customerApproved = v ?? false),
+              title: const Text('Pelanggan sudah menyetujui'),
+              subtitle: const Text('Wajib sebelum perubahan diterapkan.')),
+            TextField(controller: noteController, maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Catatan persetujuan (telepon/WA)', border: OutlineInputBorder())),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, {'approve': false}), child: const Text('Tolak')),
+            FilledButton(
+              onPressed: customerApproved ? () => Navigator.pop(dialogContext, {
+                'approve': true, 'customer_approved': true,
+                'price': int.tryParse(priceController.text.trim()), 'note': noteController.text.trim(),
+              }) : null,
+              child: const Text('Setujui & terapkan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    priceController.dispose();
+    noteController.dispose();
+    if (result == null) return;
+    try {
+      await _repository.reviewServicePartChange(
+        requestId: request['id'] as int,
+        approve: result['approve'] == true,
+        customerApproved: result['customer_approved'] == true,
+        approvedUnitPrice: isAdd && result['approve'] == true ? result['price'] as int? : null,
+        customerApprovalNote: result['note']?.toString(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result['approve'] == true ? 'Perubahan sparepart diterapkan.' : 'Usulan ditolak.')));
+      await _refresh();
+      await _showDetail({'id': serviceId});
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal meninjau usulan: $error')));
+    }
+  }
+
   Future<void> _showDetail(Map<String, Object?> order) async {
     final id = order['id'] as int;
     final detail = await _repository.getServiceOrderById(id);
@@ -435,6 +581,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final statusHistory = await _repository.getServiceStatusHistory(id);
     final directCostHistory = AuthSession.instance.isAdmin
         ? await _repository.getServiceDirectCostHistory(id)
+        : <Map<String, Object?>>[];
+    final partChangeRequests = AuthSession.instance.isCashierOrAdmin
+        ? await _repository.getServicePartChangeRequests(id)
         : <Map<String, Object?>>[];
     final businessProfile = await BusinessProfileRepository().getProfile();
     if (!mounted) return;
@@ -461,6 +610,38 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 _detailLine('Keluhan', detail['complaint']),
                 _detailLine('Diagnosis', detail['diagnosis']),
                 _detailLine('Mekanik', detail['mechanic_name']),
+                if ((detail['items'] as List? ?? const []).isNotEmpty) ...[
+                  const Divider(),
+                  const Text('Sparepart pada servis', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...((detail['items'] as List).map((rawItem) {
+                    final item = Map<String, Object?>.from(rawItem as Map);
+                    final itemId = item['id'] as int?;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(children: [
+                        Expanded(child: Text('${item['item_name']} • Qty ${item['quantity']}', style: const TextStyle(fontSize: 13))),
+                        if (!AuthSession.instance.isMechanic) Text(_rupiah(item['subtotal']), style: const TextStyle(fontSize: 12)),
+                        if (AuthSession.instance.isMechanic && itemId != null && const ['waiting', 'checking', 'in_progress'].contains(status))
+                          TextButton(onPressed: () => Navigator.pop(dialogContext, 'part_cancel:$itemId'), child: const Text('Usulkan batal')),
+                      ]),
+                    );
+                  })),
+                ],
+                if (AuthSession.instance.isMechanic && const ['waiting', 'checking', 'in_progress'].contains(status))
+                  OutlinedButton.icon(onPressed: () => Navigator.pop(dialogContext, 'part_add'),
+                    icon: const Icon(Icons.add_box_outlined), label: const Text('Usulkan tambah sparepart')),
+                if (partChangeRequests.isNotEmpty) ...[
+                  const Divider(),
+                  const Text('Usulan perubahan sparepart', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...partChangeRequests.map((request) => ListTile(
+                    dense: true, contentPadding: EdgeInsets.zero,
+                    title: Text('${request['request_type'] == 'add' ? 'Tambah' : 'Batalkan'}: ${request['item_name']} × ${request['quantity']}'),
+                    subtitle: Text('Status: ${request['status']} • Mekanik: ${request['proposed_by_name'] ?? '-'}'),
+                    trailing: request['status'] == 'pending'
+                        ? TextButton(onPressed: () => Navigator.pop(dialogContext, 'review_part:${request['id']}'), child: const Text('Tinjau'))
+                        : null,
+                  )),
+                ],
                 if (!AuthSession.instance.isMechanic) ...[
                 const Divider(),
                 _detailLine('Jasa servis', _rupiah(detail['labor_cost'])),
@@ -670,7 +851,19 @@ class _ServiceListPageState extends State<ServiceListPage> {
     );
 
     if (!mounted) return;
-    if (action == 'assign_mechanic') {
+    if (action?.startsWith('part_cancel:') == true) {
+      final itemId = int.tryParse(action!.split(':').last);
+      if (itemId != null) await _proposePartChange(id, cancelItemId: itemId);
+    } else if (action == 'part_add') {
+      await _proposePartChange(id);
+    } else if (action?.startsWith('review_part:') == true) {
+      final requestId = int.tryParse(action!.split(':').last);
+      Map<String, Object?>? selectedRequest;
+      for (final row in partChangeRequests) {
+        if (row['id'] == requestId) selectedRequest = row;
+      }
+      if (selectedRequest != null) await _reviewPartChange(id, selectedRequest);
+    } else if (action == 'assign_mechanic') {
       await _assignMechanic(id);
     } else if (action == 'receipt') {
       await ReceiptShareLauncher.service(context, id);
