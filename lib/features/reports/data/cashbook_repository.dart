@@ -155,6 +155,83 @@ class CashbookRepository {
     ]);
   }
 
+  /// Membandingkan nilai pembayaran tersimpan dengan seluruh kas masuk terkait.
+  /// Audit penjualan dan servis bersifat baca-saja; transaksi batal tetap diperiksa
+  /// terhadap pembayaran asal, sementara refund pembatalan tidak dihitung sebagai kas masuk.
+  Future<List<Map<String, Object?>>> getCustomerPaymentMismatches({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    final db = await _db;
+    final from = start.toIso8601String();
+    final until = end.toIso8601String();
+    return db.rawQuery('''
+      SELECT * FROM (
+        SELECT
+          'Penjualan' AS document_type,
+          s.id AS record_id,
+          s.invoice_number AS document_number,
+          COALESCE(c.name, '-') AS customer_name,
+          s.paid AS stored_paid_total,
+          COALESCE(pay.payment_total, 0) AS payment_history_total,
+          s.paid - COALESCE(pay.payment_total, 0) AS difference
+        FROM sales s
+        LEFT JOIN customers c ON c.id = s.customer_id
+        LEFT JOIN (
+          SELECT reference_id AS sale_id, SUM(amount) AS payment_total
+          FROM cash_transactions
+          WHERE reference_type IN ('sale', 'sale_payment')
+            AND transaction_type = 'income'
+          GROUP BY reference_id
+        ) pay ON pay.sale_id = s.id
+        WHERE s.payment_status != 'cancelled'
+          AND s.paid != COALESCE(pay.payment_total, 0)
+          AND (
+            (datetime(s.transaction_date) >= datetime(?) AND datetime(s.transaction_date) < datetime(?))
+            OR EXISTS (
+              SELECT 1 FROM cash_transactions ct
+              WHERE ct.reference_id = s.id
+                AND ct.reference_type IN ('sale', 'sale_payment')
+                AND datetime(ct.transaction_date) >= datetime(?)
+                AND datetime(ct.transaction_date) < datetime(?)
+            )
+          )
+
+        UNION ALL
+
+        SELECT
+          'Servis' AS document_type,
+          s.id AS record_id,
+          s.order_number AS document_number,
+          COALESCE(c.name, '-') AS customer_name,
+          s.down_payment AS stored_paid_total,
+          COALESCE(pay.payment_total, 0) AS payment_history_total,
+          s.down_payment - COALESCE(pay.payment_total, 0) AS difference
+        FROM service_orders s
+        LEFT JOIN customers c ON c.id = s.customer_id
+        LEFT JOIN (
+          SELECT reference_id AS service_order_id, SUM(amount) AS payment_total
+          FROM cash_transactions
+          WHERE reference_type = 'service_order'
+            AND transaction_type = 'income'
+          GROUP BY reference_id
+        ) pay ON pay.service_order_id = s.id
+        WHERE s.down_payment != COALESCE(pay.payment_total, 0)
+          AND (
+            (datetime(s.received_at) >= datetime(?) AND datetime(s.received_at) < datetime(?))
+            OR EXISTS (
+              SELECT 1 FROM cash_transactions ct
+              WHERE ct.reference_id = s.id
+                AND ct.reference_type = 'service_order'
+                AND datetime(ct.transaction_date) >= datetime(?)
+                AND datetime(ct.transaction_date) < datetime(?)
+            )
+          )
+      ) mismatches
+      ORDER BY document_type ASC, record_id DESC
+    ''', [from, until, from, until, from, until, from, until]);
+  }
+
   Future<int> addManualTransaction({
     required String type,
     required String category,
