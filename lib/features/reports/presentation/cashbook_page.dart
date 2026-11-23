@@ -30,9 +30,11 @@ class _CashbookPageState extends State<CashbookPage> {
     return (DateTime(2000),now.add(const Duration(days:1)));
   }
 
-  Future<Map<String,Object?>> _load() {
-    final range=_range();
-    return _repo.getLedger(start:range.$1,end:range.$2,type:_type);
+  Future<Map<String,Object?>> _load() async {
+    final range = _range();
+    final ledger = await _repo.getLedger(start: range.$1, end: range.$2, type: _type);
+    final issues = await _repo.getReconciliationIssues(start: range.$1, end: range.$2);
+    return {...ledger, 'audit_issues': issues};
   }
 
   void _refresh() => setState(()=>_future=_load());
@@ -140,6 +142,7 @@ class _CashbookPageState extends State<CashbookPage> {
         if(snapshot.hasError) return Center(child:Text('Gagal memuat buku kas: ${snapshot.error}'));
         final data=snapshot.data ?? {};
         final entries=(data['entries'] as List?) ?? [];
+        final auditIssues=(data['audit_issues'] as List?) ?? [];
         final income=(data['income'] as num?)?.toInt() ?? 0;
         final expense=(data['expense'] as num?)?.toInt() ?? 0;
         return RefreshIndicator(onRefresh:() async=>_refresh(),child:ListView(
@@ -177,6 +180,49 @@ class _CashbookPageState extends State<CashbookPage> {
               const Divider(height:14),
               _balanceLine('Saldo akhir',data['closing_balance'],bold:true),
             ]))),
+            const SizedBox(height:8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.fact_check_outlined, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(child: Text('Pemeriksaan referensi kas', style: TextStyle(fontWeight: FontWeight.w600))),
+                      Text('${auditIssues.length}', style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: auditIssues.isEmpty ? Colors.green : Colors.deepOrange,
+                      )),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(
+                      auditIssues.isEmpty
+                        ? 'Tidak ditemukan referensi kas bermasalah pada periode ini.'
+                        : 'Ada transaksi yang perlu diperiksa. Data tidak diubah otomatis.',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    if (auditIssues.isNotEmpty) ...[
+                      const Divider(height: 12),
+                      ...auditIssues.take(8).map((raw) {
+                        final issue = raw as Map<String, Object?>;
+                        final amount = (issue['amount'] as num?)?.toInt() ?? 0;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Text(
+                            'ID ${issue['id']} • ${issue['audit_issue']} • ${_money(amount)}',
+                            style: const TextStyle(fontSize: 11, color: Colors.deepOrange),
+                          ),
+                        );
+                      }),
+                      if (auditIssues.length > 8)
+                        Text('Dan ${auditIssues.length - 8} transaksi lainnya.', style: const TextStyle(fontSize: 10)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height:8),
             Text('Riwayat Transaksi (${data['count'] ?? 0})',style:Theme.of(context).textTheme.titleMedium),
             if(entries.isEmpty) const Card(child:Padding(padding:EdgeInsets.all(12),child:Text('Belum ada transaksi pada periode ini.')))
