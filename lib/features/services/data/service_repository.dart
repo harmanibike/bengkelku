@@ -1091,7 +1091,7 @@ class ServiceRepository {
     return db.transaction((txn) async {
       final rows = await txn.query(
         'service_orders',
-        columns: ['service_status', 'remaining_payment', 'order_number', 'assigned_mechanic_id'],
+        columns: ['service_status', 'remaining_payment', 'order_number', 'assigned_mechanic_id', 'customer_id'],
         where: 'id = ? AND (? IS NULL OR assigned_mechanic_id = ?)',
         whereArgs: [id, actingMechanicId, actingMechanicId],
         limit: 1,
@@ -1135,6 +1135,30 @@ class ServiceRepository {
           [id],
         );
         final refund = Sqflite.firstIntValue(paidRows) ?? 0;
+        final walletPayments = await txn.rawQuery('''
+          SELECT COALESCE(SUM(amount), 0) AS total
+          FROM customer_wallet_ledger
+          WHERE reference_type = 'service_order' AND reference_id = ? AND entry_type = 'service_payment'
+        ''', [id]);
+        final walletRefund = (walletPayments.first['total'] as num?)?.toInt() ?? 0;
+        final customerId = rows.first['customer_id'] as int?;
+        if (walletRefund > 0 && customerId != null) {
+          final balanceRows = await txn.rawQuery(
+            'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+            [customerId],
+          );
+          final balance = balanceRows.isEmpty ? 0 : (balanceRows.first['balance_after'] as num?)?.toInt() ?? 0;
+          await txn.insert('customer_wallet_ledger', {
+            'customer_id': customerId, 'entry_type': 'refund', 'amount': walletRefund,
+            'balance_after': balance + walletRefund,
+            'description': 'Pengembalian saldo dari pembatalan servis ${rows.first['order_number'] ?? id}',
+            'reference_type': 'service_order_cancellation', 'reference_id': id,
+            'payment_method': 'customer_wallet',
+            'created_by_id': AuthSession.instance.userId,
+            'created_by_name': AuthSession.instance.displayName,
+            'created_at': now,
+          });
+        }
         if (refund > 0) {
           await txn.insert('cash_transactions', {
             'transaction_type': 'expense',
