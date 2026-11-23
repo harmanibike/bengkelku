@@ -126,7 +126,10 @@ class ReceiptDocumentService {
     final settings = await ReceiptSettingsRepository().getReceiptSettings();
     final logo = await _logo(profile);
     final doc = pw.Document();
-    final height = 470.0 + payments.length * 25.0;
+    final serviceItems = (service['items'] as List? ?? const [])
+        .map((item) => Map<String, Object?>.from(item as Map))
+        .toList();
+    final height = 470.0 + payments.length * 25.0 + serviceItems.length * 22.0;
     final paid = _int(service['down_payment']);
     final total = _int(service['total_cost']);
     final remaining = _int(service['remaining_payment']);
@@ -157,7 +160,16 @@ class ReceiptDocumentService {
           if (_text(service['mechanic_name']).isNotEmpty) _line('Mekanik', _text(service['mechanic_name']), settings: settings),
           pw.Divider(),
           _line('Jasa servis', rupiah(service['labor_cost']), settings: settings),
-          _line('Sparepart', rupiah(service['parts_cost']), settings: settings),
+          if (serviceItems.isNotEmpty) ...[
+            pw.Text('RINCIAN SPAREPART', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
+            ...serviceItems.map((item) => _line(
+              '${_text(item['item_name'])} × ${_int(item['quantity'])}',
+              rupiah(item['subtotal']),
+              settings: settings,
+            )),
+            _line('Total sparepart', rupiah(service['parts_cost']), bold: true, settings: settings),
+          ] else
+            _line('Sparepart', rupiah(service['parts_cost']), settings: settings),
           _line('Diskon', rupiah(service['discount']), settings: settings),
           _line('Total biaya', rupiah(total), bold: true, settings: settings),
           _line('Sudah dibayar', rupiah(paid), settings: settings),
