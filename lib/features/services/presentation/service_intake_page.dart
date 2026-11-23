@@ -36,6 +36,14 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   final _mechanicController = TextEditingController();
   final _notesController = TextEditingController();
   final _customerSearchController = TextEditingController();
+  final _guestNameController = TextEditingController();
+  final _guestPhoneController = TextEditingController();
+  final _guestBicycleBrandController = TextEditingController();
+  final _guestBicycleModelController = TextEditingController();
+  final _guestBicycleTypeController = TextEditingController();
+  final _guestBicycleColorController = TextEditingController();
+  final _guestBicycleSerialController = TextEditingController();
+  bool _guestMode = false;
   List<Map<String, Object?>> _customerSearchResults = [];
   bool _searchingCustomers = false;
   int _customerSearchToken = 0;
@@ -76,6 +84,13 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     _mechanicController.dispose();
     _notesController.dispose();
     _customerSearchController.dispose();
+    _guestNameController.dispose();
+    _guestPhoneController.dispose();
+    _guestBicycleBrandController.dispose();
+    _guestBicycleModelController.dispose();
+    _guestBicycleTypeController.dispose();
+    _guestBicycleColorController.dispose();
+    _guestBicycleSerialController.dispose();
     super.dispose();
   }
 
@@ -259,16 +274,29 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCustomerId == null || _selectedBicycleId == null) {
+    if (!_guestMode && (_selectedCustomerId == null || _selectedBicycleId == null)) {
       _showMessage('Pilih pelanggan dan sepeda terlebih dahulu.');
+      return;
+    }
+    if (_guestMode &&
+        (_guestNameController.text.trim().isEmpty ||
+         _guestBicycleBrandController.text.trim().isEmpty)) {
+      _showMessage('Nama pelanggan dan merek sepeda wajib diisi.');
       return;
     }
 
     setState(() => _saving = true);
     try {
       final id = await _serviceRepository.createServiceOrder(
-        customerId: _selectedCustomerId!,
-        bicycleId: _selectedBicycleId!,
+        customerId: _guestMode ? null : _selectedCustomerId,
+        bicycleId: _guestMode ? null : _selectedBicycleId,
+        guestCustomerName: _guestMode ? _guestNameController.text : null,
+        guestCustomerPhone: _guestMode ? _guestPhoneController.text : null,
+        guestBicycleBrand: _guestMode ? _guestBicycleBrandController.text : null,
+        guestBicycleModel: _guestMode ? _guestBicycleModelController.text : null,
+        guestBicycleType: _guestMode ? _guestBicycleTypeController.text : null,
+        guestBicycleColor: _guestMode ? _guestBicycleColorController.text : null,
+        guestBicycleSerialNumber: _guestMode ? _guestBicycleSerialController.text : null,
         complaint: _complaintController.text,
         diagnosis: _diagnosisController.text,
         estimatedCost: _amount(_estimateController),
@@ -401,39 +429,110 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       appBar: AppBar(title: const Text('Penerimaan Servis')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _customers.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.people_outline, size: 56),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Belum ada pelanggan',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Tambahkan data pelanggan dan sepeda terlebih dahulu.',
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Kembali'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : Form(
+          : Form(
                   key: _formKey,
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
                       _sectionTitle('Data pelanggan & sepeda', Icons.pedal_bike),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Pelanggan Terdaftar'),
+                            selected: !_guestMode,
+                            onSelected: (_) => setState(() {
+                              _guestMode = false;
+                              _guestNameController.clear();
+                              _guestPhoneController.clear();
+                            }),
+                          ),
+                          ChoiceChip(
+                            label: const Text('Pelanggan Umum'),
+                            selected: _guestMode,
+                            onSelected: (_) => setState(() {
+                              _guestMode = true;
+                              _selectedCustomerId = null;
+                              _selectedBicycleId = null;
+                              _bicycles = [];
+                              _customerSearchController.clear();
+                              _customerSearchResults = [];
+                            }),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (_guestMode) ...[
+                        TextFormField(
+                          controller: _guestNameController,
+                          textCapitalization: TextCapitalization.words,
+                          decoration: const InputDecoration(
+                            labelText: 'Nama pelanggan *',
+                            hintText: 'Nama pelanggan umum',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) => _guestMode &&
+                                  (value == null || value.trim().isEmpty)
+                              ? 'Nama pelanggan wajib diisi'
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _guestPhoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Nomor HP (opsional)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _guestBicycleBrandController,
+                          decoration: const InputDecoration(
+                            labelText: 'Merek sepeda *',
+                            hintText: 'Contoh: Polygon',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) => _guestMode &&
+                                  (value == null || value.trim().isEmpty)
+                              ? 'Merek sepeda wajib diisi'
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _guestBicycleModelController,
+                          decoration: const InputDecoration(
+                            labelText: 'Model sepeda (opsional)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(children: [
+                          Expanded(child: TextFormField(
+                            controller: _guestBicycleTypeController,
+                            decoration: const InputDecoration(
+                              labelText: 'Jenis sepeda',
+                              border: OutlineInputBorder(),
+                            ),
+                          )),
+                          const SizedBox(width: 8),
+                          Expanded(child: TextFormField(
+                            controller: _guestBicycleColorController,
+                            decoration: const InputDecoration(
+                              labelText: 'Warna',
+                              border: OutlineInputBorder(),
+                            ),
+                          )),
+                        ]),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _guestBicycleSerialController,
+                          decoration: const InputDecoration(
+                            labelText: 'Nomor rangka (opsional)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ] else ...[
                       TextFormField(
                         controller: _customerSearchController,
                         decoration: InputDecoration(
@@ -554,6 +653,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                             style: TextStyle(color: Colors.deepOrange),
                           ),
                         ),
+                      ],
                       _sectionTitle('Keluhan & pemeriksaan', Icons.build_outlined),
                       TextFormField(
                         controller: _complaintController,
