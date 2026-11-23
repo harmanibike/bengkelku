@@ -89,8 +89,9 @@ class _ProductListPageState extends State<ProductListPage> {
     Future<void> chooseImage(ImageSource source, StateSetter setDialogState) async {
       final picked = await ImagePicker().pickImage(
         source: source,
-        imageQuality: 82,
-        maxWidth: 1400,
+        imageQuality: 72,
+        maxWidth: 1000,
+        maxHeight: 1000,
       );
       if (picked == null) return;
       final appDirectory = await getApplicationDocumentsDirectory();
@@ -137,7 +138,7 @@ class _ProductListPageState extends State<ProductListPage> {
                                 width: 116,
                                 height: 96,
                                 child: imagePath != null && !removeImage
-                                    ? Image.file(File(imagePath!), fit: BoxFit.cover,
+                                    ? Image.file(File(imagePath!), fit: BoxFit.cover, cacheWidth: 348, cacheHeight: 288,
                                         errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 38))
                                     : const Icon(Icons.add_a_photo_outlined, size: 38),
                               ),
@@ -499,7 +500,7 @@ class _ProductListPageState extends State<ProductListPage> {
                     width: 58,
                     height: 58,
                     child: product['image_path'] != null && product['image_path'].toString().isNotEmpty
-                        ? Image.file(File(product['image_path'].toString()), fit: BoxFit.cover,
+                        ? Image.file(File(product['image_path'].toString()), fit: BoxFit.cover, cacheWidth: 174, cacheHeight: 174,
                             errorBuilder: (_, __, ___) => Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary))
                         : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary),
                   ),
