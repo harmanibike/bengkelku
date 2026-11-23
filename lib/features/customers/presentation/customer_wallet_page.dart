@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
+
 import '../data/customer_wallet_repository.dart';
 
 class CustomerWalletPage extends StatefulWidget {
@@ -56,6 +58,7 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
             TextField(
               controller: amountController,
               keyboardType: TextInputType.number,
+              inputFormatters: const [CurrencyInputFormatter()],
               decoration: const InputDecoration(labelText: 'Nominal deposit (Rp)', border: OutlineInputBorder(), prefixText: 'Rp '),
             ),
             const SizedBox(height: 10),
