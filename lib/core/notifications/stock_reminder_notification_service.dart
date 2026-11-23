@@ -128,7 +128,7 @@ class StockReminderNotificationService {
             'updated_at': DateTime.now().toIso8601String(),
           }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
-        await _plugin.cancel(id: _notificationId);
+        await _plugin.cancel(_notificationId);
       }
     } catch (_) {
       // Kegagalan notifikasi tidak boleh mengganggu transaksi atau operasi stok.
@@ -138,7 +138,7 @@ class StockReminderNotificationService {
   Future<void> cancelStockReminder() async {
     try {
       await _initialize();
-      await _plugin.cancel(id: _notificationId);
+      await _plugin.cancel(_notificationId);
     } catch (_) {
       // Abaikan jika layanan notifikasi perangkat tidak tersedia.
     }
