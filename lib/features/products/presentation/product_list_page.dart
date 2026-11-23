@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import '../../../core/formatters/currency_input_formatter.dart';
+
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
@@ -209,11 +211,11 @@ class _ProductListPageState extends State<ProductListPage> {
                       const SizedBox(height: 10),
                       TextFormField(controller: unit, decoration: const InputDecoration(labelText: 'Satuan (pcs, set, botol...)', border: OutlineInputBorder())),
                       const SizedBox(height: 10),
-                      TextFormField(controller: purchase, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Harga beli (Rp)', border: OutlineInputBorder())),
+                      TextFormField(controller: purchase, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga beli (Rp)', border: OutlineInputBorder())),
                       const SizedBox(height: 10),
-                      TextFormField(controller: selling, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Harga jual (Rp)', border: OutlineInputBorder())),
+                      TextFormField(controller: selling, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga jual (Rp)', border: OutlineInputBorder())),
                       const SizedBox(height: 10),
-                      TextFormField(controller: wholesale, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Harga grosir (Rp)', border: OutlineInputBorder())),
+                      TextFormField(controller: wholesale, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga grosir (Rp)', border: OutlineInputBorder())),
                       const SizedBox(height: 10),
                       if (!editing) TextFormField(controller: stock, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Stok awal', border: OutlineInputBorder())),
                       if (!editing) const SizedBox(height: 10),
