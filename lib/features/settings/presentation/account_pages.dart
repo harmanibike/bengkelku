@@ -154,7 +154,11 @@ class _AccountManagementPageState extends State<AccountManagementPage> {
     pin.dispose();
   }
   @override
-  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Akun & Hak Akses')), floatingActionButton: FloatingActionButton.extended(onPressed: _create, icon: const Icon(Icons.person_add_alt_1), label: const Text('Tambah Akun')), body: FutureBuilder<List<Map<String, Object?>>>(future: _future, builder: (context, snap) {
+  Widget build(BuildContext context) {
+    if (!AuthSession.instance.isAdmin) {
+      return Scaffold(appBar: AppBar(title: const Text('Akun & Hak Akses')), body: const Center(child: Text('Akses hanya untuk Admin.')));
+    }
+    return Scaffold(appBar: AppBar(title: const Text('Akun & Hak Akses')), floatingActionButton: FloatingActionButton.extended(onPressed: _create, icon: const Icon(Icons.person_add_alt_1), label: const Text('Tambah Akun')), body: FutureBuilder<List<Map<String, Object?>>>(future: _future, builder: (context, snap) {
     if (snap.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
     if (snap.hasError) return Center(child: Text('Gagal memuat akun: ${snap.error}'));
     final users = snap.data ?? [];
@@ -163,4 +167,5 @@ class _AccountManagementPageState extends State<AccountManagementPage> {
       return Card(child: ListTile(leading: CircleAvatar(child: Icon(u['role'] == 'admin' ? Icons.admin_panel_settings : u['role'] == 'cashier' ? Icons.point_of_sale : Icons.build)), title: Text(u['display_name'].toString()), subtitle: Text('@${u['username']} • ${_role(u['role']?.toString())} • ${active ? 'Aktif' : 'Nonaktif'}'), trailing: PopupMenuButton<String>(onSelected: (v) { if (v == 'pin') _resetPin(u); if (v == 'active') _toggle(u); }, itemBuilder: (_) => [const PopupMenuItem(value: 'pin', child: Text('Atur ulang PIN')), PopupMenuItem(value: 'active', child: Text(active ? 'Nonaktifkan' : 'Aktifkan'))])));
     })]);
   }));
+  }
 }
