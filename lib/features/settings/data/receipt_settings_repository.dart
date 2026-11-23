@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class ReceiptPrintSettings {
   const ReceiptPrintSettings({
@@ -113,6 +114,7 @@ class ReceiptSettingsRepository {
   }
 
   Future<void> saveReceiptSettings(ReceiptPrintSettings settings) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah format dokumen nota.');
     final db = await _db;
     await db.insert('app_settings', {
       'setting_key': _receiptKey,
@@ -143,6 +145,7 @@ class ReceiptSettingsRepository {
   }
 
   Future<void> savePrinter({required String name, required String address}) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengatur printer.');
     final db = await _db;
     await db.transaction((txn) async {
       final now = DateTime.now().toIso8601String();
@@ -160,6 +163,7 @@ class ReceiptSettingsRepository {
   }
 
   Future<void> clearSavedPrinter() async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengatur printer.');
     final db = await _db;
     await db.delete(
       'app_settings',
@@ -181,6 +185,7 @@ class ReceiptSettingsRepository {
   }
 
   Future<void> saveCashDrawerAutoOpen(bool enabled) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah pengaturan laci kas.');
     final db = await _db;
     await db.insert('app_settings', {
       'setting_key': _drawerKey,
