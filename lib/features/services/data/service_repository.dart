@@ -75,7 +75,7 @@ class ServiceRepository {
         : items.fold<int>(0, (sum, item) => sum +
             _safeAmount((item['unit_price'] as int? ?? 0)) *
             ((item['quantity'] as int? ?? 0)));
-    final directParts = _safeAmount(directPartsCost);
+    final requestedDirectParts = _safeAmount(directPartsCost);
     final otherDirect = _safeAmount(otherDirectCost);
     final safeDiscount = _safeAmount(discount);
     final total = (labor + parts > 0 ? labor + parts : estimated) -
@@ -178,7 +178,7 @@ class ServiceRepository {
         'estimated_cost': estimated,
         'labor_cost': labor,
         'parts_cost': parts,
-        'direct_parts_cost': directParts,
+        'direct_parts_cost': requestedDirectParts,
         'other_direct_cost': otherDirect,
         'discount': safeDiscount,
         'total_cost': safeTotal,
@@ -194,6 +194,8 @@ class ServiceRepository {
         'before_photo_path': _nullableText(beforePhotoPath),
       });
 
+      // Biaya modal FIFO dihitung dari batch yang benar-benar dipakai.
+      var allocatedDirectPartsCost = 0;
       // Simpan beberapa sparepart dalam nota yang sama. Barang berstok
       // divalidasi dan dikurangi bersama transaksi nota agar tidak terjadi
       // stok minus atau nota tersimpan tanpa mutasi stok yang lengkap.
@@ -252,13 +254,15 @@ class ServiceRepository {
             await txn.update('inventory_cost_batches', {
               'quantity_remaining': available - take,
             }, where: 'id = ?', whereArgs: [batch['id']]);
+            final unitCost = (batch['unit_cost'] as num?)?.toInt() ?? 0;
             await txn.insert('service_part_allocations', {
               'service_order_item_id': serviceItemId,
               'batch_id': batch['id'],
               'quantity': take,
-              'unit_cost': batch['unit_cost'] as int? ?? 0,
+              'unit_cost': unitCost,
               'created_at': now.toIso8601String(),
             });
+            allocatedDirectPartsCost += take * unitCost;
             remaining -= take;
           }
           final stockAfter = stockBefore - quantity;
@@ -280,6 +284,16 @@ class ServiceRepository {
         }
       }
 
+      final effectiveDirectPartsCost = requestedDirectParts > 0
+          ? requestedDirectParts
+          : allocatedDirectPartsCost;
+      await txn.update(
+        'service_orders',
+        {'direct_parts_cost': effectiveDirectPartsCost},
+        where: 'id = ?',
+        whereArgs: [serviceOrderId],
+      );
+
       await ActivityLogRepository.record(
         txn,
         action: 'service_created',
@@ -299,7 +313,7 @@ class ServiceRepository {
       await txn.insert('service_direct_cost_history', {
         'service_order_id': serviceOrderId,
         'old_direct_parts_cost': 0,
-        'new_direct_parts_cost': directParts,
+        'new_direct_parts_cost': effectiveDirectPartsCost,
         'old_other_direct_cost': 0,
         'new_other_direct_cost': otherDirect,
         'changed_at': now.toIso8601String(),
