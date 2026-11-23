@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
@@ -19,6 +21,32 @@ class SaleRepository {
       whereArgs: term.isEmpty ? null : ['%$term%', '%$term%', '%$term%'],
       orderBy: 'name COLLATE NOCASE ASC',
     );
+  }
+
+  Future<List<Map<String, Object?>>> getHeldTransactions() async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses transaksi kasir.');
+    final db = await _db;
+    return db.query('held_sales', orderBy: 'created_at ASC, id ASC');
+  }
+
+  Future<int> holdTransaction({
+    required List<Map<String, Object?>> items,
+    String buyerName = '',
+  }) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses transaksi kasir.');
+    if (items.isEmpty) throw ArgumentError('Keranjang masih kosong.');
+    final db = await _db;
+    return db.insert('held_sales', {
+      'buyer_name': buyerName.trim(),
+      'items_json': jsonEncode(items),
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> deleteHeldTransaction(int id) async {
+    AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses transaksi kasir.');
+    final db = await _db;
+    await db.delete('held_sales', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<int> checkout({
