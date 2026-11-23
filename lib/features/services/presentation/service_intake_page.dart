@@ -335,11 +335,11 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
 
   Future<void> _loadMechanics() async {
     try {
-      final accounts = await AccountRepository().getAccounts();
+      final mechanics = await AccountRepository().getActiveMechanics();
       if (!mounted) return;
-      setState(() => _mechanics = accounts.where((account) =>
-          account['role'] == 'mechanic' && (account['is_active'] as int? ?? 0) == 1).toList());
+      setState(() => _mechanics = mechanics);
     } catch (error) {
+      if (!mounted) return;
       _showMessage('Gagal memuat daftar mekanik: $error');
     }
   }
