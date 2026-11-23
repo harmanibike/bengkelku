@@ -164,7 +164,8 @@ class ReportRepository {
         s.invoice_number,
         sr.refunded_amount AS recorded_refund,
         COALESCE(ct.cash_refund, 0) AS cash_refund,
-        sr.refunded_amount - COALESCE(ct.cash_refund, 0) AS difference
+        COALESCE(wr.wallet_refund, 0) AS wallet_refund,
+        sr.refunded_amount - COALESCE(ct.cash_refund, 0) - COALESCE(wr.wallet_refund, 0) AS difference
       FROM sale_returns sr
       JOIN sales s ON s.id = sr.sale_id
       LEFT JOIN (
@@ -174,7 +175,13 @@ class ReportRepository {
           AND transaction_type = 'expense'
         GROUP BY reference_id
       ) ct ON ct.return_id = sr.id
-      WHERE sr.refunded_amount != COALESCE(ct.cash_refund, 0)
+      LEFT JOIN (
+        SELECT reference_id AS return_id, SUM(amount) AS wallet_refund
+        FROM customer_wallet_ledger
+        WHERE reference_type = 'sale_return' AND entry_type = 'refund'
+        GROUP BY reference_id
+      ) wr ON wr.return_id = sr.id
+      WHERE sr.refunded_amount != COALESCE(ct.cash_refund, 0) + COALESCE(wr.wallet_refund, 0)
         AND (
           (datetime(sr.return_date) >= datetime(?) AND datetime(sr.return_date) < datetime(?))
           OR EXISTS (
@@ -184,10 +191,17 @@ class ReportRepository {
               AND datetime(cash_check.transaction_date) >= datetime(?)
               AND datetime(cash_check.transaction_date) < datetime(?)
           )
+          OR EXISTS (
+            SELECT 1 FROM customer_wallet_ledger wallet_check
+            WHERE wallet_check.reference_type = 'sale_return'
+              AND wallet_check.reference_id = sr.id AND wallet_check.entry_type = 'refund'
+              AND datetime(wallet_check.created_at) >= datetime(?)
+              AND datetime(wallet_check.created_at) < datetime(?)
+          )
         )
       ORDER BY sr.return_date DESC, sr.id DESC
       LIMIT 50
-    ''', [from, until, from, until]);
+    ''', [from, until, from, until, from, until]);
 
     // Audit retur pembelian: cocokkan nilai item, kredit pemasok, refund kas,
     // dan kuantitas alokasi batch. Hanya-baca; tidak memperbaiki transaksi.
