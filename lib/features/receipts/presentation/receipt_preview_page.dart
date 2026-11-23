@@ -114,7 +114,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
             child: _format == 'pdf'
                 ? PdfPreview(
                     build: (_) async => widget.pdfBytes,
-                    initialPageFormat: const PdfPageFormat(226.77, 900, marginAll: 12),
+                    initialPageFormat: const PdfPageFormat(164.4, 900, marginAll: 8),
                     allowPrinting: false,
                     allowSharing: false,
                     canChangePageFormat: false,
