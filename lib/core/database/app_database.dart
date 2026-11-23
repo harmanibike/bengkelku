@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 27;
+  static const int currentVersion = 28;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -695,6 +695,19 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX idx_loyalty_ledger_customer ON loyalty_point_ledger(customer_id, created_at DESC)');
     await db.execute('CREATE UNIQUE INDEX idx_loyalty_ledger_reference ON loyalty_point_ledger(reference_type, reference_id, entry_type)');
+    await db.execute('''
+      CREATE TABLE loyalty_rewards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        reward_type TEXT NOT NULL DEFAULT 'gift',
+        points_cost INTEGER NOT NULL CHECK(points_cost > 0),
+        description TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_loyalty_rewards_active ON loyalty_rewards(is_active, points_cost, name)');
     await _seedDefaultServiceCatalog(db);
     await _seedDefaultProductCategories(db);
   }
@@ -734,6 +747,23 @@ class AppDatabase {
       ''');
       await db.execute('CREATE INDEX idx_loyalty_ledger_customer ON loyalty_point_ledger(customer_id, created_at DESC)');
       await db.execute('CREATE UNIQUE INDEX idx_loyalty_ledger_reference ON loyalty_point_ledger(reference_type, reference_id, entry_type)');
+    }
+
+    // Katalog reward loyalty; migrasi aditif dan tidak mengubah buku poin yang ada.
+    if (oldVersion < 28) {
+      await db.execute('''
+        CREATE TABLE loyalty_rewards (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          reward_type TEXT NOT NULL DEFAULT 'gift',
+          points_cost INTEGER NOT NULL CHECK(points_cost > 0),
+          description TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_loyalty_rewards_active ON loyalty_rewards(is_active, points_cost, name)');
     }
 
     // Foto profil pelanggan disimpan opsional sebagai Base64; migrasi aditif.
