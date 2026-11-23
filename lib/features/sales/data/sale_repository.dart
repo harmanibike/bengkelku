@@ -30,7 +30,6 @@ class SaleRepository {
     int discount = 0,
     String? notes,
   }) async {
-    if (items.isEmpty)
     AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses penjualan.');
     if (items.isEmpty) throw ArgumentError('Keranjang masih kosong.');
     if (paid < 0) throw ArgumentError('Pembayaran tidak valid.');
@@ -117,15 +116,17 @@ class SaleRepository {
       final now = DateTime.now();
       final invoice = 'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch}';
 
+      var savedCustomerName = customerName?.trim().isNotEmpty == true ? customerName!.trim() : 'Pelanggan Umum';
       if (customerId != null) {
-        final customer = await txn.query('customers', columns: ['id'], where: 'id = ?', whereArgs: [customerId], limit: 1);
+        final customer = await txn.query('customers', columns: ['id', 'name'], where: 'id = ?', whereArgs: [customerId], limit: 1);
         if (customer.isEmpty) throw StateError('Pelanggan tidak ditemukan.');
+        savedCustomerName = customer.first['name']?.toString() ?? savedCustomerName;
       }
 
       final saleId = await txn.insert('sales', {
         'invoice_number': invoice,
         'customer_id': customerId,
-        'customer_name': customerName?.trim().isNotEmpty == true ? customerName!.trim() : 'Pelanggan Umum',
+        'customer_name': savedCustomerName,
         'subtotal': subtotal,
         'discount': discount,
         'tax': 0,
