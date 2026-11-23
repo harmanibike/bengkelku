@@ -17,6 +17,44 @@ class PaymentMethodsRepository {
 
   Future<Database> get _db => AppDatabase.instance.database;
 
+  static const detailKeys = <String>[
+    'qris_image_path',
+    'bank_name',
+    'bank_account_number',
+    'bank_account_holder',
+  ];
+
+  Future<Map<String, String>> getPaymentDetails() async {
+    final db = await _db;
+    final rows = await db.query(
+      'app_settings',
+      columns: ['setting_key', 'setting_value'],
+      where: 'setting_key IN (?, ?, ?, ?)',
+      whereArgs: detailKeys,
+    );
+    return {
+      for (final row in rows)
+        row['setting_key'].toString(): row['setting_value']?.toString() ?? '',
+    };
+  }
+
+  Future<void> savePaymentDetails(Map<String, String> details) async {
+    final db = await _db;
+    final batch = db.batch();
+    for (final key in detailKeys) {
+      batch.insert(
+        'app_settings',
+        {
+          'setting_key': key,
+          'setting_value': details[key] ?? '',
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
   Future<List<Map<String, String>>> getMethods() async {
     final db = await _db;
     final rows = await db.query(
