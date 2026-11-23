@@ -291,6 +291,26 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Patch legacy usb_serial Android repository
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
+          files = list(cache.glob("usb_serial-*/android/build.gradle"))
+          if not files:
+              raise SystemExit("Gradle file usb_serial tidak ditemukan setelah flutter pub get.")
+
+          for path in files:
+              source = path.read_text()
+              updated = source.replace("jcenter()", "mavenCentral()")
+              if updated != source:
+                  path.write_text(updated)
+                  print(f"Repository JCenter diganti Maven Central: {path}")
+              else:
+                  print(f"Tidak ada deklarasi JCenter: {path}")
+          PY
+
       - name: Format Dart code
         run: dart format lib
 
