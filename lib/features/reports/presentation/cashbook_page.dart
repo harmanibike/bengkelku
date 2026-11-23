@@ -73,7 +73,7 @@ class _CashbookPageState extends State<CashbookPage> {
       'purchase_return_cancel' => 'Pembatalan retur pembelian',
       'manual_cash' => 'Input manual',
       null || '' => 'Sumber tidak tercatat',
-      _ => type ?? 'Sumber tidak dikenal',
+      _ => type,
     };
     return id == null || id.isEmpty ? 'Sumber: $source' : 'Sumber: $source • ID $id';
   }
