@@ -2,6 +2,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/auth/auth_session.dart';
+import '../../settings/data/account_repository.dart';
 
 import '../data/service_repository.dart';
 import '../../business/data/business_profile_repository.dart';
@@ -327,6 +328,60 @@ class _ServiceListPageState extends State<ServiceListPage> {
     other.dispose();
   }
 
+  Future<void> _assignMechanic(int serviceOrderId) async {
+    try {
+      final accounts = await AccountRepository().getAccounts();
+      final mechanics = accounts.where((account) =>
+          account['role'] == 'mechanic' &&
+          (account['is_active'] as int? ?? 0) == 1).toList();
+      if (!mounted) return;
+      if (mechanics.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Belum ada akun Mekanik aktif. Buat akun Mekanik terlebih dahulu.')),
+        );
+        return;
+      }
+      int? selected = mechanics.first['id'] as int;
+      final result = await showDialog<int>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
+            title: const Text('Tugaskan Mekanik'),
+            content: DropdownButtonFormField<int>(
+              initialValue: selected,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Pilih mekanik', border: OutlineInputBorder()),
+              items: mechanics.map((mechanic) => DropdownMenuItem<int>(
+                value: mechanic['id'] as int,
+                child: Text(mechanic['display_name']?.toString() ?? 'Mekanik'),
+              )).toList(),
+              onChanged: (value) {
+                if (value != null) setDialogState(() => selected = value);
+              },
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, selected), child: const Text('Simpan')),
+            ],
+          ),
+        ),
+      );
+      if (result == null || !mounted) return;
+      await _repository.assignMechanic(serviceOrderId: serviceOrderId, mechanicId: result);
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Penugasan mekanik berhasil disimpan.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menugaskan mekanik: $error')),
+        );
+      }
+    }
+  }
+
   Future<void> _showDetail(Map<String, Object?> order) async {
     final id = order['id'] as int;
     final detail = await _repository.getServiceOrderById(id);
@@ -489,6 +544,12 @@ class _ServiceListPageState extends State<ServiceListPage> {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Tutup'),
           ),
+          if (AuthSession.instance.isAdmin)
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, 'assign_mechanic'),
+              icon: const Icon(Icons.assignment_ind_outlined),
+              label: const Text('Tugaskan Mekanik'),
+            ),
           if (!AuthSession.instance.isMechanic) OutlinedButton.icon(
             onPressed: () => Navigator.pop(dialogContext, 'receipt_history'),
             icon: const Icon(Icons.history),
@@ -548,7 +609,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
     );
 
     if (!mounted) return;
-    if (action == 'receipt') {
+    if (action == 'assign_mechanic') {
+      await _assignMechanic(id);
+    } else if (action == 'receipt') {
       await ReceiptShareLauncher.service(context, id);
     } else if (action == 'service_intake_receipt') {
       await ReceiptShareLauncher.serviceIntake(context, id);
