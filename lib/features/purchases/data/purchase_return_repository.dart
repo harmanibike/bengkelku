@@ -448,6 +448,127 @@ class PurchaseReturnRepository {
       for (final allocation in allocations) {
         final itemId = (allocation['return_item_id'] as num?)?.toInt();
         final quantity = (allocation['quantity'] as num?)?.toInt() ?? 0;
+        if (itemId != null) {
+          allocationByItem[itemId] = (allocationByItem[itemId] ?? 0) + quantity;
+        }
+      }
+
+      // Gunakan pergerakan stok saat retur dibuat sebagai sumber kebenaran.
+      // track_stock dapat berubah setelah transaksi dan tidak boleh mengubah
+      // keputusan apakah stok perlu dikembalikan.
+      final stockMovements = await txn.query(
+        'stock_movements',
+        columns: ['product_id', 'movement_type', 'quantity'],
+        where: 'reference_type = ? AND reference_id = ?',
+        whereArgs: ['purchase_return', returnId],
+      );
+      final recordedOutByProduct = <int, int>{};
+      for (final movement in stockMovements) {
+        if (movement['movement_type']?.toString() != 'out') {
+          throw StateError('Riwayat pergerakan stok retur tidak valid. Pembatalan dihentikan.');
+        }
+        final productId = (movement['product_id'] as num?)?.toInt();
+        final quantity = (movement['quantity'] as num?)?.toInt() ?? 0;
+        if (productId == null || quantity <= 0) {
+          throw StateError('Detail pergerakan stok retur tidak valid. Pembatalan dihentikan.');
+        }
+        recordedOutByProduct[productId] =
+            (recordedOutByProduct[productId] ?? 0) + quantity;
+      }
+
+      final expectedByProduct = <int, int>{};
+      for (final item in returnItems) {
+        final productId = (item['product_id'] as num?)?.toInt();
+        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+        if (productId != null && quantity > 0) {
+          expectedByProduct[productId] =
+              (expectedByProduct[productId] ?? 0) + quantity;
+        }
+      }
+
+      final restoreByProduct = <int, int>{};
+      for (final entry in expectedByProduct.entries) {
+        final productId = entry.key;
+        final expectedQuantity = entry.value;
+        final recordedQuantity = recordedOutByProduct[productId];
+        if (recordedQuantity != null) {
+          if (recordedQuantity != expectedQuantity) {
+            throw StateError(
+              'Riwayat stok retur tidak sesuai dengan detail barang. Pembatalan dihentikan untuk menjaga stok.',
+            );
+          }
+          restoreByProduct[productId] = recordedQuantity;
+          continue;
+        }
+
+        // Kompatibilitas retur lama yang belum memiliki referensi movement.
+        // Jika produk sekarang dilacak stoknya, hanya pulihkan bila alokasi
+        // batch lengkap; jika tidak lengkap, jangan menebak jumlah stok.
+        final productRows = await txn.query(
+          'products',
+          columns: ['track_stock'],
+          where: 'id = ?',
+          whereArgs: [productId],
+          limit: 1,
+        );
+        if (productRows.isEmpty) {
+          throw StateError('Produk retur tidak ditemukan.');
+        }
+        final trackedNow =
+            (productRows.first['track_stock'] as num?)?.toInt() == 1;
+        if (!trackedNow) continue;
+
+        var allocatedForProduct = 0;
+        for (final item in returnItems) {
+          if ((item['product_id'] as num?)?.toInt() != productId) continue;
+          final itemId = (item['id'] as num?)?.toInt();
+          if (itemId == null) continue;
+          final itemQuantity = (item['quantity'] as num?)?.toInt() ?? 0;
+          final allocated = allocationByItem[itemId] ?? 0;
+          if (allocated != itemQuantity) {
+            throw StateError(
+              'Alokasi batch retur tidak lengkap. Pembatalan otomatis dihentikan untuk menjaga stok.',
+            );
+          }
+          allocatedForProduct += allocated;
+        }
+        if (allocatedForProduct != expectedQuantity || allocatedForProduct == 0) {
+          throw StateError(
+            'Retur lama tidak memiliki riwayat stok yang cukup untuk pembatalan otomatis. Stok perlu diaudit terlebih dahulu.',
+          );
+        }
+        restoreByProduct[productId] = allocatedForProduct;
+      }
+
+      for (final entry in restoreByProduct.entries) {
+        final products = await txn.query(
+          'products',
+          columns: ['stock'],
+          where: 'id = ?',
+          whereArgs: [entry.key],
+          limit: 1,
+        );
+        if (products.isEmpty) throw StateError('Produk retur tidak ditemukan.');
+        final before = (products.first['stock'] as num?)?.toInt() ?? 0;
+        final after = before + entry.value;
+        await txn.update('products', {
+          'stock': after,
+          'updated_at': DateTime.now().toIso8601String(),
+        }, where: 'id = ?', whereArgs: [entry.key]);
+        await txn.insert('stock_movements', {
+          'product_id': entry.key,
+          'movement_type': 'in',
+          'quantity': entry.value,
+          'stock_before': before,
+          'stock_after': after,
+          'reference_type': 'purchase_return_cancel',
+          'reference_id': returnId,
+          'notes': 'Pembatalan retur ${row['return_number']}: $note',
+        });
+      }
+      for (final allocation in allocations) {
+        final itemId = (allocation['return_item_id'] as num?)?.toInt();
+        final quantity = (allocation['quantity'] as num?)?.toInt() ?? 0;
         if (itemId != null) allocationByItem[itemId] = (allocationByItem[itemId] ?? 0) + quantity;
       }
       for (final item in returnItems) {
