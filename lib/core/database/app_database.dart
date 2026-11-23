@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 32;
+  static const int currentVersion = 33;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -38,6 +38,30 @@ class AppDatabase {
 
   Future<void> _createDatabase(Database db, int version) async {
     final batch = db.batch();
+
+    // Identitas perangkat jaringan. Token hanya disimpan dalam bentuk hash.
+    batch.execute('''
+      CREATE TABLE paired_devices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_name TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_seen_at TEXT,
+        revoked_at TEXT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_paired_devices_active ON paired_devices(revoked_at, created_at)');
+    // Kode pairing bersifat sekali pakai dan memiliki batas waktu.
+    batch.execute('''
+      CREATE TABLE device_pairing_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_hash TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        consumed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_device_pairing_codes_expiry ON device_pairing_codes(expires_at, consumed_at)');
 
     // Jejak aktivitas akun; user_id tanpa foreign key agar histori tetap utuh.
     batch.execute('''
@@ -851,6 +875,31 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    // Pairing perangkat Server-Client. Migrasi aditif; data bengkel lama tidak disentuh.
+    if (oldVersion < 33) {
+      await db.execute('''
+        CREATE TABLE paired_devices (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          device_name TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          last_seen_at TEXT,
+          revoked_at TEXT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_paired_devices_active ON paired_devices(revoked_at, created_at)');
+      await db.execute('''
+        CREATE TABLE device_pairing_codes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          code_hash TEXT NOT NULL UNIQUE,
+          expires_at TEXT NOT NULL,
+          consumed_at TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_device_pairing_codes_expiry ON device_pairing_codes(expires_at, consumed_at)');
+    }
+
     // Pastikan tabel pengaturan tersedia pada semua database lama tanpa menghapus data.
     if (oldVersion < 26) {
       await db.execute('''
