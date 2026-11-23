@@ -121,6 +121,53 @@ class ReceiptSettingsRepository {
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  static const _printerNameKey = 'receipt_printer_name';
+  static const _printerAddressKey = 'receipt_printer_address';
+
+  Future<Map<String, String>?> getSavedPrinter() async {
+    final db = await _db;
+    final rows = await db.query(
+      'app_settings',
+      columns: ['setting_key', 'setting_value'],
+      where: 'setting_key IN (?, ?)',
+      whereArgs: [_printerNameKey, _printerAddressKey],
+    );
+    final values = <String, String>{};
+    for (final row in rows) {
+      values[row['setting_key'].toString()] = row['setting_value']?.toString() ?? '';
+    }
+    final name = values[_printerNameKey] ?? '';
+    final address = values[_printerAddressKey] ?? '';
+    if (name.isEmpty || address.isEmpty) return null;
+    return {'name': name, 'address': address};
+  }
+
+  Future<void> savePrinter({required String name, required String address}) async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      final now = DateTime.now().toIso8601String();
+      await txn.insert('app_settings', {
+        'setting_key': _printerNameKey,
+        'setting_value': name,
+        'updated_at': now,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      await txn.insert('app_settings', {
+        'setting_key': _printerAddressKey,
+        'setting_value': address,
+        'updated_at': now,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    });
+  }
+
+  Future<void> clearSavedPrinter() async {
+    final db = await _db;
+    await db.delete(
+      'app_settings',
+      where: 'setting_key IN (?, ?)',
+      whereArgs: [_printerNameKey, _printerAddressKey],
+    );
+  }
+
   Future<bool> getCashDrawerAutoOpen() async {
     final db = await _db;
     final rows = await db.query(
