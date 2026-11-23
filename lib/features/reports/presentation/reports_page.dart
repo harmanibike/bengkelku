@@ -208,6 +208,60 @@ class _ReportsPageState extends State<ReportsPage> {
                       ),
                     );
                   }),
+                  Builder(builder: (context) {
+                    final issues = (_summary['purchase_return_audit_issues'] as List?) ?? [];
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(issues.isEmpty ? Icons.verified_outlined : Icons.warning_amber_rounded,
+                                  color: issues.isEmpty ? Colors.green : Colors.orange),
+                                const SizedBox(width: 8),
+                                const Expanded(child: Text('Audit retur pembelian',
+                                  style: TextStyle(fontWeight: FontWeight.w600))),
+                                Text('${issues.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            if (issues.isEmpty)
+                              const Text('Nilai item, kredit pemasok, refund kas, dan alokasi batch retur cocok pada periode ini.',
+                                style: TextStyle(fontSize: 12, color: Colors.grey))
+                            else ...[
+                              const Text('Ditemukan data retur yang perlu diperiksa:',
+                                style: TextStyle(fontSize: 12)),
+                              const SizedBox(height: 6),
+                              ...issues.take(5).map((row) {
+                                final item = row as Map<String, Object?>;
+                                final rupiah = (value) => _rupiah((value as num?)?.toInt() ?? 0);
+                                final batchIssues = (item['batch_issue_count'] as num?)?.toInt() ?? 0;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 3),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text('${item['return_number'] ?? '-'} • Faktur ${item['invoice_number'] ?? '-'}',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                    Text('Nilai retur: ${rupiah(item['total_amount'])} / item: ${rupiah(item['item_total'])}',
+                                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                    Text('Kredit: ${rupiah(item['credit_applied'])} / riwayat: ${rupiah(item['applied_credit_total'])} • Refund: ${rupiah(item['refund_received'])} / kas: ${rupiah(item['cash_refund'])}',
+                                      style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                    if (batchIssues > 0)
+                                      Text('$batchIssues item memiliki alokasi batch yang tidak cocok.',
+                                        style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                                  ]),
+                                );
+                              }),
+                              if (issues.length > 5)
+                                Text('${issues.length - 5} retur lainnya perlu diperiksa.',
+                                  style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
