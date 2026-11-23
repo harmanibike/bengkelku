@@ -38,6 +38,20 @@ class AppDatabase {
   Future<void> _createDatabase(Database db, int version) async {
     final batch = db.batch();
 
+    // Akun lokal untuk Admin, Kasir, dan Mekanik.
+    batch.execute('''
+      CREATE TABLE app_users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        display_name TEXT NOT NULL,
+        username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+        role TEXT NOT NULL CHECK(role IN ('admin', 'cashier', 'mechanic')),
+        pin_hash TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT
+      )
+    ''');
+
     // Pengaturan aplikasi.
     batch.execute('''
       CREATE TABLE app_settings (
