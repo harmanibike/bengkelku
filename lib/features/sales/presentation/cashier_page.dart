@@ -1,11 +1,9 @@
 import 'dart:convert';
-
-import '../../../core/formatters/currency_input_formatter.dart';
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/formatters/currency_input_formatter.dart';
 import '../data/sale_repository.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../settings/data/payment_methods_repository.dart';
