@@ -9,6 +9,8 @@ import 'device_mode_page.dart';
 import 'receipt_settings_page.dart';
 import 'cash_drawer_settings_page.dart';
 import 'printer_settings_page.dart';
+import 'loyalty_settings_page.dart';
+import 'stock_reminder_settings_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -141,6 +143,31 @@ class SettingsPage extends StatelessWidget {
             subtitle: 'Pilih metode pembayaran yang tersedia di kasir',
             page: const PaymentMethodsPage(),
           ),
+          const SizedBox(height: 10),
+          const Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          if (AuthSession.instance.isAdmin) ...[
+            _item(
+              context: context,
+              icon: Icons.stars_rounded,
+              color: const Color(0xFFFFA000),
+              title: 'Pengaturan Poin Loyalty',
+              subtitle: 'Atur perolehan poin dan nilai penukaran pelanggan',
+              page: const LoyaltySettingsPage(),
+            ),
+            const SizedBox(height: 8),
+          ],
+          const Text('Persediaan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          if (AuthSession.instance.isAdmin)
+            _item(
+              context: context,
+              icon: Icons.notifications_active_outlined,
+              color: const Color(0xFFE65100),
+              title: 'Reminder Stok',
+              subtitle: 'Atur pengingat saat stok produk mencapai batas minimum',
+              page: const StockReminderSettingsPage(),
+            ),
         ],
       ),
     );
