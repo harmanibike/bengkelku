@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../data/report_repository.dart';
 import '../../purchases/presentation/purchase_reports_page.dart';
+import 'tip_report_page.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key});
@@ -110,6 +111,21 @@ class _ReportsPageState extends State<ReportsPage> {
                           MaterialPageRoute(builder: (_) => const PurchaseReportsPage()),
                         );
                       },
+                    ),
+                  ),
+                  Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFE8F5E9),
+                        child: Icon(Icons.volunteer_activism_outlined, color: Color(0xFF2E7D32)),
+                      ),
+                      title: const Text('Laporan Uang Tip', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Tip diterima, belum diserahkan, dan sudah diserahkan; terpisah dari omzet'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const TipReportPage()),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
