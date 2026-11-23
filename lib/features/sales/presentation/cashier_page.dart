@@ -1,4 +1,6 @@
 import 'dart:convert';
+
+import '../../../core/formatters/currency_input_formatter.dart';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -369,13 +371,13 @@ class _CashierPageState extends State<CashierPage> {
                 TextField(
                   controller: discountController,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  inputFormatters: const [CurrencyInputFormatter()],
                   decoration: const InputDecoration(labelText: 'Diskon (Rp)', hintText: 'Masukkan nominal diskon'),
                   onChanged: (value) => setDialogState(() {
-                    final parsed = int.tryParse(value) ?? 0;
+                    final parsed = parseCurrencyInput(value);
                     discountAmount = parsed.clamp(0, _total).toInt();
                     final payable = _total - discountAmount;
-                    paymentController.text = payable.toString();
+                    paymentController.text = formatCurrencyInput(payable);
                   }),
                 ),
                 const SizedBox(height: 8),
@@ -426,7 +428,7 @@ class _CashierPageState extends State<CashierPage> {
                 TextField(
                   controller: paymentController,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  inputFormatters: const [CurrencyInputFormatter()],
                   decoration: const InputDecoration(labelText: 'Uang diterima (Rp)', border: OutlineInputBorder()),
                 ),
               ],
@@ -439,12 +441,12 @@ class _CashierPageState extends State<CashierPage> {
         ),
       );
       if (confirmedMethod == null || !mounted) return;
-      final discount = int.tryParse(discountController.text) ?? 0;
+      final discount = parseCurrencyInput(discountController.text);
       if (discount < 0 || discount > _total) {
         throw ArgumentError('Diskon tidak boleh melebihi subtotal.');
       }
       final finalTotal = _total - discount;
-      final paid = int.tryParse(paymentController.text) ?? 0;
+      final paid = parseCurrencyInput(paymentController.text);
       final paymentMethodLabel = _paymentMethods.firstWhere(
         (method) => method['code'] == confirmedMethod,
       )['name']!;
