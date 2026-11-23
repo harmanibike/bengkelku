@@ -8,6 +8,7 @@ import 'package:bengkelku_pos/features/purchases/data/supplier_repository.dart';
 import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
 import 'package:bengkelku_pos/features/receivables/data/receivable_repository.dart';
 import 'package:bengkelku_pos/features/services/data/service_repository.dart';
+import 'package:bengkelku_pos/features/reports/data/report_repository.dart';
 
 void main() {
   setUp(() {
@@ -84,6 +85,16 @@ void main() {
     test('service list rejects unauthenticated access', () async {
       await expectLater(
         ServiceRepository().getServiceOrders(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('financial reports reject unauthenticated access', () async {
+      await expectLater(
+        ReportRepository().getSummary(
+          start: DateTime(2026, 1, 1),
+          end: DateTime(2026, 1, 2),
+        ),
         throwsA(isA<StateError>()),
       );
     });
