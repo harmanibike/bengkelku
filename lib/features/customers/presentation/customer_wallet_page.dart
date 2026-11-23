@@ -102,13 +102,66 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
     }
   }
 
+  Future<void> _withdraw() async {
+    if (_balance <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saldo pelanggan masih kosong.')));
+      return;
+    }
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Tarik Tunai Saldo'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Saldo tersedia: ${_rupiah(_balance)}'),
+          const SizedBox(height: 10),
+          TextField(
+            controller: amountController,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: const [CurrencyInputFormatter()],
+            decoration: const InputDecoration(labelText: 'Nominal penarikan (Rp)', prefixText: 'Rp ', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(controller: noteController, decoration: const InputDecoration(labelText: 'Catatan (opsional)', border: OutlineInputBorder())),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Tarik tunai')),
+        ],
+      ),
+    );
+    final amount = int.tryParse(amountController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    final note = noteController.text.trim();
+    amountController.dispose();
+    noteController.dispose();
+    if (result != true) return;
+    if (amount <= 0 || amount > _balance) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(amount <= 0 ? 'Nominal penarikan harus lebih dari nol.' : 'Nominal melebihi saldo tersedia ${_rupiah(_balance)}.')));
+      return;
+    }
+    try {
+      await _repository.withdrawCash(customerId: widget.customerId, amount: amount, note: note);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Penarikan tunai ${_rupiah(amount)} berhasil dicatat.')));
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menarik saldo: $error')));
+    }
+  }
+
   @override
   void initState() { super.initState(); _load(); }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Saldo Pelanggan')),
+      appBar: AppBar(
+        title: const Text('Saldo Pelanggan'),
+        actions: [IconButton(tooltip: 'Tarik tunai', onPressed: _loading || _balance <= 0 ? null : _withdraw, icon: const Icon(Icons.payments_outlined))],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _deposit,
         icon: const Icon(Icons.add),
@@ -129,7 +182,7 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
                       const Text('Saldo tersedia', style: TextStyle(color: Colors.grey)),
                       Text(_rupiah(_balance), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
-                      const Text('Deposit adalah titipan pelanggan, bukan omzet bengkel.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      const Text('Deposit adalah titipan pelanggan, bukan omzet bengkel. Saldo dapat digunakan untuk pembayaran atau ditarik tunai.', style: TextStyle(fontSize: 11, color: Colors.grey)),
                     ]),
                   )),
                   const SizedBox(height: 12),
@@ -145,6 +198,7 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
                         'service_payment' => 'Pembayaran servis',
                         'sale_payment' => 'Pembayaran penjualan',
                         'refund' => 'Pengembalian saldo',
+                        'adjustment' when row['description']?.toString().toLowerCase().contains('penarikan tunai') == true => 'Penarikan tunai',
                         _ => 'Penyesuaian saldo',
                       };
                       final amount = (row['amount'] as num?)?.toInt() ?? 0;
