@@ -427,6 +427,89 @@ class _ServiceListPageState extends State<ServiceListPage> {
   }
 
 
+  Future<void> _editServiceEstimate(Map<String, Object?> detail) async {
+    final id = detail['id'] as int;
+    final estimateController = TextEditingController(text: (detail['estimated_cost'] as num? ?? 0).toInt().toString());
+    final laborController = TextEditingController(text: (detail['labor_cost'] as num? ?? 0).toInt().toString());
+    final discountController = TextEditingController(text: (detail['discount'] as num? ?? 0).toInt().toString());
+    final reasonController = TextEditingController();
+    final approvalController = TextEditingController();
+    bool customerApproved = false;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Ubah estimasi servis'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextField(controller: estimateController, keyboardType: TextInputType.number,
+                  inputFormatters: const [CurrencyInputFormatter()],
+                  decoration: const InputDecoration(labelText: 'Estimasi biaya (Rp)', border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                TextField(controller: laborController, keyboardType: TextInputType.number,
+                  inputFormatters: const [CurrencyInputFormatter()],
+                  decoration: const InputDecoration(labelText: 'Jasa servis (Rp)', border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                TextField(controller: discountController, keyboardType: TextInputType.number,
+                  inputFormatters: const [CurrencyInputFormatter()],
+                  decoration: const InputDecoration(labelText: 'Diskon (Rp)', border: OutlineInputBorder())),
+                const SizedBox(height: 8),
+                TextField(controller: reasonController, maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Alasan perubahan', border: OutlineInputBorder())),
+                CheckboxListTile(contentPadding: EdgeInsets.zero, value: customerApproved,
+                  onChanged: (v) => setDialogState(() => customerApproved = v ?? false),
+                  title: const Text('Pelanggan menyetujui estimasi baru')),
+                TextField(controller: approvalController, maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Catatan persetujuan (telepon/WA)', border: OutlineInputBorder())),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+            FilledButton(
+              onPressed: customerApproved ? () => Navigator.pop(dialogContext, true) : null,
+              child: const Text('Simpan perubahan'),
+            ),
+          ],
+        ),
+      ),
+    );
+    int amount(TextEditingController controller) =>
+        int.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    final estimate = amount(estimateController);
+    final labor = amount(laborController);
+    final discount = amount(discountController);
+    final reason = reasonController.text.trim();
+    final approvalNote = approvalController.text.trim();
+    estimateController.dispose();
+    laborController.dispose();
+    discountController.dispose();
+    reasonController.dispose();
+    approvalController.dispose();
+    if (result != true) return;
+    try {
+      await _repository.updateServiceOrder(
+        id: id,
+        estimatedCost: estimate,
+        laborCost: labor,
+        partsCost: (detail['parts_cost'] as num? ?? 0).toInt(),
+        discount: discount,
+        customerApproved: true,
+        customerApprovalNote: approvalNote,
+        changeReason: reason,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Estimasi servis diperbarui dan riwayat perubahan dicatat.')));
+      await _refresh();
+      await _showDetail({'id': id});
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengubah estimasi: $error')));
+    }
+  }
+
   Future<void> _proposePartChange(int serviceId, {int? cancelItemId}) async {
     final noteController = TextEditingController();
     if (cancelItemId != null) {
@@ -825,6 +908,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
                       ),
                     ),
                   ),
+                if (AuthSession.instance.isCashierOrAdmin &&
+                    const ['waiting', 'checking', 'in_progress'].contains(status))
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'estimate'),
+                    icon: const Icon(Icons.edit_note_outlined),
+                    label: const Text('Ubah Estimasi'),
+                  ),
                 if (AuthSession.instance.isAdmin)
                   OutlinedButton.icon(
                     onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
@@ -873,6 +963,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
       await ReceiptShareLauncher.serviceFinalPayment(context, id);
     } else if (action == 'receipt_history') {
       await ReceiptShareLauncher.showHistory(context, sourceType: 'service_order', sourceId: id);
+    } else if (action == 'estimate') {
+      await _editServiceEstimate(detail);
     } else if (action == 'direct_costs') {
       await _editDirectCosts(detail);
     } else if (action == 'status') {
