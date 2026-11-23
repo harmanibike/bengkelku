@@ -767,6 +767,7 @@ class ServiceRepository {
       }
 
       final now = DateTime.now().toIso8601String();
+      var fifoCostDelta = 0;
       final oldEstimated = order['estimated_cost'] as int? ?? 0;
       final oldLabor = order['labor_cost'] as int? ?? 0;
       final oldParts = order['parts_cost'] as int? ?? 0;
@@ -833,13 +834,15 @@ class ServiceRepository {
                 where: 'id = ?',
                 whereArgs: [batch['id']],
               );
+              final unitCost = (batch['unit_cost'] as num?)?.toInt() ?? 0;
               await txn.insert('service_part_allocations', {
                 'service_order_item_id': itemId,
                 'batch_id': batch['id'],
                 'quantity': take,
-                'unit_cost': batch['unit_cost'] as int? ?? 0,
+                'unit_cost': unitCost,
                 'created_at': now,
               });
+              fifoCostDelta += take * unitCost;
               remaining -= take;
             }
             final stockAfter = stockBefore - quantity;
@@ -894,6 +897,8 @@ class ServiceRepository {
                 throw StateError('Alokasi FIFO sparepart lama belum tercatat lengkap. Stok tidak diubah agar saldo tidak keliru; lakukan rekonsiliasi stok terlebih dahulu.');
               }
               for (final allocation in allocations) {
+                fifoCostDelta -= (allocation['quantity'] as int? ?? 0) *
+                    (allocation['unit_cost'] as int? ?? 0);
                 final batchId = allocation['batch_id'] as int;
                 final batchRows = await txn.query(
                   'inventory_cost_batches',
@@ -940,6 +945,22 @@ class ServiceRepository {
         } else {
           throw StateError('Jenis usulan tidak dikenali.');
         }
+      }
+      if (approve && fifoCostDelta != 0) {
+        final oldDirectParts = (order['direct_parts_cost'] as num?)?.toInt() ?? 0;
+        final oldOtherDirect = (order['other_direct_cost'] as num?)?.toInt() ?? 0;
+        final newDirectParts = (oldDirectParts + fifoCostDelta).clamp(0, 1 << 62).toInt();
+        await txn.insert('service_direct_cost_history', {
+          'service_order_id': serviceId,
+          'old_direct_parts_cost': oldDirectParts,
+          'new_direct_parts_cost': newDirectParts,
+          'old_other_direct_cost': oldOtherDirect,
+          'new_other_direct_cost': oldOtherDirect,
+          'changed_at': now,
+        });
+        await txn.update('service_orders', {
+          'direct_parts_cost': newDirectParts,
+        }, where: 'id = ?', whereArgs: [serviceId]);
       }
 
       if (approve) {
