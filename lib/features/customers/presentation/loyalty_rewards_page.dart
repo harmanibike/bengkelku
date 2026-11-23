@@ -90,7 +90,7 @@ class _LoyaltyRewardsPageState extends State<LoyaltyRewardsPage> {
                       ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
-                        value: type,
+                        initialValue: type,
                         decoration: const InputDecoration(labelText: 'Jenis reward', border: OutlineInputBorder()),
                         items: const [
                           DropdownMenuItem(value: 'voucher', child: Text('Voucher belanja')),
@@ -177,7 +177,7 @@ class _LoyaltyRewardsPageState extends State<LoyaltyRewardsPage> {
               Text('Biaya: ${reward['points_cost']} poin'),
               const SizedBox(height: 14),
               DropdownButtonFormField<int>(
-                value: selectedCustomer,
+                initialValue: selectedCustomer,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Pilih pelanggan', border: OutlineInputBorder()),
                 items: available.map((customer) => DropdownMenuItem<int>(
