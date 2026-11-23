@@ -60,7 +60,6 @@ class _CustomerListPageState extends State<CustomerListPage> {
       try {
         final data = await frame.image.toByteData(
           format: ui.ImageByteFormat.jpeg,
-          quality: 65,
         );
         return data?.buffer.asUint8List() ?? bytes;
       } finally {
