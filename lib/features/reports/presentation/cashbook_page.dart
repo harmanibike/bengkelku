@@ -34,7 +34,8 @@ class _CashbookPageState extends State<CashbookPage> {
     final range = _range();
     final ledger = await _repo.getLedger(start: range.$1, end: range.$2, type: _type);
     final issues = await _repo.getReconciliationIssues(start: range.$1, end: range.$2);
-    return {...ledger, 'audit_issues': issues};
+    final supplierMismatches = await _repo.getSupplierPaymentMismatches(start: range.$1, end: range.$2);
+    return {...ledger, 'audit_issues': issues, 'supplier_mismatches': supplierMismatches};
   }
 
   void _refresh() => setState(()=>_future=_load());
@@ -143,6 +144,7 @@ class _CashbookPageState extends State<CashbookPage> {
         final data=snapshot.data ?? {};
         final entries=(data['entries'] as List?) ?? [];
         final auditIssues=(data['audit_issues'] as List?) ?? [];
+        final supplierMismatches=(data['supplier_mismatches'] as List?) ?? [];
         final income=(data['income'] as num?)?.toInt() ?? 0;
         final expense=(data['expense'] as num?)?.toInt() ?? 0;
         return RefreshIndicator(onRefresh:() async=>_refresh(),child:ListView(
@@ -218,6 +220,58 @@ class _CashbookPageState extends State<CashbookPage> {
                       }),
                       if (auditIssues.length > 8)
                         Text('Dan ${auditIssues.length - 8} transaksi lainnya.', style: const TextStyle(fontSize: 10)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height:8),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.compare_arrows, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(child: Text('Cocokkan pembayaran pemasok', style: TextStyle(fontWeight: FontWeight.w600))),
+                      Text('${supplierMismatches.length}', style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: supplierMismatches.isEmpty ? Colors.green : Colors.deepOrange,
+                      )),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text(
+                      supplierMismatches.isEmpty
+                        ? 'Riwayat pembayaran pemasok sesuai dengan kas keluar pada periode ini.'
+                        : 'Ada perbedaan antara riwayat pembayaran faktur dan kas keluar. Periksa sebelum melakukan koreksi.',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    if (supplierMismatches.isNotEmpty) ...[
+                      const Divider(height: 12),
+                      ...supplierMismatches.take(8).map((raw) {
+                        final item = raw as Map<String, Object?>;
+                        final history = (item['payment_history_total'] as num?)?.toInt() ?? 0;
+                        final cash = (item['cash_out_total'] as num?)?.toInt() ?? 0;
+                        final difference = (item['difference'] as num?)?.toInt() ?? 0;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${item['invoice_number'] ?? 'Faktur'} • ${item['supplier_name'] ?? 'Pemasok'}',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                              Text('Riwayat: ${_money(history)}  |  Kas keluar: ${_money(cash)}',
+                                style: const TextStyle(fontSize: 10)),
+                              Text('Selisih: ${_money(difference)}',
+                                style: const TextStyle(fontSize: 10, color: Colors.deepOrange)),
+                            ],
+                          ),
+                        );
+                      }),
+                      if (supplierMismatches.length > 8)
+                        Text('Dan ${supplierMismatches.length - 8} faktur lainnya.', style: const TextStyle(fontSize: 10)),
                     ],
                   ],
                 ),
