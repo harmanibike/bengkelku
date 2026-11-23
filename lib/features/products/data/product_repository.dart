@@ -33,7 +33,6 @@ class ProductRepository {
   }
 
   Future<int> addProduct({
-    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     String? sku,
     String? barcode,
     required String name,
@@ -49,6 +48,7 @@ class ProductRepository {
     String? description,
     String? imagePath,
   }) async {
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
     return db.transaction((txn) async {
       final id = await txn.insert('products', {
@@ -101,7 +101,6 @@ class ProductRepository {
   }
 
   Future<int> updateProduct({
-    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     required int id,
     String? sku,
     String? barcode,
@@ -117,6 +116,7 @@ class ProductRepository {
     String? description,
     String? imagePath,
   }) async {
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
     return db.transaction((txn) async {
       final updated = await txn.update('products', {
@@ -149,12 +149,12 @@ class ProductRepository {
   }
 
   Future<void> adjustStock({
-    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     required int productId,
     required int quantity,
     required bool isStockIn,
     String? notes,
   }) async {
+    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     if (quantity <= 0) {
       throw ArgumentError('Jumlah stok harus lebih dari nol.');
     }
