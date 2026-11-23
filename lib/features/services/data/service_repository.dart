@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class ServiceRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -395,6 +396,10 @@ class ServiceRepository {
   }) async {
     if (!serviceStatuses.contains(status)) {
       throw ArgumentError('Status servis tidak valid.');
+    }
+    final session = AuthSession.instance;
+    if (session.isMechanic && (actingMechanicId == null || actingMechanicId != session.userId)) {
+      throw StateError('Akses ditolak: akun mekanik hanya boleh mengubah tugasnya sendiri.');
     }
 
     final db = await _db;
