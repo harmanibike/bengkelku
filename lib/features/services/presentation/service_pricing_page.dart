@@ -91,7 +91,7 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
         TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Nama jasa *'), validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null),
         TextFormField(controller: category, decoration: const InputDecoration(labelText: 'Kategori')),
         TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Keterangan')),
-        TextFormField(controller: price, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga standar (Rp)'), validator: (v) { final n = parseCurrencyInput(v); return n == null || n < 0 ? 'Nominal tidak valid' : null; }),
+        TextFormField(controller: price, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga standar (Rp)'), validator: (v) { final n = v == null || v.trim().isEmpty ? -1 : parseCurrencyInput(v); return n < 0 ? 'Nominal tidak valid' : null; }),
         if (item != null) TextFormField(controller: reason, decoration: const InputDecoration(labelText: 'Alasan perubahan harga')),
       ]))),
       actions: [
