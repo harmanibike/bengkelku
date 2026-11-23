@@ -328,7 +328,12 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     try {
       final mechanics = await AccountRepository().getActiveMechanics();
       if (!mounted) return;
-      setState(() => _mechanics = mechanics);
+      final suggested = await _serviceRepository.getLeastBusyMechanic();
+      if (!mounted) return;
+      setState(() {
+        _mechanics = mechanics;
+        _selectedMechanicId = suggested?['id'] as int?;
+      });
     } catch (error) {
       if (!mounted) return;
       _showMessage('Gagal memuat daftar mekanik: $error');
@@ -944,7 +949,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         DropdownButtonFormField<int>(
                           initialValue: _selectedMechanicId,
                           isExpanded: true,
-                          decoration: const InputDecoration(labelText: 'Tugaskan kepada mekanik', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Mekanik (dipilih otomatis berdasarkan beban kerja)', border: OutlineInputBorder()),
                           items: _mechanics.map((mechanic) => DropdownMenuItem<int>(
                             value: mechanic['id'] as int,
                             child: Text(mechanic['display_name']?.toString() ?? 'Mekanik'),
@@ -957,7 +962,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           decoration: const InputDecoration(labelText: 'Nama mekanik (opsional)', border: OutlineInputBorder()),
                         ),
                       if (_mechanics.isNotEmpty)
-                        const Padding(padding: EdgeInsets.only(top: 5), child: Text('Penugasan ini menentukan servis yang terlihat pada akun Mekanik.', style: TextStyle(fontSize: 11, color: Colors.grey))),
+                        Padding(padding: const EdgeInsets.only(top: 5), child: Text(_selectedMechanicId == null ? 'Belum ada mekanik aktif. Antrian tetap tersimpan dan dapat ditugaskan kemudian.' : 'Saran otomatis: mekanik dengan pekerjaan aktif paling sedikit. Admin/Kasir dapat mengganti pilihan.', style: const TextStyle(fontSize: 11, color: Colors.grey))),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _notesController,
