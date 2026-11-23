@@ -678,11 +678,29 @@ class ServiceRepository {
   // mekanik disimpan sebagai relasi, bukan hanya teks nama.
   Future<int> assignMechanic({required int serviceOrderId, int? mechanicId}) async {
     final db = await _db;
+    String? mechanicName;
     if (mechanicId != null) {
-      final users = await db.query('app_users', columns: ['id'], where: "id = ? AND role = 'mechanic' AND is_active = 1", whereArgs: [mechanicId], limit: 1);
-      if (users.isEmpty) throw StateError('Akun mekanik tidak ditemukan atau tidak aktif.');
+      final users = await db.query(
+        'app_users',
+        columns: ['id', 'display_name'],
+        where: "id = ? AND role = 'mechanic' AND is_active = 1",
+        whereArgs: [mechanicId],
+        limit: 1,
+      );
+      if (users.isEmpty) {
+        throw StateError('Akun mekanik tidak ditemukan atau tidak aktif.');
+      }
+      mechanicName = users.first['display_name']?.toString();
     }
-    return db.update('service_orders', {'assigned_mechanic_id': mechanicId}, where: 'id = ?', whereArgs: [serviceOrderId]);
+    return db.update(
+      'service_orders',
+      {
+        'assigned_mechanic_id': mechanicId,
+        'mechanic_name': mechanicName,
+      },
+      where: 'id = ?',
+      whereArgs: [serviceOrderId],
+    );
   }
 
   String? _nullableText(String? value) {
