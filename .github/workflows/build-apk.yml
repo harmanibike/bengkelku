@@ -128,8 +128,8 @@ jobs:
 
           missing = [item for item in permissions if item.split('"')[1] not in source]
           if missing:
-              block = "\\n".join(missing) + "\\n\\n"
-              source, count = re.subn(r'(<application\\b)', lambda match: block + match.group(1), source, count=1)
+              block = "\n".join(missing) + "\n\n"
+              source, count = re.subn(r'(<application\b)', lambda match: block + match.group(1), source, count=1)
               if count != 1:
                   raise SystemExit("Tag application pada AndroidManifest.xml tidak ditemukan.")
               path.write_text(source)
