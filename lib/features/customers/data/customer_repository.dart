@@ -2,6 +2,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/activity_log_repository.dart';
 
 class CustomerRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -19,12 +20,22 @@ class CustomerRepository {
   }) async {
     final db = await _db;
 
-    return db.insert('customers', {
-      'name': name.trim(),
-      'phone': phone?.trim(),
-      'address': address?.trim(),
-      'email': email?.trim(),
-      'notes': notes?.trim(),
+    return db.transaction((txn) async {
+      final id = await txn.insert('customers', {
+        'name': name.trim(),
+        'phone': phone?.trim(),
+        'address': address?.trim(),
+        'email': email?.trim(),
+        'notes': notes?.trim(),
+      });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'customer_created',
+        description: 'Menambahkan pelanggan ${name.trim()}.',
+        entityType: 'customer',
+        entityId: id,
+      );
+      return id;
     });
   }
 
@@ -38,19 +49,31 @@ class CustomerRepository {
   }) async {
     final db = await _db;
 
-    return db.update(
-      'customers',
-      {
-        'name': name.trim(),
-        'phone': phone?.trim(),
-        'address': address?.trim(),
-        'email': email?.trim(),
-        'notes': notes?.trim(),
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final updated = await txn.update(
+        'customers',
+        {
+          'name': name.trim(),
+          'phone': phone?.trim(),
+          'address': address?.trim(),
+          'email': email?.trim(),
+          'notes': notes?.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (updated > 0) {
+        await ActivityLogRepository.record(
+          txn,
+          action: 'customer_updated',
+          description: 'Memperbarui data pelanggan ${name.trim()}.',
+          entityType: 'customer',
+          entityId: id,
+        );
+      }
+      return updated;
+    });
   }
 
   Future<List<Map<String, Object?>>> getCustomers({
@@ -88,11 +111,21 @@ class CustomerRepository {
 
     // Riwayat transaksi tetap aman.
     // Relasi sepeda dan servis mengikuti aturan foreign key.
-    return db.delete(
-      'customers',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final rows = await txn.query('customers',
+        columns: ['name'], where: 'id = ?', whereArgs: [id], limit: 1);
+      final deleted = await txn.delete('customers', where: 'id = ?', whereArgs: [id]);
+      if (deleted > 0) {
+        await ActivityLogRepository.record(
+          txn,
+          action: 'customer_deleted',
+          description: 'Menghapus data pelanggan ${rows.isEmpty ? '#$id' : rows.first['name']}.',
+          entityType: 'customer',
+          entityId: id,
+        );
+      }
+      return deleted;
+    });
   }
 
   Future<int> countCustomers() async {
@@ -122,17 +155,27 @@ class CustomerRepository {
   }) async {
     final db = await _db;
 
-    return db.insert('bicycles', {
-      'customer_id': customerId,
-      'brand': brand?.trim(),
-      'model': model?.trim(),
-      'bicycle_type': bicycleType?.trim(),
-      'color': color?.trim(),
-      'frame_size': frameSize?.trim(),
-      'serial_number': _nullableText(serialNumber),
-      'purchase_date': purchaseDate,
-      'warranty_until': warrantyUntil,
-      'notes': notes?.trim(),
+    return db.transaction((txn) async {
+      final id = await txn.insert('bicycles', {
+        'customer_id': customerId,
+        'brand': brand?.trim(),
+        'model': model?.trim(),
+        'bicycle_type': bicycleType?.trim(),
+        'color': color?.trim(),
+        'frame_size': frameSize?.trim(),
+        'serial_number': _nullableText(serialNumber),
+        'purchase_date': purchaseDate,
+        'warranty_until': warrantyUntil,
+        'notes': notes?.trim(),
+      });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'bicycle_created',
+        description: 'Menambahkan sepeda ${[brand, model].where((v) => v != null && v.trim().isNotEmpty).join(' ')}.',
+        entityType: 'bicycle',
+        entityId: id,
+      );
+      return id;
     });
   }
 
