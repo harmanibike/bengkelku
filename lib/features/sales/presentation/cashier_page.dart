@@ -21,6 +21,8 @@ class _CashierPageState extends State<CashierPage> {
   List<Map<String, String>> _paymentMethods = PaymentMethodsRepository.defaultMethods.map(Map<String, String>.from).toList();
   final TextEditingController _search = TextEditingController();
   final TextEditingController _paid = TextEditingController();
+  final TextEditingController _buyerName = TextEditingController();
+  final TextEditingController _discount = TextEditingController(text: '0');
   List<Map<String, Object?>> _products = [];
   final Map<int, Map<String, Object?>> _cart = {};
   bool _loading = true;
@@ -40,6 +42,8 @@ class _CashierPageState extends State<CashierPage> {
   void dispose() {
     _search.dispose();
     _paid.dispose();
+    _buyerName.dispose();
+    _discount.dispose();
     super.dispose();
   }
 
@@ -147,9 +151,14 @@ class _CashierPageState extends State<CashierPage> {
 
   Future<void> _checkout() async {
     if (_cart.isEmpty) return;
+    _buyerName.text = '';
+    _discount.text = '0';
     _paid.text = _total.toString();
     final paymentController = TextEditingController(text: _paid.text);
+    final discountController = TextEditingController(text: '0');
+    final buyerNameController = TextEditingController();
     try {
+      var discountAmount = 0;
       var selectedPaymentMethod = _paymentMethods.any((method) => method['code'] == 'cash')
           ? 'cash'
           : _paymentMethods.first['code']!;
@@ -162,9 +171,27 @@ class _CashierPageState extends State<CashierPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Total: ${_rupiah(_total)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                const SizedBox(height: 4),
-                const Text('Pelanggan: Pelanggan Umum (tanpa data pelanggan)'),
+                Text('Subtotal: ${_rupiah(_total)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: buyerNameController,
+                  decoration: const InputDecoration(labelText: 'Nama pembeli (opsional)', hintText: 'Kosongkan = Pelanggan Umum'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: discountController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(labelText: 'Diskon (Rp)', hintText: 'Masukkan nominal diskon'),
+                  onChanged: (value) => setDialogState(() {
+                    final parsed = int.tryParse(value) ?? 0;
+                    discountAmount = parsed.clamp(0, _total).toInt();
+                    final payable = _total - discountAmount;
+                    paymentController.text = payable.toString();
+                  }),
+                ),
+                const SizedBox(height: 8),
+                Text('Total setelah diskon: ${_rupiah(_total - discountAmount)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: selectedPaymentMethod,
@@ -200,12 +227,20 @@ class _CashierPageState extends State<CashierPage> {
         ),
       );
       if (confirmedMethod == null || !mounted) return;
+      final discount = int.tryParse(discountController.text) ?? 0;
+      if (discount < 0 || discount > _total) {
+        throw ArgumentError('Diskon tidak boleh melebihi subtotal.');
+      }
+      final finalTotal = _total - discount;
       final paid = int.tryParse(paymentController.text) ?? 0;
+      if (paid < finalTotal && buyerNameController.text.trim().isEmpty) {
+        // Piutang harus ditautkan ke data pelanggan yang terdaftar.
+      }
       final paymentMethodLabel = _paymentMethods.firstWhere(
         (method) => method['code'] == confirmedMethod,
       )['name']!;
       int? customerId;
-      if (paid < _total) {
+      if (paid < finalTotal) {
         customerId = await _chooseCustomer();
         if (customerId == null || !mounted) return;
       }
@@ -219,6 +254,8 @@ class _CashierPageState extends State<CashierPage> {
         paid: paid,
         paymentMethod: paymentMethodLabel,
         customerId: customerId,
+        customerName: buyerNameController.text.trim().isEmpty ? 'Pelanggan Umum' : buyerNameController.text.trim(),
+        discount: discount,
       );
       if (!mounted) return;
       setState(() {
@@ -243,6 +280,8 @@ class _CashierPageState extends State<CashierPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Transaksi gagal: $error')));
     } finally {
       paymentController.dispose();
+      discountController.dispose();
+      buyerNameController.dispose();
     }
   }
 
