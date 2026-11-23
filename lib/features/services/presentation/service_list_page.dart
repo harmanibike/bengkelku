@@ -630,10 +630,17 @@ class _ServiceListPageState extends State<ServiceListPage> {
                           child: Text('Bukti Pelunasan'),
                         ),
                     ],
-                    child: OutlinedButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.description_outlined),
-                      label: const Text('Dokumen'),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.description_outlined, size: 18),
+                          const SizedBox(width: 6),
+                          const Text('Dokumen'),
+                          const Icon(Icons.arrow_drop_down, size: 18),
+                        ],
+                      ),
                     ),
                   ),
                 if (AuthSession.instance.isAdmin)
