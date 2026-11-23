@@ -121,6 +121,31 @@ class ServiceRepository {
 
       final now = DateTime.now();
       final orderNumber = _generateOrderNumber(now);
+      final queueDate = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final queueRows = await txn.rawQuery(
+        'SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_number FROM service_orders WHERE queue_date = ?',
+        [queueDate],
+      );
+      final queueNumber = (queueRows.first['next_number'] as int?) ?? 1;
+      var effectiveMechanicId = assignedMechanicId;
+      var effectiveMechanicName = _nullableText(mechanicName);
+      if (effectiveMechanicId == null) {
+        final leastBusy = await txn.rawQuery("""
+          SELECT u.id, u.display_name, COUNT(s.id) AS active_jobs
+          FROM app_users u
+          LEFT JOIN service_orders s
+            ON s.assigned_mechanic_id = u.id
+            AND s.service_status IN ('waiting', 'checking', 'in_progress')
+          WHERE u.role = 'mechanic' AND u.is_active = 1
+          GROUP BY u.id, u.display_name
+          ORDER BY active_jobs ASC, u.id ASC
+          LIMIT 1
+        """);
+        if (leastBusy.isNotEmpty) {
+          effectiveMechanicId = leastBusy.first['id'] as int;
+          effectiveMechanicName = leastBusy.first['display_name']?.toString();
+        }
+      }
 
       final serviceOrderId = await txn.insert('service_orders', {
         'order_number': orderNumber,
@@ -159,8 +184,11 @@ class ServiceRepository {
         'total_cost': safeTotal,
         'down_payment': paid,
         'remaining_payment': safeTotal - paid,
-        'mechanic_name': _nullableText(mechanicName),
-        'assigned_mechanic_id': assignedMechanicId,
+        'mechanic_name': effectiveMechanicName,
+        'assigned_mechanic_id': effectiveMechanicId,
+        'queue_number': queueNumber,
+        'queue_date': queueDate,
+        'queue_priority': 0,
         'received_at': now.toIso8601String(),
         'notes': _nullableText(notes),
         'before_photo_path': _nullableText(beforePhotoPath),
@@ -355,7 +383,8 @@ class ServiceRepository {
       LEFT JOIN customers c ON c.id = s.customer_id
       LEFT JOIN bicycles b ON b.id = s.bicycle_id
       $whereClause
-      ORDER BY s.id DESC
+      ORDER BY COALESCE(s.queue_date, substr(s.received_at, 1, 10)) DESC,
+        s.queue_priority DESC, COALESCE(s.queue_number, 2147483647) ASC, s.id DESC
     ''', arguments);
     return AuthSession.instance.isMechanic ? rows.map(_withoutFinancialFields).toList() : rows;
   }
@@ -930,6 +959,39 @@ class ServiceRepository {
         'mechanic_name': mechanicName,
       },
       where: 'id = ?',
+      whereArgs: [serviceOrderId],
+    );
+  }
+
+
+  Future<Map<String, Object?>?> getLeastBusyMechanic() async {
+    AuthSession.instance.requireCashierOrAdmin(
+      'Hanya Admin dan Kasir yang dapat melihat daftar mekanik.',
+    );
+    final db = await _db;
+    final rows = await db.rawQuery("""
+      SELECT u.id, u.display_name, COUNT(s.id) AS active_jobs
+      FROM app_users u
+      LEFT JOIN service_orders s
+        ON s.assigned_mechanic_id = u.id
+        AND s.service_status IN ('waiting', 'checking', 'in_progress')
+      WHERE u.role = 'mechanic' AND u.is_active = 1
+      GROUP BY u.id, u.display_name
+      ORDER BY active_jobs ASC, u.id ASC
+      LIMIT 1
+    """);
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<int> setQueuePriority({required int serviceOrderId, required bool priority}) async {
+    if (!AuthSession.instance.isAdmin) {
+      throw StateError('Hanya Admin yang dapat mengubah prioritas antrian.');
+    }
+    final db = await _db;
+    return db.update(
+      'service_orders',
+      {'queue_priority': priority ? 1 : 0},
+      where: "id = ? AND service_status IN ('waiting', 'checking', 'in_progress')",
       whereArgs: [serviceOrderId],
     );
   }
