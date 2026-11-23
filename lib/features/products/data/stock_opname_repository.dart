@@ -1,5 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../../core/auth/auth_session.dart';
+
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/activity_log_repository.dart';
 
@@ -7,6 +9,7 @@ class StockOpnameRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
   Future<List<Map<String, Object?>>> getSessions() async {
+    AuthSession.instance.requireAdmin('Stok opname hanya dapat dikelola Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT s.*, COUNT(i.id) item_count,
@@ -21,6 +24,7 @@ class StockOpnameRepository {
   }
 
   Future<int> createSession() async {
+    AuthSession.instance.requireAdmin('Stok opname hanya dapat dikelola Admin.');
     final db = await _db;
     return db.transaction((txn) async {
       final id = await txn.insert('stock_opname_sessions', {
@@ -49,6 +53,7 @@ class StockOpnameRepository {
   }
 
   Future<List<Map<String, Object?>>> getItems(int id) async {
+    AuthSession.instance.requireAdmin('Stok opname hanya dapat dikelola Admin.');
     final db = await _db;
     return db.rawQuery('''
       SELECT i.*, p.barcode
@@ -60,6 +65,7 @@ class StockOpnameRepository {
   }
 
   Future<void> setCount(int itemId, int quantity) async {
+    AuthSession.instance.requireAdmin('Stok opname hanya dapat dikelola Admin.');
     if (quantity < 0) throw ArgumentError('Jumlah fisik tidak boleh negatif.');
     final db = await _db;
     await db.transaction((txn) async {
@@ -79,6 +85,7 @@ class StockOpnameRepository {
   }
 
   Future<void> deleteDraft(int sessionId) async {
+    AuthSession.instance.requireAdmin('Stok opname hanya dapat dikelola Admin.');
     final db = await _db;
     await db.transaction((txn) async {
       final sessions = await txn.query('stock_opname_sessions',
@@ -98,6 +105,7 @@ class StockOpnameRepository {
   }
 
   Future<void> applySession(int sessionId) async {
+    AuthSession.instance.requireAdmin('Stok opname hanya dapat dikelola Admin.');
     final db = await _db;
     await db.transaction((txn) async {
       final sessions = await txn.query('stock_opname_sessions',
