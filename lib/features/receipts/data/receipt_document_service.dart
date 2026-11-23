@@ -108,7 +108,7 @@ class ReceiptDocumentService {
           ],
           if (settings.showTransactionNotes && _text(sale['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6 * settings.spacing),
-            pw.Text('Catatan: ${_text(sale['notes'])}', style: const pw.TextStyle(fontSize: 8)),
+            pw.Text('Catatan: ${_text(sale['notes'])}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
           ],
           pw.SizedBox(height: 12 * settings.spacing),
           if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih atas kunjungan Anda.' : _text(profile['business_footer_note']), size: 8, settings: settings),
@@ -144,7 +144,7 @@ class ReceiptDocumentService {
         children: [
           _header(profile, logo, settings),
           _center('NOTA SERVIS', bold: true, size: 12, settings: settings),
-          pw.SizedBox(height: 5),
+          pw.SizedBox(height: 5 * settings.spacing),
           _line('No. Nota', _text(service['order_number']), settings: settings),
           _line('Tanggal masuk', dateLabel(service['received_at']), settings: settings),
           if (settings.showCustomerDetails) _line('Pelanggan', _text(service['customer_name']), settings: settings),
@@ -164,8 +164,8 @@ class ReceiptDocumentService {
           _line('Sisa tagihan', rupiah(remaining), bold: true, settings: settings),
           _line('Status', _text(service['service_status']), settings: settings),
           if (payments.isNotEmpty) ...[
-            pw.SizedBox(height: 7),
-            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 7 * settings.spacing),
+            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
             ...payments.map((payment) => _line(
               dateLabel(payment['transaction_date']),
               rupiah(payment['amount']),
@@ -173,10 +173,10 @@ class ReceiptDocumentService {
             )),
           ],
           if (settings.showTransactionNotes && _text(service['notes']).isNotEmpty) ...[
-            pw.SizedBox(height: 6),
-            pw.Text('Catatan: ${_text(service['notes'])}', style: const pw.TextStyle(fontSize: 8)),
+            pw.SizedBox(height: 6 * settings.spacing),
+            pw.Text('Catatan: ${_text(service['notes'])}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
           ],
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 12 * settings.spacing),
           if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : _text(profile['business_footer_note']), size: 8, settings: settings),
         ],
       )),
@@ -208,7 +208,7 @@ class ReceiptDocumentService {
           _header(profile, logo, settings),
           _center('BUKTI PENERIMAAN SEPEDA', bold: true, size: 11, settings: settings),
           _center('DOKUMEN SAAT SEPEDA MASUK BENGKEL', size: 7, settings: settings),
-          pw.SizedBox(height: 7),
+          pw.SizedBox(height: 7 * settings.spacing),
           _line('No. Dokumen', '${_text(service['order_number'])}-TERIMA', settings: settings),
           _line('No. Servis', _text(service['order_number']), settings: settings),
           _line('Tanggal diterima', dateLabel(service['received_at']), settings: settings),
@@ -237,7 +237,7 @@ class ReceiptDocumentService {
           pw.Divider(),
           _line('Estimasi biaya', rupiah(service['estimated_cost']), settings: settings),
           _line('Status servis', _text(service['service_status']), settings: settings),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 12 * settings.spacing),
           _center('Dokumen ini merupakan bukti penerimaan sepeda, bukan bukti pelunasan.', size: 7, settings: settings),
           pw.SizedBox(height: 10),
           if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty
@@ -275,7 +275,7 @@ class ReceiptDocumentService {
           _header(profile, logo, settings),
           _center('BUKTI PELUNASAN SERVIS', bold: true, size: 12, settings: settings),
           _center('PEMBAYARAN TELAH LUNAS', bold: true, size: 8, settings: settings),
-          pw.SizedBox(height: 7),
+          pw.SizedBox(height: 7 * settings.spacing),
           _line('No. Dokumen', '${_text(service['order_number'])}-LUNAS', settings: settings),
           _line('No. Servis', _text(service['order_number']), settings: settings),
           _line('Tanggal masuk', dateLabel(service['received_at']), settings: settings),
@@ -288,8 +288,8 @@ class ReceiptDocumentService {
           _line('Total pembayaran diterima', rupiah(paid), bold: true, settings: settings),
           _line('Sisa tagihan', rupiah(remaining), bold: true, settings: settings),
           if (payments.isNotEmpty) ...[
-            pw.SizedBox(height: 7),
-            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 7 * settings.spacing),
+            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
             ...payments.map((payment) => _line(
               dateLabel(payment['transaction_date']),
               rupiah(payment['amount']),
@@ -319,7 +319,7 @@ class ReceiptDocumentService {
       if (settings.showBusinessName && _text(profile['business_name']).isNotEmpty)
         _center(_text(profile['business_name']), bold: true, size: 11, settings: settings),
       ...details.map((detail) => _center(detail, size: 7, settings: settings)),
-      pw.SizedBox(height: 5),
+      pw.SizedBox(height: 5 * settings.spacing),
     ]);
   }
 
