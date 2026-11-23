@@ -306,13 +306,13 @@ jobs:
           for path in files:
               source = path.read_text()
               updated = re.sub(
-                  r'(compileSdkVersion\\s+)(?:flutter\\.compileSdkVersion|[0-9]+)',
-                  r'\\g<1>36',
+                  r'(compileSdkVersion\s+)(?:flutter\.compileSdkVersion|[0-9]+)',
+                  r'\g<1>36',
                   source,
               )
               updated = re.sub(
-                  r'(compileSdk\\s*=\\s*)(?:flutter\\.compileSdkVersion|[0-9]+)',
-                  r'\\g<1>36',
+                  r'(compileSdk\s*=\s*)(?:flutter\.compileSdkVersion|[0-9]+)',
+                  r'\g<1>36',
                   updated,
               )
               if updated != source:
