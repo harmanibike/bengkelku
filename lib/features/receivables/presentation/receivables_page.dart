@@ -187,6 +187,9 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
       final refunded = _int(record['refunded_amount']);
       final netTotal = sale ? _int(record['total']) - returned : _int(record['total_cost']);
       final paid = sale ? _int(record['paid']) : _int(record['down_payment']);
+      final paymentHistoryTotal = payments.fold<int>(
+        0, (sum, payment) => sum + _int(payment['amount']));
+      final paymentHistoryMismatch = paymentHistoryTotal != paid;
       final remaining = sale
           ? netTotal - paid + refunded
           : _int(record['remaining_payment']);
@@ -217,6 +220,14 @@ class _ReceivablesPageState extends State<ReceivablesPage> {
                     _detailAmount('Total setelah retur', netTotal),
                   ],
                   _detailAmount('Total dibayar', paid),
+                  if (paymentHistoryMismatch)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: Text(
+                        'Perlu audit: total dibayar berbeda dari riwayat kas masuk.',
+                        style: TextStyle(fontSize: 11, color: Colors.deepOrange, fontWeight: FontWeight.w600),
+                      ),
+                    ),
                   _detailAmount('Sisa piutang', remaining),
                   const Divider(),
                   const Text('Riwayat pembayaran',
