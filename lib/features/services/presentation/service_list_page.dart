@@ -585,72 +585,79 @@ class _ServiceListPageState extends State<ServiceListPage> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Tutup'),
-          ),
-          if (AuthSession.instance.isCashierOrAdmin)
-            OutlinedButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, 'assign_mechanic'),
-              icon: const Icon(Icons.assignment_ind_outlined),
-              label: const Text('Tugaskan Mekanik'),
-            ),
-          if (!AuthSession.instance.isMechanic) OutlinedButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, 'receipt_history'),
-            icon: const Icon(Icons.history),
-            label: const Text('Riwayat Nota'),
-          ),
-          if (!AuthSession.instance.isMechanic) OutlinedButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, 'receipt'),
-            icon: const Icon(Icons.receipt_long_outlined),
-            label: const Text('Nota / Bagikan'),
-          ),
-          if (!AuthSession.instance.isMechanic) PopupMenuButton<String>(
-            tooltip: 'Dokumen servis',
-            onSelected: (value) => Navigator.pop(dialogContext, value),
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'service_intake_receipt',
-                child: Text('Bukti Penerimaan Sepeda'),
-              ),
-              if ((detail['remaining_payment'] as int? ?? 0) <= 0 &&
-                  status != 'cancelled')
-                const PopupMenuItem(
-                  value: 'service_final_payment_receipt',
-                  child: Text('Bukti Pelunasan'),
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Tutup'),
                 ),
-            ],
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.description_outlined, size: 18),
-                  SizedBox(width: 5),
-                  Text('Dokumen'),
-                ],
-              ),
+                if (AuthSession.instance.isCashierOrAdmin)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'assign_mechanic'),
+                    icon: const Icon(Icons.assignment_ind_outlined),
+                    label: const Text('Tugaskan Mekanik'),
+                  ),
+                if (!AuthSession.instance.isMechanic)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'receipt_history'),
+                    icon: const Icon(Icons.history),
+                    label: const Text('Riwayat Nota'),
+                  ),
+                if (!AuthSession.instance.isMechanic)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'receipt'),
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    label: const Text('Nota / Bagikan'),
+                  ),
+                if (!AuthSession.instance.isMechanic)
+                  PopupMenuButton<String>(
+                    tooltip: 'Dokumen servis',
+                    onSelected: (value) => Navigator.pop(dialogContext, value),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'service_intake_receipt',
+                        child: Text('Bukti Penerimaan Sepeda'),
+                      ),
+                      if ((detail['remaining_payment'] as int? ?? 0) <= 0 &&
+                          status != 'cancelled')
+                        const PopupMenuItem(
+                          value: 'service_final_payment_receipt',
+                          child: Text('Bukti Pelunasan'),
+                        ),
+                    ],
+                    child: OutlinedButton.icon(
+                      onPressed: null,
+                      icon: const Icon(Icons.description_outlined),
+                      label: const Text('Dokumen'),
+                    ),
+                  ),
+                if (AuthSession.instance.isAdmin)
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
+                    icon: const Icon(Icons.edit_note_outlined),
+                    label: const Text('Ubah Biaya Modal'),
+                  ),
+                if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
+                    status != 'cancelled')
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'payment'),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Catat Pembayaran'),
+                  ),
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(dialogContext, 'status'),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Ubah Status'),
+                ),
+              ],
             ),
-          ),
-          if (AuthSession.instance.isAdmin) OutlinedButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
-            icon: const Icon(Icons.edit_note_outlined),
-            label: const Text('Ubah Biaya Modal'),
-          ),
-          if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
-              status != 'cancelled')
-            OutlinedButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, 'payment'),
-              icon: const Icon(Icons.payments_outlined),
-              label: const Text('Catat Pembayaran'),
-            ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, 'status'),
-            icon: const Icon(Icons.edit_outlined),
-            label: const Text('Ubah Status'),
           ),
         ],
-      ),
     );
 
     if (!mounted) return;
