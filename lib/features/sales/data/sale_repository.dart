@@ -105,10 +105,11 @@ class SaleRepository {
     String? customerName,
     int discount = 0,
     String? notes,
+    int walletPayment = 0,
   }) async {
     AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses penjualan.');
     if (items.isEmpty) throw ArgumentError('Keranjang masih kosong.');
-    if (paid < 0) throw ArgumentError('Pembayaran tidak valid.');
+    if (paid < 0 || walletPayment < 0) throw ArgumentError('Pembayaran tidak valid.');
 
     // Gabungkan baris produk yang sama sebelum memeriksa stok.
     // Ini mencegah stok diperiksa berulang terhadap angka stok awal yang sama.
@@ -184,11 +185,18 @@ class SaleRepository {
       }
       final total = subtotal - discount;
       final appliedPayment = paid.clamp(0, total).toInt();
-      if (appliedPayment < total && customerId == null) {
+      if (walletPayment > total - appliedPayment) {
+        throw ArgumentError('Pembayaran dari saldo melebihi sisa total transaksi.');
+      }
+      final totalPaid = appliedPayment + walletPayment;
+      if (totalPaid < total && customerId == null) {
         throw ArgumentError('Pilih pelanggan untuk transaksi belum lunas.');
       }
-      final change = paid > total ? paid - total : 0;
-      final paymentStatus = appliedPayment >= total ? 'paid' : (appliedPayment > 0 ? 'partial' : 'unpaid');
+      if (walletPayment > 0 && customerId == null) {
+        throw ArgumentError('Pilih pelanggan terdaftar untuk menggunakan saldo deposit.');
+      }
+      final change = paid > total - walletPayment ? paid - (total - walletPayment) : 0;
+      final paymentStatus = totalPaid >= total ? 'paid' : (totalPaid > 0 ? 'partial' : 'unpaid');
       final now = DateTime.now();
       final invoice = 'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch}';
 
@@ -207,9 +215,9 @@ class SaleRepository {
         'discount': discount,
         'tax': 0,
         'total': total,
-        'paid': appliedPayment,
+        'paid': totalPaid,
         'change_amount': change,
-        'payment_method': paymentMethod ?? 'cash',
+        'payment_method': walletPayment > 0 && appliedPayment > 0 ? 'Saldo Deposit + ${paymentMethod ?? 'cash'}' : walletPayment > 0 ? 'Saldo Deposit Pelanggan' : paymentMethod ?? 'cash',
         'payment_status': paymentStatus,
         'transaction_date': now.toIso8601String(),
         'notes': notes,
@@ -270,6 +278,29 @@ class SaleRepository {
         }
       }
 
+      if (walletPayment > 0) {
+        final walletRows = await txn.rawQuery(
+          'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
+          [customerId],
+        );
+        final walletBalance = walletRows.isEmpty ? 0 : (walletRows.first['balance_after'] as num?)?.toInt() ?? 0;
+        if (walletPayment > walletBalance) {
+          throw StateError('Saldo pelanggan tidak mencukupi. Saldo tersedia Rp$walletBalance.');
+        }
+        await txn.insert('customer_wallet_ledger', {
+          'customer_id': customerId,
+          'entry_type': 'sale_payment',
+          'amount': walletPayment,
+          'balance_after': walletBalance - walletPayment,
+          'description': 'Pembayaran penjualan $invoice',
+          'reference_type': 'sale',
+          'reference_id': saleId,
+          'payment_method': 'customer_wallet',
+          'created_by_id': AuthSession.instance.userId,
+          'created_by_name': AuthSession.instance.displayName,
+          'created_at': now.toIso8601String(),
+        });
+      }
       if (appliedPayment > 0) {
         await txn.insert('cash_transactions', {
           'transaction_type': 'income',
