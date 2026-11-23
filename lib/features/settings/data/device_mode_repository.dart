@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/auth_session.dart';
 
 class DeviceModeRepository {
   static const settingKey = 'device_mode';
@@ -28,6 +29,7 @@ class DeviceModeRepository {
   }
 
   Future<Map<String, String>> getClientConfig() async {
+    AuthSession.instance.requireAdmin('Pengaturan koneksi perangkat hanya dapat diakses Admin.');
     final db = await _db;
     final rows = await db.query(
       'app_settings',
@@ -51,6 +53,7 @@ class DeviceModeRepository {
     required String host,
     required int port,
   }) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah koneksi perangkat.');
     final normalizedHost = host.trim();
     if (normalizedHost.isEmpty || normalizedHost.contains('/') ||
         normalizedHost.contains('://') || normalizedHost.contains(' ')) {
@@ -85,6 +88,7 @@ class DeviceModeRepository {
   }
 
   Future<void> saveMode(String mode) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat mengubah mode perangkat.');
     if (mode != localMode) {
       throw ArgumentError('Mode Server dan Client belum tersedia.');
     }
