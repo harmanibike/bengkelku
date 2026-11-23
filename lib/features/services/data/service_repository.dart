@@ -520,8 +520,8 @@ class ServiceRepository {
       if (financialChanged && !customerApproved) {
         throw StateError('Minta persetujuan pelanggan sebelum mengubah estimasi atau tagihan.');
       }
-      if (financialChanged && (status == 'completed' || status == 'delivered')) {
-        throw StateError('Estimasi servis yang sudah selesai/diambil tidak dapat diubah agar laporan periode tetap akurat.');
+      if (financialChanged && (status == 'completed' || status == 'delivered' || status == 'cancelled')) {
+        throw StateError('Estimasi servis yang sudah selesai, diambil, atau dibatalkan tidak dapat diubah agar laporan periode tetap akurat.');
       }
       if (paid > total) {
         throw ArgumentError(
