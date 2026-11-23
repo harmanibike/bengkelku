@@ -184,10 +184,14 @@ class SaleRepository {
         throw ArgumentError('Diskon harus antara Rp0 dan subtotal.');
       }
       final total = subtotal - discount;
-      final appliedPayment = paid.clamp(0, total).toInt();
-      if (walletPayment > total - appliedPayment) {
-        throw ArgumentError('Pembayaran dari saldo melebihi sisa total transaksi.');
+      if (walletPayment > total) {
+        throw ArgumentError('Pembayaran dari saldo melebihi total transaksi.');
       }
+      // Saldo pelanggan mengurangi tagihan terlebih dahulu. Uang tunai
+      // hanya digunakan untuk melunasi sisanya; kelebihan tunai menjadi
+      // kembalian, bukan dianggap sebagai pembayaran tambahan.
+      final cashDue = total - walletPayment;
+      final appliedPayment = paid.clamp(0, cashDue).toInt();
       final totalPaid = appliedPayment + walletPayment;
       if (totalPaid < total && customerId == null) {
         throw ArgumentError('Pilih pelanggan untuk transaksi belum lunas.');
@@ -195,7 +199,7 @@ class SaleRepository {
       if (walletPayment > 0 && customerId == null) {
         throw ArgumentError('Pilih pelanggan terdaftar untuk menggunakan saldo deposit.');
       }
-      final change = paid > total - walletPayment ? paid - (total - walletPayment) : 0;
+      final change = paid > cashDue ? paid - cashDue : 0;
       final paymentStatus = totalPaid >= total ? 'paid' : (totalPaid > 0 ? 'partial' : 'unpaid');
       final now = DateTime.now();
       final invoice = 'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch}';
