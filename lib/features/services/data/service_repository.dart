@@ -44,6 +44,7 @@ class ServiceRepository {
     int discount = 0,
     int downPayment = 0,
     String? mechanicName,
+    int? assignedMechanicId,
     String? notes,
     String? beforePhotoPath,
   }) async {
@@ -116,6 +117,7 @@ class ServiceRepository {
         'down_payment': paid,
         'remaining_payment': safeTotal - paid,
         'mechanic_name': _nullableText(mechanicName),
+        'assigned_mechanic_id': assignedMechanicId,
         'received_at': now.toIso8601String(),
         'notes': _nullableText(notes),
         'before_photo_path': _nullableText(beforePhotoPath),
@@ -161,6 +163,7 @@ class ServiceRepository {
   Future<List<Map<String, Object?>>> getServiceOrders({
     String keyword = '',
     String? status,
+    int? assignedMechanicId,
   }) async {
     final db = await _db;
     final conditions = <String>[];
@@ -183,6 +186,11 @@ class ServiceRepository {
         search,
         search,
       ]);
+    }
+
+    if (assignedMechanicId != null) {
+      conditions.add('s.assigned_mechanic_id = ?');
+      arguments.add(assignedMechanicId);
     }
 
     if (status != null && status.trim().isNotEmpty) {
@@ -383,6 +391,7 @@ class ServiceRepository {
     required int id,
     required String status,
     String? note,
+    int? actingMechanicId,
   }) async {
     if (!serviceStatuses.contains(status)) {
       throw ArgumentError('Status servis tidak valid.');
@@ -392,12 +401,12 @@ class ServiceRepository {
     return db.transaction((txn) async {
       final rows = await txn.query(
         'service_orders',
-        columns: ['service_status', 'remaining_payment', 'order_number'],
-        where: 'id = ?',
-        whereArgs: [id],
+        columns: ['service_status', 'remaining_payment', 'order_number', 'assigned_mechanic_id'],
+        where: 'id = ? AND (? IS NULL OR assigned_mechanic_id = ?)',
+        whereArgs: [id, actingMechanicId, actingMechanicId],
         limit: 1,
       );
-      if (rows.isEmpty) throw StateError('Nota servis tidak ditemukan.');
+      if (rows.isEmpty) throw StateError('Nota servis tidak ditemukan atau bukan penugasan Anda.');
 
       final current = rows.first['service_status']?.toString() ?? 'waiting';
       if (current == status) return 0;
@@ -657,6 +666,18 @@ class ServiceRepository {
     );
 
     return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+
+  // Penugasan hanya dapat diubah oleh alur administrasi; identitas akun
+  // mekanik disimpan sebagai relasi, bukan hanya teks nama.
+  Future<int> assignMechanic({required int serviceOrderId, int? mechanicId}) async {
+    final db = await _db;
+    if (mechanicId != null) {
+      final users = await db.query('app_users', columns: ['id'], where: "id = ? AND role = 'mechanic' AND is_active = 1", whereArgs: [mechanicId], limit: 1);
+      if (users.isEmpty) throw StateError('Akun mekanik tidak ditemukan atau tidak aktif.');
+    }
+    return db.update('service_orders', {'assigned_mechanic_id': mechanicId}, where: 'id = ?', whereArgs: [serviceOrderId]);
   }
 
   String? _nullableText(String? value) {
