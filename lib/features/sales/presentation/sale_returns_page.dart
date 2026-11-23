@@ -379,8 +379,8 @@ class _SaleReturnsPageState extends State<SaleReturnsPage> {
                 keyboardType: TextInputType.number,
                 inputFormatters: const [CurrencyInputFormatter()],
                 decoration: InputDecoration(
-                  labelText: 'Uang dikembalikan sekarang (Rp)',
-                  helperText: 'Nominal wajib agar saldo tagihan dan kas tetap seimbang: ${_rupiah(_minimumRefund)}.',
+                  labelText: 'Total pengembalian (Rp)',
+                  helperText: 'Total wajib: ${_rupiah(_minimumRefund)}. Bagian yang berasal dari saldo deposit dikembalikan ke saldo pelanggan terlebih dahulu; sisanya dibayar dari kas.',
                   border: const OutlineInputBorder(),
                   isDense: true,
                 ),
