@@ -143,10 +143,10 @@ class SettingsPage extends StatelessWidget {
             subtitle: 'Pilih metode pembayaran yang tersedia di kasir',
             page: const PaymentMethodsPage(),
           ),
-          const SizedBox(height: 10),
-          if (AuthSession.instance.isAdmin) ...[\n          const Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 8),
           if (AuthSession.instance.isAdmin) ...[
+            const SizedBox(height: 10),
+            const Text('Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 8),
             _item(
               context: context,
               icon: Icons.stars_rounded,
@@ -155,11 +155,9 @@ class SettingsPage extends StatelessWidget {
               subtitle: 'Atur perolehan poin dan nilai penukaran pelanggan',
               page: const LoyaltySettingsPage(),
             ),
+            const SizedBox(height: 10),
+            const Text('Persediaan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
             const SizedBox(height: 8),
-          ],
-          const Text('Persediaan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(height: 8),
-          if (AuthSession.instance.isAdmin)
             _item(
               context: context,
               icon: Icons.notifications_active_outlined,
@@ -168,6 +166,7 @@ class SettingsPage extends StatelessWidget {
               subtitle: 'Atur pengingat saat stok produk mencapai batas minimum',
               page: const StockReminderSettingsPage(),
             ),
+          ],
         ],
       ),
     );
