@@ -1,4 +1,6 @@
 import 'package:material_ui/material_ui.dart';
+
+import '../../../core/formatters/currency_input_formatter.dart';
 import '../data/service_pricing_repository.dart';
 
 class ServicePricingPage extends StatefulWidget {
@@ -80,7 +82,7 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
     final name = TextEditingController(text: item?['name']?.toString() ?? '');
     final category = TextEditingController(text: item?['category']?.toString() ?? '');
     final description = TextEditingController(text: item?['description']?.toString() ?? '');
-    final price = TextEditingController(text: (item?['standard_price'] ?? 0).toString());
+    final price = TextEditingController(text: formatCurrencyInput(item?['standard_price'] ?? 0));
     final reason = TextEditingController();
     final form = GlobalKey<FormState>();
     final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
@@ -89,7 +91,7 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
         TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Nama jasa *'), validator: (v) => v == null || v.trim().isEmpty ? 'Wajib diisi' : null),
         TextFormField(controller: category, decoration: const InputDecoration(labelText: 'Kategori')),
         TextFormField(controller: description, decoration: const InputDecoration(labelText: 'Keterangan')),
-        TextFormField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Harga standar (Rp)'), validator: (v) { final n = int.tryParse(v ?? ''); return n == null || n < 0 ? 'Nominal tidak valid' : null; }),
+        TextFormField(controller: price, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga standar (Rp)'), validator: (v) { final n = parseCurrencyInput(v); return n == null || n < 0 ? 'Nominal tidak valid' : null; }),
         if (item != null) TextFormField(controller: reason, decoration: const InputDecoration(labelText: 'Alasan perubahan harga')),
       ]))),
       actions: [
@@ -99,7 +101,7 @@ class _ServicePricingPageState extends State<ServicePricingPage> with SingleTick
     ));
     if (ok == true) {
       try {
-        await _repo.saveService(id: item?['id'] as int?, name: name.text, category: category.text, description: description.text, standardPrice: int.parse(price.text), reason: reason.text);
+        await _repo.saveService(id: item?['id'] as int?, name: name.text, category: category.text, description: description.text, standardPrice: parseCurrencyInput(price.text), reason: reason.text);
         await _load();
         _message('Master jasa tersimpan.');
       } catch (e) { _message('Gagal menyimpan: $e'); }
