@@ -534,6 +534,400 @@ class ServiceRepository {
     });
   }
 
+  // Mekanik hanya mengusulkan perubahan sparepart; tidak dapat mengubah stok/tagihan.
+  Future<int> proposeServicePartChange({
+    required int serviceOrderId,
+    required String requestType,
+    int? serviceOrderItemId,
+    int? productId,
+    int quantity = 1,
+    String? mechanicNote,
+  }) async {
+    final session = AuthSession.instance;
+    if (!session.isMechanic) {
+      throw StateError('Usulan sparepart hanya dapat dikirim melalui akun Mekanik.');
+    }
+    if (requestType != 'add' && requestType != 'cancel') {
+      throw ArgumentError('Jenis usulan tidak valid.');
+    }
+    if (requestType == 'add' && (productId == null || quantity <= 0)) {
+      throw ArgumentError('Pilih sparepart dan jumlah yang valid.');
+    }
+    final db = await _db;
+    return db.transaction((txn) async {
+      final orders = await txn.query(
+        'service_orders',
+        columns: ['id', 'service_status', 'assigned_mechanic_id'],
+        where: 'id = ? AND assigned_mechanic_id = ?',
+        whereArgs: [serviceOrderId, session.userId],
+        limit: 1,
+      );
+      if (orders.isEmpty) {
+        throw StateError('Servis bukan penugasan Anda.');
+      }
+      final status = orders.first['service_status']?.toString();
+      if (!const ['waiting', 'checking', 'in_progress'].contains(status)) {
+        throw StateError('Usulan hanya dapat dibuat selama servis masih dikerjakan.');
+      }
+
+      String itemName;
+      int? requestProductId;
+      int requestQuantity;
+      if (requestType == 'add') {
+        final products = await txn.query(
+          'products',
+          columns: ['id', 'name', 'is_active'],
+          where: 'id = ?',
+          whereArgs: [productId],
+          limit: 1,
+        );
+        if (products.isEmpty || (products.first['is_active'] as int? ?? 0) != 1) {
+          throw StateError('Sparepart tidak ditemukan atau tidak aktif.');
+        }
+        itemName = products.first['name']?.toString() ?? 'Sparepart';
+        requestProductId = productId;
+        requestQuantity = quantity;
+      } else {
+        if (serviceOrderItemId == null) {
+          throw ArgumentError('Pilih sparepart yang akan dibatalkan.');
+        }
+        final items = await txn.query(
+          'service_order_items',
+          where: 'id = ? AND service_order_id = ? AND item_type = ? AND is_active = 1',
+          whereArgs: [serviceOrderItemId, serviceOrderId, 'part'],
+          limit: 1,
+        );
+        if (items.isEmpty) throw StateError('Sparepart aktif tidak ditemukan pada nota ini.');
+        itemName = items.first['item_name']?.toString() ?? 'Sparepart';
+        requestProductId = items.first['product_id'] as int?;
+        requestQuantity = items.first['quantity'] as int? ?? 1;
+      }
+
+      return txn.insert('service_part_change_requests', {
+        'service_order_id': serviceOrderId,
+        'request_type': requestType,
+        'service_order_item_id': serviceOrderItemId,
+        'product_id': requestProductId,
+        'item_name': itemName,
+        'quantity': requestQuantity,
+        'unit_price': 0,
+        'mechanic_note': _nullableText(mechanicNote),
+        'status': 'pending',
+        'proposed_by_id': session.userId,
+        'proposed_by_name': session.displayName,
+        'proposed_at': DateTime.now().toIso8601String(),
+      });
+    });
+  }
+
+  Future<List<Map<String, Object?>>> getServicePartChangeRequests(int serviceOrderId) async {
+    AuthSession.instance.requireCashierOrAdmin(
+      'Hanya Admin dan Kasir yang dapat meninjau usulan sparepart.',
+    );
+    final db = await _db;
+    return db.query(
+      'service_part_change_requests',
+      where: 'service_order_id = ?',
+      whereArgs: [serviceOrderId],
+      orderBy: 'proposed_at DESC, id DESC',
+    );
+  }
+
+  Future<List<Map<String, Object?>>> getServiceEstimateHistory(int serviceOrderId) async {
+    AuthSession.instance.requireCashierOrAdmin(
+      'Riwayat estimasi hanya dapat diakses Admin dan Kasir.',
+    );
+    final db = await _db;
+    return db.query(
+      'service_estimate_history',
+      where: 'service_order_id = ?',
+      whereArgs: [serviceOrderId],
+      orderBy: 'changed_at DESC, id DESC',
+    );
+  }
+
+  // Admin/Kasir wajib mengonfirmasi izin pelanggan sebelum usulan diterapkan.
+  // Perubahan stok, rincian item, total tagihan, dan audit tersimpan atomik.
+  Future<int> reviewServicePartChange({
+    required int requestId,
+    required bool approve,
+    bool customerApproved = false,
+    String? customerApprovalNote,
+    int? approvedUnitPrice,
+  }) async {
+    final session = AuthSession.instance;
+    session.requireCashierOrAdmin(
+      'Hanya Admin dan Kasir yang dapat menyetujui perubahan sparepart.',
+    );
+    if (approve && !customerApproved) {
+      throw StateError('Minta dan catat persetujuan pelanggan sebelum menerapkan perubahan.');
+    }
+    if (approvedUnitPrice != null && approvedUnitPrice < 0) {
+      throw ArgumentError('Harga sparepart tidak boleh negatif.');
+    }
+
+    final db = await _db;
+    return db.transaction((txn) async {
+      final requests = await txn.query(
+        'service_part_change_requests',
+        where: "id = ? AND status = 'pending'",
+        whereArgs: [requestId],
+        limit: 1,
+      );
+      if (requests.isEmpty) throw StateError('Usulan tidak ditemukan atau sudah ditinjau.');
+      final request = requests.first;
+      final serviceId = request['service_order_id'] as int;
+      final orders = await txn.query(
+        'service_orders',
+        where: 'id = ?',
+        whereArgs: [serviceId],
+        limit: 1,
+      );
+      if (orders.isEmpty) throw StateError('Nota servis tidak ditemukan.');
+      final order = orders.first;
+      final serviceStatus = order['service_status']?.toString();
+      if (!const ['waiting', 'checking', 'in_progress'].contains(serviceStatus)) {
+        throw StateError('Perubahan sparepart hanya dapat diterapkan saat servis masih dikerjakan.');
+      }
+
+      final now = DateTime.now().toIso8601String();
+      final oldEstimated = order['estimated_cost'] as int? ?? 0;
+      final oldLabor = order['labor_cost'] as int? ?? 0;
+      final oldParts = order['parts_cost'] as int? ?? 0;
+      final oldDiscount = order['discount'] as int? ?? 0;
+      final oldTotal = order['total_cost'] as int? ?? 0;
+
+      if (approve) {
+        final requestType = request['request_type']?.toString();
+        if (requestType == 'add') {
+          final productId = request['product_id'] as int?;
+          final quantity = request['quantity'] as int? ?? 0;
+          final unitPrice = approvedUnitPrice ?? (request['unit_price'] as int? ?? 0);
+          if (productId == null || quantity <= 0) {
+            throw StateError('Data sparepart usulan tidak valid.');
+          }
+          final products = await txn.query(
+            'products',
+            where: 'id = ? AND is_active = 1',
+            whereArgs: [productId],
+            limit: 1,
+          );
+          if (products.isEmpty) throw StateError('Sparepart tidak ditemukan atau tidak aktif.');
+          final product = products.first;
+          final tracked = (product['track_stock'] as int? ?? 0) == 1;
+          final stockBefore = product['stock'] as int? ?? 0;
+          final itemName = product['name']?.toString() ?? request['item_name']?.toString() ?? 'Sparepart';
+          if (tracked && stockBefore < quantity) {
+            throw StateError('Stok $itemName tidak cukup. Tersedia $stockBefore, dibutuhkan $quantity.');
+          }
+          final itemId = await txn.insert('service_order_items', {
+            'service_order_id': serviceId,
+            'product_id': productId,
+            'item_name': itemName,
+            'item_type': 'part',
+            'quantity': quantity,
+            'unit_price': unitPrice,
+            'subtotal': quantity * unitPrice,
+            'is_active': 1,
+          });
+          if (tracked) {
+            final batches = await txn.query(
+              'inventory_cost_batches',
+              where: 'product_id = ? AND quantity_remaining > 0',
+              whereArgs: [productId],
+              orderBy: 'received_at ASC, id ASC',
+            );
+            final batchBalance = batches.fold<int>(
+              0, (sum, batch) => sum + (batch['quantity_remaining'] as int? ?? 0));
+            if (batchBalance < quantity) {
+              throw StateError('Saldo batch FIFO $itemName tidak mencukupi. Periksa riwayat stok.');
+            }
+            var remaining = quantity;
+            for (final batch in batches) {
+              if (remaining <= 0) break;
+              final available = batch['quantity_remaining'] as int? ?? 0;
+              if (available <= 0) continue;
+              final take = available < remaining ? available : remaining;
+              await txn.update(
+                'inventory_cost_batches',
+                {'quantity_remaining': available - take},
+                where: 'id = ?',
+                whereArgs: [batch['id']],
+              );
+              await txn.insert('service_part_allocations', {
+                'service_order_item_id': itemId,
+                'batch_id': batch['id'],
+                'quantity': take,
+                'unit_cost': batch['unit_cost'] as int? ?? 0,
+                'created_at': now,
+              });
+              remaining -= take;
+            }
+            final stockAfter = stockBefore - quantity;
+            await txn.update(
+              'products',
+              {'stock': stockAfter, 'updated_at': now},
+              where: 'id = ?',
+              whereArgs: [productId],
+            );
+            await txn.insert('stock_movements', {
+              'product_id': productId,
+              'movement_type': 'out',
+              'quantity': quantity,
+              'stock_before': stockBefore,
+              'stock_after': stockAfter,
+              'reference_type': 'service_order_part_change',
+              'reference_id': serviceId,
+              'notes': 'Penambahan sparepart dari usulan servis #$serviceId',
+              'created_at': now,
+            });
+          }
+        } else if (requestType == 'cancel') {
+          final itemId = request['service_order_item_id'] as int?;
+          if (itemId == null) throw StateError('Item sparepart yang akan dibatalkan tidak ditemukan.');
+          final itemRows = await txn.query(
+            'service_order_items',
+            where: 'id = ? AND service_order_id = ? AND item_type = ? AND is_active = 1',
+            whereArgs: [itemId, serviceId, 'part'],
+            limit: 1,
+          );
+          if (itemRows.isEmpty) throw StateError('Sparepart sudah tidak aktif atau tidak ditemukan.');
+          final item = itemRows.first;
+          final productId = item['product_id'] as int?;
+          if (productId != null) {
+            final products = await txn.query(
+              'products',
+              where: 'id = ?',
+              whereArgs: [productId],
+              limit: 1,
+            );
+            if (products.isNotEmpty && (products.first['track_stock'] as int? ?? 0) == 1) {
+              final allocations = await txn.query(
+                'service_part_allocations',
+                where: 'service_order_item_id = ?',
+                whereArgs: [itemId],
+                orderBy: 'id ASC',
+              );
+              final allocated = allocations.fold<int>(
+                0, (sum, row) => sum + (row['quantity'] as int? ?? 0));
+              final quantity = item['quantity'] as int? ?? 0;
+              if (allocated != quantity) {
+                throw StateError('Alokasi FIFO sparepart lama belum tercatat lengkap. Stok tidak diubah agar saldo tidak keliru; lakukan rekonsiliasi stok terlebih dahulu.');
+              }
+              for (final allocation in allocations) {
+                final batchId = allocation['batch_id'] as int;
+                final batchRows = await txn.query(
+                  'inventory_cost_batches',
+                  where: 'id = ?',
+                  whereArgs: [batchId],
+                  limit: 1,
+                );
+                if (batchRows.isEmpty) throw StateError('Batch FIFO asal tidak ditemukan. Stok tidak diubah.');
+                final batch = batchRows.first;
+                await txn.update(
+                  'inventory_cost_batches',
+                  {'quantity_remaining': (batch['quantity_remaining'] as int? ?? 0) + (allocation['quantity'] as int? ?? 0)},
+                  where: 'id = ?',
+                  whereArgs: [batchId],
+                );
+              }
+              final product = products.first;
+              final stockBefore = product['stock'] as int? ?? 0;
+              final quantity = item['quantity'] as int? ?? 0;
+              await txn.update(
+                'products',
+                {'stock': stockBefore + quantity, 'updated_at': now},
+                where: 'id = ?',
+                whereArgs: [productId],
+              );
+              await txn.insert('stock_movements', {
+                'product_id': productId,
+                'movement_type': 'in',
+                'quantity': quantity,
+                'stock_before': stockBefore,
+                'stock_after': stockBefore + quantity,
+                'reference_type': 'service_order_part_change',
+                'reference_id': serviceId,
+                'notes': 'Pembatalan sparepart dari usulan servis #$serviceId',
+                'created_at': now,
+              });
+            }
+          }
+          await txn.update(
+            'service_order_items',
+            {'is_active': 0},
+            where: 'id = ?',
+            whereArgs: [itemId],
+          );
+        } else {
+          throw StateError('Jenis usulan tidak dikenali.');
+        }
+      }
+
+      final activeItems = await txn.query(
+        'service_order_items',
+        columns: ['subtotal'],
+        where: "service_order_id = ? AND item_type = 'part' AND is_active = 1",
+        whereArgs: [serviceId],
+      );
+      final newParts = activeItems.fold<int>(
+        0, (sum, item) => sum + (item['subtotal'] as int? ?? 0));
+      final calculated = (oldLabor + newParts > 0 ? oldLabor + newParts : oldEstimated) - oldDiscount;
+      final newTotal = calculated < 0 ? 0 : calculated;
+      final paid = order['down_payment'] as int? ?? 0;
+      if (newTotal < paid) {
+        throw StateError('Total baru lebih kecil dari seluruh pembayaran yang sudah diterima. Proses pengembalian/ kredit pelanggan harus diselesaikan terlebih dahulu; perubahan belum diterapkan.');
+      }
+      await txn.update(
+        'service_orders',
+        {'parts_cost': newParts, 'total_cost': newTotal, 'remaining_payment': newTotal - paid},
+        where: 'id = ?',
+        whereArgs: [serviceId],
+      );
+      await txn.insert('service_estimate_history', {
+        'service_order_id': serviceId,
+        'old_estimated_cost': oldEstimated,
+        'new_estimated_cost': oldEstimated,
+        'old_labor_cost': oldLabor,
+        'new_labor_cost': oldLabor,
+        'old_parts_cost': oldParts,
+        'new_parts_cost': newParts,
+        'old_discount': oldDiscount,
+        'new_discount': oldDiscount,
+        'old_total_cost': oldTotal,
+        'new_total_cost': newTotal,
+        'reason': request['mechanic_note']?.toString() ?? 'Perubahan sparepart servis',
+        'customer_approved': approve ? 1 : 0,
+        'customer_approval_note': approve ? _nullableText(customerApprovalNote) : null,
+        'changed_by_id': session.userId,
+        'changed_by_name': session.displayName,
+        'changed_at': now,
+      });
+      await txn.update(
+        'service_part_change_requests',
+        {
+          'status': approve ? 'approved' : 'rejected',
+          'reviewed_by_id': session.userId,
+          'reviewed_by_name': session.displayName,
+          'customer_approved': approve && customerApproved ? 1 : 0,
+          'customer_approval_note': approve ? _nullableText(customerApprovalNote) : null,
+          'reviewed_at': now,
+          if (approve && approvedUnitPrice != null) 'unit_price': approvedUnitPrice,
+        },
+        where: 'id = ?',
+        whereArgs: [requestId],
+      );
+      await ActivityLogRepository.record(
+        txn,
+        action: approve ? 'service_part_change_approved' : 'service_part_change_rejected',
+        description: '${approve ? 'Menyetujui' : 'Menolak'} usulan sparepart "${request['item_name']}" untuk servis #$serviceId.',
+        entityType: 'service_order',
+        entityId: serviceId,
+      );
+      return 1;
+    });
+  }
+
   // Riwayat audit perubahan modal, tidak mengubah tagihan dan stok.
   Future<List<Map<String, Object?>>> getServiceDirectCostHistory(int id) async {
     AuthSession.instance.requireAdmin('Riwayat biaya modal hanya dapat diakses Admin.');
