@@ -216,7 +216,6 @@ class SaleReturnRepository {
           orderBy: 'id ASC',
         );
         var remaining = quantity;
-        var restoredCost = 0;
 
         if (originalAllocations.isNotEmpty) {
           final returnedByBatchRows = await txn.rawQuery('''
@@ -254,7 +253,6 @@ class SaleReturnRepository {
               'unit_cost': unitCost,
               'created_at': now.toIso8601String(),
             });
-            restoredCost += take * unitCost;
             remaining -= take;
           }
           if (remaining > 0) {
@@ -270,7 +268,6 @@ class SaleReturnRepository {
             'received_at': now.toIso8601String(),
             'notes': 'Stok kembali dari retur penjualan $returnNumber (nota ${sale['invoice_number']})',
           });
-          restoredCost = quantity * defaultUnitCost;
         }
 
         final before = product['stock'] as int? ?? 0;
@@ -291,9 +288,9 @@ class SaleReturnRepository {
           'created_at': now.toIso8601String(),
         });
 
-        final averageCost = (restoredCost / quantity).round();
-        await txn.update('sale_return_items', {'unit_cost': averageCost},
-          where: 'id = ?', whereArgs: [returnItemId]);
+        // unit_cost pada baris retur tetap memakai snapshot biaya nota asal.
+        // Batch asal dipulihkan untuk persediaan, tetapi tidak boleh mengubah
+        // metode HPP yang telah dipakai saat penjualan (rata-rata/per batch).
       }
 
       if (refundAmount > 0) {
