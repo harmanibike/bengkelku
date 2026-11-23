@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:material_ui/material_ui.dart';
 
 import '../data/device_mode_repository.dart';
@@ -13,11 +15,110 @@ class _DeviceModePageState extends State<DeviceModePage> {
   final DeviceModeRepository _repository = DeviceModeRepository();
   late Future<String> _modeFuture;
   bool _saving = false;
+  bool _savingClient = false;
+  bool _testingClient = false;
+  late final TextEditingController _hostController;
+  late final TextEditingController _portController;
+  late final Future<void> _clientConfigFuture;
+  String? _connectionMessage;
+  bool? _connectionOk;
 
   @override
   void initState() {
     super.initState();
     _modeFuture = _repository.getMode();
+    _hostController = TextEditingController();
+    _portController = TextEditingController(
+      text: DeviceModeRepository.defaultClientPort.toString(),
+    );
+    _clientConfigFuture = _loadClientConfig();
+  }
+
+  Future<void> _loadClientConfig() async {
+    final config = await _repository.getClientConfig();
+    _hostController.text = config['host'] ?? '';
+    _portController.text = config['port'] ??
+        DeviceModeRepository.defaultClientPort.toString();
+  }
+
+  @override
+  void dispose() {
+    _hostController.dispose();
+    _portController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveClientConfig() async {
+    final port = int.tryParse(_portController.text.trim());
+    if (port == null || port < 1 || port > 65535) {
+      setState(() {
+        _connectionOk = false;
+        _connectionMessage = 'Port tidak valid. Gunakan angka 1–65535.';
+      });
+      return;
+    }
+    setState(() => _savingClient = true);
+    try {
+      await _repository.saveClientConfig(
+        host: _hostController.text,
+        port: port,
+      );
+      if (!mounted) return;
+      setState(() {
+        _connectionOk = null;
+        _connectionMessage = 'Alamat Server berhasil disimpan pada perangkat ini.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _connectionOk = false;
+        _connectionMessage = error.toString();
+      });
+    } finally {
+      if (mounted) setState(() => _savingClient = false);
+    }
+  }
+
+  Future<void> _testClientConnection() async {
+    final host = _hostController.text.trim();
+    final port = int.tryParse(_portController.text.trim());
+    if (host.isEmpty || port == null || port < 1 || port > 65535) {
+      setState(() {
+        _connectionOk = false;
+        _connectionMessage = 'Isi alamat Server dan port yang valid terlebih dahulu.';
+      });
+      return;
+    }
+
+    setState(() {
+      _testingClient = true;
+      _connectionMessage = 'Memeriksa koneksi jaringan...';
+      _connectionOk = null;
+    });
+    Socket? socket;
+    try {
+      socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(seconds: 4),
+      );
+      if (!mounted) return;
+      setState(() {
+        _connectionOk = true;
+        _connectionMessage =
+            'Perangkat dapat menjangkau alamat dan port tersebut. Ini belum membuktikan API BengkelKu Server sudah aktif.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _connectionOk = false;
+        _connectionMessage =
+            'Belum dapat terhubung. Pastikan kedua HP memakai Wi-Fi yang sama dan layanan Server aktif.';
+      });
+    } finally {
+      socket?.destroy();
+      if (mounted) setState(() => _testingClient = false);
+    }
   }
 
   Future<void> _keepLocalMode() async {
@@ -105,6 +206,113 @@ class _DeviceModePageState extends State<DeviceModePage> {
                   subtitle: const Text('Perangkat terhubung ke Server untuk transaksi, input data, stok, dan laporan dari database pusat. Belum diaktifkan.'),
                   trailing: const Text('Tahap berikutnya', style: TextStyle(fontSize: 10)),
                 ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Konfigurasi Client',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Simpan alamat HP Server yang akan dituju. Pengaturan ini hanya menyimpan alamat; transaksi masih memakai database lokal sampai layanan Server dan API aman selesai dibuat.',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              FutureBuilder<void>(
+                future: _clientConfigFuture,
+                builder: (context, configSnapshot) {
+                  if (configSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (configSnapshot.hasError) {
+                    return Text('Gagal membaca konfigurasi Client: ${configSnapshot.error}');
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _hostController,
+                        keyboardType: TextInputType.url,
+                        decoration: const InputDecoration(
+                          labelText: 'Alamat IP / Host Server',
+                          hintText: 'Contoh: 192.168.1.10',
+                          prefixIcon: Icon(Icons.dns_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _portController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Port Server',
+                          hintText: '8765',
+                          prefixIcon: Icon(Icons.settings_ethernet),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _savingClient || _testingClient
+                                  ? null
+                                  : _saveClientConfig,
+                              icon: const Icon(Icons.save_outlined),
+                              label: Text(_savingClient ? 'Menyimpan...' : 'Simpan Alamat'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: _savingClient || _testingClient
+                                  ? null
+                                  : _testClientConnection,
+                              icon: _testingClient
+                                  ? const SizedBox(
+                                      width: 15,
+                                      height: 15,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.wifi_tethering),
+                              label: Text(_testingClient ? 'Memeriksa...' : 'Tes Jaringan'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_connectionMessage != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              _connectionOk == true
+                                  ? Icons.check_circle_outline
+                                  : _connectionOk == false
+                                      ? Icons.error_outline
+                                      : Icons.info_outline,
+                              size: 18,
+                              color: _connectionOk == true
+                                  ? const Color(0xFF2E9B59)
+                                  : _connectionOk == false
+                                      ? const Color(0xFFD94343)
+                                      : Colors.blueGrey,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                _connectionMessage!,
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
