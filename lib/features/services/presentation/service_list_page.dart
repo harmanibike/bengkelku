@@ -265,41 +265,52 @@ class _ServiceListPageState extends State<ServiceListPage> {
   }
 
   Future<void> _addServicePayment(int id, {int? remainingAmount}) async {
-    final order = remainingAmount == null
-        ? await _repository.getServiceOrderById(id)
-        : null;
+    final order = await _repository.getServiceOrderById(id);
     final outstanding = remainingAmount ??
         (order?['remaining_payment'] as num? ?? 0).toInt();
     if (outstanding <= 0 || !mounted) return;
 
     final controller = TextEditingController();
-    final amount = await showDialog<int>(
+    final tipController = TextEditingController();
+    final result = await showDialog<Map<String, int>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Catat Pembayaran Servis'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: const [CurrencyInputFormatter()],
-          decoration: InputDecoration(
-            labelText: 'Uang diterima (Rp)',
-            helperText: 'Sisa tagihan: ${_rupiah(outstanding)}. Jika uang lebih, kembalian dihitung otomatis.',
-            border: const OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: const [CurrencyInputFormatter()],
+              decoration: InputDecoration(
+                labelText: 'Pembayaran untuk tagihan (Rp)',
+                helperText: 'Sisa tagihan: ${_rupiah(outstanding)}',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: tipController,
+              keyboardType: TextInputType.number,
+              inputFormatters: const [CurrencyInputFormatter()],
+              decoration: InputDecoration(
+                labelText: 'Uang tip (opsional)',
+                helperText: 'Dicatat terpisah dari tagihan dan omzet. Penerima: ${order?['mechanic_name'] ?? 'Mekanik'}',
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
           FilledButton(
             onPressed: () {
-              final value = int.tryParse(
-                controller.text.replaceAll(RegExp(r'[^0-9]'), ''),
-              );
-              if (value != null && value > 0) {
-                Navigator.pop(dialogContext, value);
+              final value = int.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), ''));
+              final tip = int.tryParse(tipController.text.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+              if (value != null && value > 0 && tip >= 0) {
+                Navigator.pop(dialogContext, {'amount': value, 'tip': tip});
               }
             },
             child: const Text('Simpan'),
@@ -307,20 +318,29 @@ class _ServiceListPageState extends State<ServiceListPage> {
         ],
       ),
     );
+    final amount = result?['amount'];
+    final tipAmount = result?['tip'] ?? 0;
     controller.dispose();
+    tipController.dispose();
     if (amount == null || !mounted) return;
 
     final appliedAmount = amount > outstanding ? outstanding : amount;
     final change = amount - appliedAmount;
     try {
-      await _repository.addPayment(id: id, amount: appliedAmount);
+      await _repository.addPayment(
+        id: id,
+        amount: appliedAmount,
+        tipAmount: tipAmount,
+        tipRecipientName: order?['mechanic_name']?.toString(),
+      );
       if (!mounted) return;
       _refresh();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(change > 0
-              ? 'Pembayaran lunas. Kembalian: ${_rupiah(change)}.'
-              : 'Pembayaran berhasil dicatat ke kas.'),
+          content: Text([
+            change > 0 ? 'Pembayaran lunas. Kembalian: ${_rupiah(change)}.' : 'Pembayaran servis berhasil dicatat.',
+            if (tipAmount > 0) 'Tip ${_rupiah(tipAmount)} dicatat terpisah.',
+          ].join(' ')),
         ),
       );
       final printReceipt = await showDialog<bool>(
@@ -329,13 +349,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
           title: const Text('Pembayaran berhasil'),
           content: const Text(
             'Apakah nota servis ingin dicetak atau dibagikan sekarang? '
-            'Nota akan memuat riwayat pembayaran dan sisa tagihan terbaru.',
+            'Nota akan memuat riwayat pembayaran dan sisa tagihan terbaru. Uang tip dicatat terpisah.',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Nanti'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Nanti')),
             FilledButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
               icon: const Icon(Icons.print_outlined),
@@ -345,16 +362,12 @@ class _ServiceListPageState extends State<ServiceListPage> {
         ),
       );
       if (!mounted) return;
-      if (printReceipt == true) {
-        await ReceiptShareLauncher.service(context, id);
-      }
+      if (printReceipt == true) await ReceiptShareLauncher.service(context, id);
       if (!mounted) return;
       await _showDetail({'id': id});
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mencatat pembayaran: $error')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mencatat pembayaran: $error')));
     }
   }
 
