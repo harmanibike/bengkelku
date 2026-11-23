@@ -136,6 +136,17 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     }
   }
 
+  void _onCustomerSearchChanged(String keyword) {
+    if (_selectedCustomerId != null) {
+      setState(() {
+        _selectedCustomerId = null;
+        _selectedBicycleId = null;
+        _bicycles = [];
+      });
+    }
+    _searchCustomers(keyword);
+  }
+
   void _selectCustomer(Map<String, Object?> customer) {
     final id = customer['id'] as int;
     _customerSearchController.text = customer['name']?.toString() ?? '';
@@ -560,7 +571,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                                 ),
                           border: const OutlineInputBorder(),
                         ),
-                        onChanged: _searchCustomers,
+                        onChanged: _onCustomerSearchChanged,
                         validator: (_) => _selectedCustomerId == null
                             ? 'Cari dan pilih pelanggan terlebih dahulu'
                             : null,
