@@ -132,7 +132,7 @@ class _AccountManagementPageState extends State<AccountManagementPage> {
       title: const Text('Tambah Akun'), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: name, decoration: const InputDecoration(labelText: 'Nama', border: OutlineInputBorder())), const SizedBox(height: 9),
         TextField(controller: username, decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder())), const SizedBox(height: 9),
-        DropdownButtonFormField<String>(value: role, decoration: const InputDecoration(labelText: 'Peran', border: OutlineInputBorder()), items: const [DropdownMenuItem(value: 'cashier', child: Text('Kasir')), DropdownMenuItem(value: 'mechanic', child: Text('Mekanik')), DropdownMenuItem(value: 'admin', child: Text('Admin'))], onChanged: (v) { if (v != null) setDialog(() => role = v); }), const SizedBox(height: 9),
+        DropdownButtonFormField<String>(initialValue: role, decoration: const InputDecoration(labelText: 'Peran', border: OutlineInputBorder()), items: const [DropdownMenuItem(value: 'cashier', child: Text('Kasir')), DropdownMenuItem(value: 'mechanic', child: Text('Mekanik')), DropdownMenuItem(value: 'admin', child: Text('Admin'))], onChanged: (v) { if (v != null) setDialog(() => role = v); }), const SizedBox(height: 9),
         TextField(controller: pin, obscureText: true, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'PIN 6–8 digit', border: OutlineInputBorder())),
       ])), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Simpan'))],
     )));
