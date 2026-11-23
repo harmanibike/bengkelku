@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import '../data/client_connection_service.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../data/device_mode_repository.dart';
@@ -13,6 +12,8 @@ class DeviceModePage extends StatefulWidget {
 
 class _DeviceModePageState extends State<DeviceModePage> {
   final DeviceModeRepository _repository = DeviceModeRepository();
+  final ClientConnectionService _clientConnectionService =
+      ClientConnectionService();
   late Future<String> _modeFuture;
   bool _saving = false;
   bool _savingClient = false;
@@ -95,28 +96,17 @@ class _DeviceModePageState extends State<DeviceModePage> {
       _connectionMessage = 'Memeriksa koneksi jaringan...';
       _connectionOk = null;
     });
-    Socket? socket;
     try {
-      socket = await Socket.connect(
-        host,
-        port,
-        timeout: const Duration(seconds: 4),
+      final result = await _clientConnectionService.checkServer(
+        host: host,
+        port: port,
       );
       if (!mounted) return;
       setState(() {
-        _connectionOk = true;
-        _connectionMessage =
-            'Perangkat dapat menjangkau alamat dan port tersebut. Ini belum membuktikan API BengkelKu Server sudah aktif.';
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _connectionOk = false;
-        _connectionMessage =
-            'Belum dapat terhubung. Pastikan kedua HP memakai Wi-Fi yang sama dan layanan Server aktif.';
+        _connectionOk = result.isApiReady;
+        _connectionMessage = result.message;
       });
     } finally {
-      socket?.destroy();
       if (mounted) setState(() => _testingClient = false);
     }
   }
@@ -214,7 +204,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Simpan alamat HP Server yang akan dituju. Pengaturan ini hanya menyimpan alamat; transaksi masih memakai database lokal sampai layanan Server dan API aman selesai dibuat.',
+                'Simpan alamat HP Server yang akan dituju. Tombol tes memeriksa endpoint API BengkelKu, bukan hanya apakah port Wi-Fi terbuka. Transaksi Client belum dialihkan ke database pusat.',
                 style: TextStyle(fontSize: 11, color: Colors.grey),
               ),
               const SizedBox(height: 8),
@@ -277,7 +267,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     )
                                   : const Icon(Icons.wifi_tethering),
-                              label: Text(_testingClient ? 'Memeriksa...' : 'Tes Jaringan'),
+                              label: Text(_testingClient ? 'Memeriksa...' : 'Tes API Server'),
                             ),
                           ),
                         ],
