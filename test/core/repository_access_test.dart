@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:bengkelku/core/auth/auth_session.dart';
-import 'package:bengkelku/features/sales/data/sale_return_repository.dart';
-import 'package:bengkelku/features/purchases/data/purchase_return_repository.dart';
-import 'package:bengkelku/features/products/data/stock_opname_repository.dart';
-import 'package:bengkelku/features/purchases/data/supplier_repository.dart';
-import 'package:bengkelku/features/reports/data/cashbook_repository.dart';
-import 'package:bengkelku/features/receivables/data/receivable_repository.dart';
+import 'package:bengkelku_pos/core/auth/auth_session.dart';
+import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
+import 'package:bengkelku_pos/features/purchases/data/purchase_return_repository.dart';
+import 'package:bengkelku_pos/features/products/data/stock_opname_repository.dart';
+import 'package:bengkelku_pos/features/purchases/data/supplier_repository.dart';
+import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
+import 'package:bengkelku_pos/features/receivables/data/receivable_repository.dart';
 
 void main() {
   setUp(() {
