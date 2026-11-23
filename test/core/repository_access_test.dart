@@ -7,6 +7,7 @@ import 'package:bengkelku_pos/features/products/data/stock_opname_repository.dar
 import 'package:bengkelku_pos/features/purchases/data/supplier_repository.dart';
 import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
 import 'package:bengkelku_pos/features/receivables/data/receivable_repository.dart';
+import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 
 void main() {
   setUp(() {
@@ -55,6 +56,34 @@ void main() {
     test('receivables reject unauthenticated access', () async {
       await expectLater(
         ReceivableRepository().getReceivables(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('service payment rejects unauthenticated access', () async {
+      await expectLater(
+        ServiceRepository().addPayment(id: 1, amount: 1),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('service intake rejects unauthenticated access', () async {
+      await expectLater(
+        ServiceRepository().createServiceOrder(complaint: 'Tes akses'),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('service receivables reject unauthenticated access', () async {
+      await expectLater(
+        ServiceRepository().getOutstandingServiceOrders(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('service list rejects unauthenticated access', () async {
+      await expectLater(
+        ServiceRepository().getServiceOrders(),
         throwsA(isA<StateError>()),
       );
     });
