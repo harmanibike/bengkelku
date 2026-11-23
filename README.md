@@ -142,7 +142,8 @@ Audit ini adalah pemeriksaan statis terhadap struktur repository, halaman, repos
 - [ ] Kategori pemasukan/pengeluaran yang dapat dikelola.
 - [x] Pencatatan manual biaya operasional, gaji, dan komisi sebagai kas keluar; belum ada payroll atau perhitungan komisi otomatis.
 - [x] Ringkasan pengeluaran manual Buku Kas dan sisa laba setelah beban yang tercatat; bukan laba bersih final dan perlu menghindari pencatatan biaya langsung yang sama dua kali.
-- [ ] Rekonsiliasi serta koreksi dengan jejak audit.
+- [x] Pemeriksaan rekonsiliasi baca-saja untuk referensi transaksi kas, arah/nominal kas, serta selisih riwayat pembayaran pelanggan dan pemasok tersedia di Buku Kas.
+- [ ] Koreksi transaksi langsung dari layar rekonsiliasi dengan persetujuan dan jejak audit belum tersedia.
 - [ ] Laporan arus kas dan laba rugi lengkap yang tervalidasi; saat ini tersedia ringkasan laba kotor barang berdasarkan HPP FIFO/alokasi batch dan harga modal tersimpan untuk transaksi lama.
 
 ## 9. Karyawan dan mekanik
@@ -171,30 +172,27 @@ Audit ini adalah pemeriksaan statis terhadap struktur repository, halaman, repos
 
 ## Kebijakan laci uang otomatis
 
-- Laci uang direncanakan terhubung ke port RJ11/RJ12 pada printer thermal yang memang mendukung cash drawer.
-- Menu Pengaturan menyediakan sakelar ON/OFF untuk membuka laci otomatis setelah pembayaran berhasil tersimpan.
-- Admin dan Kasir dapat melakukan tes buka laci dan membuka laci secara manual sesuai hak akses.
-- Laci tidak boleh terbuka otomatis untuk transaksi gagal, dibatalkan, atau belum tersimpan.
-- Dukungan aktual tetap bergantung pada port, pinout, tegangan/pulsa, dan protokol printer serta kompatibilitas laci; tidak semua printer mendukung laci.
-- Fitur ini masih berupa spesifikasi dan belum dianggap tersedia sampai integrasi, penyimpanan pengaturan, dan pengujian perangkat selesai.
+- Menu Pengaturan sudah menyediakan sakelar ON/OFF dan menyimpan pilihan secara lokal.
+- Laci direncanakan terhubung ke port RJ11/RJ12 pada printer thermal yang memang mendukung cash drawer.
+- Perintah ESC/POS untuk tes buka, buka manual, dan buka otomatis setelah pembayaran belum diintegrasikan.
+- Karena perintah fisik belum tersedia, sakelar ON/OFF saat ini hanya menyimpan preferensi dan belum membuka laci.
+- Dukungan aktual bergantung pada port, pinout, tegangan/pulsa, protokol printer, dan kompatibilitas laci; tidak semua printer mendukung laci.
 
 ## Kebijakan tampilan dan format struk
 
-- Menu Pengaturan akan menyediakan pengaturan format kertas 58 mm atau 80 mm.
-- Pengguna dapat mengatur elemen struk yang ditampilkan, termasuk logo, nama/alamat/kontak usaha, rincian transaksi, dan catatan bagian bawah.
-- Pengguna dapat mengatur ukuran teks dan jarak/tata letak struk, lalu melihat pratinjau sebelum mencetak.
-- Pengaturan berlaku untuk struk penjualan dan servis; bagian informasi khusus tiap jenis dokumen tetap dipertahankan.
-- Pengaturan format dan tampilan harus tersimpan secara lokal agar tetap tersedia saat aplikasi offline dan setelah aplikasi dibuka ulang.
-- Fitur pengaturan ini belum dianggap tersedia sampai layar, penyimpanan, generator PDF/PNG, dan pengujian hasil cetak terintegrasi.
+- Pengaturan format 58/80 mm, logo, informasi usaha/pelanggan, catatan transaksi/bawah nota, skala teks, dan kerapatan sudah tersedia dan tersimpan lokal.
+- Generator PDF/PNG menggunakan pengaturan tersebut untuk nota penjualan dan servis.
+- Hasil cetak fisik 58/80 mm dan konsistensi lintas printer tetap perlu diuji; pengaturan format tidak berarti cetak thermal langsung sudah terintegrasi.
 
 ## Kebijakan hak akses printer
 
-Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya EPOS RPP02N:
+Berlaku untuk printer yang didukung oleh integrasi aplikasi:
 
-- Admin dan Kasir boleh melihat status printer, mencari/menghubungkan printer, memilih printer utama, melakukan tes cetak, dan mencetak struk.
-- Hanya Admin yang boleh mengubah pengaturan printer lanjutan.
-- Koneksi yang direncanakan mencakup Bluetooth, USB, dan Wi-Fi/LAN sesuai kemampuan perangkat dan protokol printer.
-- Layar pengaturan struk dan sakelar ON/OFF laci uang sudah tersedia dan disimpan lokal. Koneksi printer langsung serta perintah fisik untuk membuka laci (otomatis/manual/tes) belum diimplementasikan dan belum diuji pada perangkat.
+- Admin dan Kasir dapat mencari/menghubungkan printer Bluetooth, menyimpan printer utama, memutus koneksi, dan menjalankan tes cetak ESC/POS 58 mm.
+- Pengaturan printer lanjutan khusus Admin belum tersedia sebagai panel terpisah.
+- USB dan Wi-Fi/LAN belum diimplementasikan/terverifikasi.
+- Cetak transaksi masih melalui layanan cetak Android dari PDF, bukan koneksi Bluetooth ESC/POS yang tersimpan.
+- Sakelar laci uang dan format nota tersedia, tetapi perintah fisik laci belum diimplementasikan.
 
 ## 11. Nota, struk, dan pencetakan
 
@@ -259,7 +257,8 @@ Berlaku untuk semua merek dan model printer yang didukung aplikasi, bukan hanya 
 - [ ] Uji backup/restore pada berbagai perangkat dan skenario kegagalan.
 - [ ] Audit menyeluruh persistensi data setelah aplikasi ditutup/dibuka.
 - [ ] Uji perangkat fisik untuk alur utama, printer, kamera, dan berbagi file.
-- [ ] Pengamanan akun/hak akses dan pencatatan aktivitas pengguna.
+- [x] Login username/PIN, role Admin/Kasir/Mekanik, pembatasan akses dasar, dan activity log untuk tindakan yang telah diintegrasikan.
+- [ ] Audit keamanan menyeluruh, kebijakan percobaan login/PIN, dan cakupan pencatatan seluruh aksi pengguna.
 
 ## 15. Pengingat dan fitur tambahan
 
@@ -283,7 +282,7 @@ Sesuai arahan, pengembangan sementara dibatasi pada empat area berikut. Fitur di
 3. **Rekonsiliasi Buku Kas dengan transaksi sumber** — pastikan setiap referensi kas dapat dikenali, nominal dan arah kas benar, serta transaksi tanpa sumber atau koreksi terdeteksi.
 4. **Audit laporan laba rugi** — validasi periode pengakuan penjualan/servis, retur, HPP, biaya langsung servis, biaya operasional, dan batasan perhitungan laba bersih.
 
-Pencetakan langsung Bluetooth, snapshot historis dokumen, serta kompatibilitas perangkat khusus masih perlu dilanjutkan dan diuji setelah alur dasar nota ini.
+Cetak transaksi langsung Bluetooth/USB/Wi-Fi, integrasi laci uang, papan antrian, dan kompatibilitas perangkat khusus masih perlu dilanjutkan dan diuji. Snapshot historis dokumen sudah tersedia untuk nota yang diterbitkan.
 
 ## Aturan wajib setiap perubahan
 
