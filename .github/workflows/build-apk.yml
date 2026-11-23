@@ -291,34 +291,37 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Align thermal printer plugin Android SDK
+      - name: Align Android SDK for all Flutter plugins
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
 
           cache = Path.home() / ".pub-cache" / "hosted" / "pub.dev"
-          files = list(cache.glob("unified_esc_pos_printer-*/android/build.gradle")) + list(cache.glob("unified_esc_pos_printer-*/android/build.gradle.kts"))
+          files = list(cache.glob("*/android/build.gradle")) + list(cache.glob("*/android/build.gradle.kts"))
           if not files:
-              raise SystemExit("Gradle file unified_esc_pos_printer tidak ditemukan setelah flutter pub get.")
+              raise SystemExit("Tidak menemukan Gradle Android milik plugin Flutter.")
 
+          changed = []
           for path in files:
               source = path.read_text()
-              updated, count = re.subn(
-                  r'compileSdkVersion\s+(?:flutter\.compileSdkVersion|[0-9]+)',
-                  'compileSdkVersion 36',
+              updated = re.sub(
+                  r'(compileSdkVersion\\s+)(?:flutter\\.compileSdkVersion|[0-9]+)',
+                  r'\\g<1>36',
                   source,
               )
-              if count == 0:
-                  updated, count = re.subn(
-                      r'compileSdk\s*=\s*(?:flutter\.compileSdkVersion|[0-9]+)',
-                      'compileSdk = 36',
-                      source,
-                  )
-              if count == 0:
-                  raise SystemExit(f"Konfigurasi compileSdk tidak dikenali pada {path}.")
-              path.write_text(updated)
-              print(f"compileSdk plugin printer diselaraskan ke 36: {path}")
+              updated = re.sub(
+                  r'(compileSdk\\s*=\\s*)(?:flutter\\.compileSdkVersion|[0-9]+)',
+                  r'\\g<1>36',
+                  updated,
+              )
+              if updated != source:
+                  path.write_text(updated)
+                  changed.append(str(path))
+
+          print(f"SDK Android plugin diselaraskan ke 36 pada {len(changed)} file.")
+          for path in changed:
+              print(path)
           PY
 
       - name: Patch legacy usb_serial Android repository
