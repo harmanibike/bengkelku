@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/auth/activity_log_repository.dart';
 
 class PurchaseRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -71,7 +72,7 @@ class PurchaseRepository {
 
     final db = await _db;
     return db.transaction((txn) async {
-      final supplier = await txn.query('suppliers', columns: ['id'], where: 'id = ?', whereArgs: [supplierId], limit: 1);
+      final supplier = await txn.query('suppliers', columns: ['id', 'name'], where: 'id = ?', whereArgs: [supplierId], limit: 1);
       final settingRows = await txn.query('app_settings', columns: ['setting_value'], where: 'setting_key = ?', whereArgs: ['purchase_cost_method'], limit: 1);
       final configuredMethod = settingRows.isEmpty ? 'weighted_average' : settingRows.first['setting_value']?.toString();
       final costMethod = const ['weighted_average', 'last_cost', 'manual', 'per_batch'].contains(configuredMethod) ? configuredMethod! : 'weighted_average';
@@ -164,6 +165,13 @@ class PurchaseRepository {
           'reference_type': 'purchase_payment', 'reference_id': purchaseId,
         });
       }
+      await ActivityLogRepository.record(
+        txn,
+        action: 'purchase_created',
+        description: 'Mencatat pembelian faktur $invoice dari ${supplier.first['name']} senilai Rp$total.',
+        entityType: 'purchase',
+        entityId: purchaseId,
+      );
       return purchaseId;
     });
   }
@@ -196,6 +204,13 @@ class PurchaseRepository {
         'description': 'Pembayaran faktur ${row['invoice_number']}', 'amount': amount,
         'reference_type': 'purchase_payment', 'reference_id': purchaseId,
       });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'purchase_payment_recorded',
+        description: 'Mencatat pembayaran Rp$amount untuk faktur ${row['invoice_number']}.',
+        entityType: 'purchase',
+        entityId: purchaseId,
+      );
     });
   }
 
@@ -378,6 +393,13 @@ class PurchaseRepository {
         'cancel_reason': note,
         'payment_status': 'cancelled',
       }, where: 'id = ?', whereArgs: [purchaseId]);
+      await ActivityLogRepository.record(
+        txn,
+        action: 'purchase_cancelled',
+        description: 'Membatalkan faktur pembelian ${purchase['invoice_number']}. Alasan: $note',
+        entityType: 'purchase',
+        entityId: purchaseId,
+      );
     });
   }
 
