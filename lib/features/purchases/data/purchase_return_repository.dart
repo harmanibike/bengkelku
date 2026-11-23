@@ -501,43 +501,11 @@ class PurchaseReturnRepository {
           continue;
         }
 
-        // Kompatibilitas retur lama yang belum memiliki referensi movement.
-        // Jika produk sekarang dilacak stoknya, hanya pulihkan bila alokasi
-        // batch lengkap; jika tidak lengkap, jangan menebak jumlah stok.
-        final productRows = await txn.query(
-          'products',
-          columns: ['track_stock'],
-          where: 'id = ?',
-          whereArgs: [productId],
-          limit: 1,
+        // Retur lama tanpa movement tidak menyimpan bukti apakah stok
+        // dikurangi saat retur dibuat. Jangan menebak dari pengaturan saat ini.
+        throw StateError(
+          'Retur lama tidak memiliki riwayat pergerakan stok. Pembatalan otomatis dihentikan untuk audit stok.',
         );
-        if (productRows.isEmpty) {
-          throw StateError('Produk retur tidak ditemukan.');
-        }
-        final trackedNow =
-            (productRows.first['track_stock'] as num?)?.toInt() == 1;
-        if (!trackedNow) continue;
-
-        var allocatedForProduct = 0;
-        for (final item in returnItems) {
-          if ((item['product_id'] as num?)?.toInt() != productId) continue;
-          final itemId = (item['id'] as num?)?.toInt();
-          if (itemId == null) continue;
-          final itemQuantity = (item['quantity'] as num?)?.toInt() ?? 0;
-          final allocated = allocationByItem[itemId] ?? 0;
-          if (allocated != itemQuantity) {
-            throw StateError(
-              'Alokasi batch retur tidak lengkap. Pembatalan otomatis dihentikan untuk menjaga stok.',
-            );
-          }
-          allocatedForProduct += allocated;
-        }
-        if (allocatedForProduct != expectedQuantity || allocatedForProduct == 0) {
-          throw StateError(
-            'Retur lama tidak memiliki riwayat stok yang cukup untuk pembatalan otomatis. Stok perlu diaudit terlebih dahulu.',
-          );
-        }
-        restoreByProduct[productId] = allocatedForProduct;
       }
 
       for (final entry in restoreByProduct.entries) {
