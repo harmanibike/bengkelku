@@ -162,6 +162,42 @@ class ReportRepository {
         AND p.total > p.paid + COALESCE(p.return_credit, 0)
     ''');
 
+    // Audit pengembalian uang retur: nilai refund pada nota retur harus
+    // sama dengan kas keluar yang terhubung ke ID retur tersebut.
+    // Periode diperiksa pada tanggal retur maupun tanggal kas agar transaksi
+    // yang salah tanggal tetap terlihat. Pemeriksaan ini hanya-baca.
+    final returnRefundAudit = await db.rawQuery('''
+      SELECT
+        sr.id AS return_id,
+        sr.return_number,
+        s.invoice_number,
+        sr.refunded_amount AS recorded_refund,
+        COALESCE(ct.cash_refund, 0) AS cash_refund,
+        sr.refunded_amount - COALESCE(ct.cash_refund, 0) AS difference
+      FROM sale_returns sr
+      JOIN sales s ON s.id = sr.sale_id
+      LEFT JOIN (
+        SELECT reference_id AS return_id, SUM(amount) AS cash_refund
+        FROM cash_transactions
+        WHERE reference_type = 'sale_return'
+          AND transaction_type = 'expense'
+        GROUP BY reference_id
+      ) ct ON ct.return_id = sr.id
+      WHERE sr.refunded_amount != COALESCE(ct.cash_refund, 0)
+        AND (
+          (datetime(sr.return_date) >= datetime(?) AND datetime(sr.return_date) < datetime(?))
+          OR EXISTS (
+            SELECT 1 FROM cash_transactions cash_check
+            WHERE cash_check.reference_type = 'sale_return'
+              AND cash_check.reference_id = sr.id
+              AND datetime(cash_check.transaction_date) >= datetime(?)
+              AND datetime(cash_check.transaction_date) < datetime(?)
+          )
+        )
+      ORDER BY sr.return_date DESC, sr.id DESC
+      LIMIT 50
+    ''', [from, until, from, until]);
+
     final lowStock = await db.rawQuery('''
       SELECT COUNT(*) AS total FROM products
       WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock
@@ -220,7 +256,7 @@ class ReportRepository {
       'customer_receivable_count': (serviceReceivableRows.first['total'] as int? ?? 0) + (saleReceivableRows.first['total'] as int? ?? 0),
       'supplier_payable_amount': supplierPayableRows.first['amount'] as int? ?? 0,
       'supplier_payable_count': supplierPayableRows.first['total'] as int? ?? 0,
-      'low_stock': lowStock.first['total'] as int? ?? 0,
+      'return_refund_audit_issues': returnRefundAudit,\n      'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
       'latest': latest,
     };
