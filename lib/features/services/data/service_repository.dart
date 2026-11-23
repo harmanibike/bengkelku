@@ -358,7 +358,9 @@ class ServiceRepository {
       arguments.add(effectiveMechanicId);
     }
 
-    if (status != null && status.trim().isNotEmpty) {
+    if (status == 'active_queue') {
+      conditions.add("s.service_status IN ('waiting', 'checking', 'in_progress')");
+    } else if (status != null && status.trim().isNotEmpty) {
       if (!serviceStatuses.contains(status)) {
         throw ArgumentError('Status servis tidak valid.');
       }
