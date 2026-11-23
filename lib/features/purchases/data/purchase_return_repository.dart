@@ -508,32 +508,6 @@ class PurchaseReturnRepository {
         );
       }
 
-      for (final entry in restoreByProduct.entries) {
-        final products = await txn.query(
-          'products',
-          columns: ['stock'],
-          where: 'id = ?',
-          whereArgs: [entry.key],
-          limit: 1,
-        );
-        if (products.isEmpty) throw StateError('Produk retur tidak ditemukan.');
-        final before = (products.first['stock'] as num?)?.toInt() ?? 0;
-        final after = before + entry.value;
-        await txn.update('products', {
-          'stock': after,
-          'updated_at': DateTime.now().toIso8601String(),
-        }, where: 'id = ?', whereArgs: [entry.key]);
-        await txn.insert('stock_movements', {
-          'product_id': entry.key,
-          'movement_type': 'in',
-          'quantity': entry.value,
-          'stock_before': before,
-          'stock_after': after,
-          'reference_type': 'purchase_return_cancel',
-          'reference_id': returnId,
-          'notes': 'Pembatalan retur ${row['return_number']}: $note',
-        });
-      }
       for (final item in returnItems) {
         final itemId = (item['id'] as num?)?.toInt();
         final expected = (item['quantity'] as num?)?.toInt() ?? 0;
@@ -569,24 +543,15 @@ class PurchaseReturnRepository {
           );
         }
       }
-      final byProduct = <int, int>{};
-      for (final item in returnItems) {
-        final productId = (item['product_id'] as num?)?.toInt();
-        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-        if (productId != null && quantity > 0) {
-          byProduct[productId] = (byProduct[productId] ?? 0) + quantity;
-        }
-      }
-      for (final entry in byProduct.entries) {
+      for (final entry in restoreByProduct.entries) {
         final products = await txn.query(
           'products',
-          columns: ['stock', 'track_stock'],
+          columns: ['stock'],
           where: 'id = ?',
           whereArgs: [entry.key],
           limit: 1,
         );
         if (products.isEmpty) throw StateError('Produk retur tidak ditemukan.');
-        if ((products.first['track_stock'] as num?)?.toInt() != 1) continue;
         final before = (products.first['stock'] as num?)?.toInt() ?? 0;
         final after = before + entry.value;
         await txn.update('products', {
