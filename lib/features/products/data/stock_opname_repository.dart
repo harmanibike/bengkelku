@@ -11,7 +11,9 @@ class StockOpnameRepository {
     return db.rawQuery('''
       SELECT s.*, COUNT(i.id) item_count,
         SUM(CASE WHEN i.counted_quantity IS NOT NULL THEN 1 ELSE 0 END) counted_count,
-        SUM(CASE WHEN i.counted_quantity IS NOT NULL THEN i.variance ELSE 0 END) total_variance
+        SUM(CASE WHEN i.counted_quantity IS NOT NULL AND i.variance > 0 THEN i.variance ELSE 0 END) total_surplus,
+        SUM(CASE WHEN i.counted_quantity IS NOT NULL AND i.variance < 0 THEN ABS(i.variance) ELSE 0 END) total_shortage,
+        SUM(CASE WHEN i.counted_quantity IS NOT NULL AND i.variance != 0 THEN 1 ELSE 0 END) changed_count
       FROM stock_opname_sessions s
       LEFT JOIN stock_opname_items i ON i.session_id=s.id
       GROUP BY s.id ORDER BY s.id DESC
@@ -48,8 +50,13 @@ class StockOpnameRepository {
 
   Future<List<Map<String, Object?>>> getItems(int id) async {
     final db = await _db;
-    return db.query('stock_opname_items', where: 'session_id=?',
-      whereArgs: [id], orderBy: 'product_name COLLATE NOCASE');
+    return db.rawQuery('''
+      SELECT i.*, p.barcode
+      FROM stock_opname_items i
+      LEFT JOIN products p ON p.id=i.product_id
+      WHERE i.session_id=?
+      ORDER BY i.product_name COLLATE NOCASE
+    ''', [id]);
   }
 
   Future<void> setCount(int itemId, int quantity) async {
@@ -68,6 +75,25 @@ class StockOpnameRepository {
         'counted_quantity': quantity, 'variance': quantity-system,
         'counted_at': DateTime.now().toIso8601String(),
       }, where: 'id=?', whereArgs: [itemId]);
+    });
+  }
+
+  Future<void> deleteDraft(int sessionId) async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      final sessions = await txn.query('stock_opname_sessions',
+        where: 'id=?', whereArgs: [sessionId], limit: 1);
+      if (sessions.isEmpty || sessions.first['status'] != 'draft') {
+        throw StateError('Hanya sesi draft yang boleh dibatalkan.');
+      }
+      await txn.delete('stock_opname_items',
+        where: 'session_id=?', whereArgs: [sessionId]);
+      await txn.delete('stock_opname_sessions',
+        where: 'id=?', whereArgs: [sessionId]);
+      await ActivityLogRepository.record(txn,
+        action: 'stock_opname_cancelled',
+        description: 'Membatalkan sesi stok opname ${sessions.first['opname_number']}.',
+        entityType: 'stock_opname', entityId: sessionId);
     });
   }
 
@@ -103,11 +129,22 @@ class StockOpnameRepository {
         final delta = counted-before;
         if (delta == 0) continue;
         if (delta > 0) {
+          final costRows = await txn.rawQuery('''
+            SELECT
+              CASE WHEN SUM(quantity_remaining)>0
+                THEN CAST(SUM(quantity_remaining * unit_cost) / SUM(quantity_remaining) AS INTEGER)
+                ELSE ?
+              END AS average_cost
+            FROM inventory_cost_batches
+            WHERE product_id=? AND quantity_remaining>0
+          ''', [product.first['purchase_price'] as int? ?? 0, pid]);
+          final averageCost = costRows.first['average_cost'] as int? ?? 0;
           await txn.insert('inventory_cost_batches', {
             'product_id': pid, 'batch_code': 'OPN-$sessionId-$pid',
             'quantity_received': delta, 'quantity_remaining': delta,
-            'unit_cost': product.first['purchase_price'] as int? ?? 0,
-            'received_at': now, 'notes': 'Penyesuaian stok opname',
+            'unit_cost': averageCost,
+            'received_at': now,
+            'notes': 'Penyesuaian stok opname; biaya berdasarkan rata-rata batch tersisa (atau harga beli saat ini jika tidak ada saldo batch).',
           });
         } else {
           var remaining = -delta;
