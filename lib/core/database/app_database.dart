@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 29;
+  static const int currentVersion = 30;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -312,6 +312,9 @@ class AppDatabase {
         remaining_payment INTEGER NOT NULL DEFAULT 0,
         mechanic_name TEXT,
         assigned_mechanic_id INTEGER,
+        queue_number INTEGER,
+        queue_date TEXT,
+        queue_priority INTEGER NOT NULL DEFAULT 0,
         received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         completed_at TEXT,
         notes TEXT,
@@ -325,6 +328,9 @@ class AppDatabase {
           ON DELETE SET NULL
       )
     ''');
+
+    batch.execute('CREATE UNIQUE INDEX idx_service_daily_queue ON service_orders(queue_date, queue_number) WHERE queue_number IS NOT NULL');
+    batch.execute('CREATE INDEX idx_service_queue_order ON service_orders(queue_date, queue_priority DESC, queue_number ASC)');
 
     // Riwayat perubahan status servis untuk jejak pengerjaan.
     batch.execute('''
@@ -1325,6 +1331,15 @@ class AppDatabase {
         )
       ''');
       await db.execute('CREATE INDEX idx_stock_opname_items_session ON stock_opname_items(session_id, product_name)');
+    }
+
+    // Antrian servis harian: nomor dimulai kembali dari 1 setiap tanggal.
+    if (oldVersion < 30) {
+      await db.execute('ALTER TABLE service_orders ADD COLUMN queue_number INTEGER');
+      await db.execute('ALTER TABLE service_orders ADD COLUMN queue_date TEXT');
+      await db.execute('ALTER TABLE service_orders ADD COLUMN queue_priority INTEGER NOT NULL DEFAULT 0');
+      await db.execute('CREATE UNIQUE INDEX idx_service_daily_queue ON service_orders(queue_date, queue_number) WHERE queue_number IS NOT NULL');
+      await db.execute('CREATE INDEX idx_service_queue_order ON service_orders(queue_date, queue_priority DESC, queue_number ASC)');
     }
 
   }
