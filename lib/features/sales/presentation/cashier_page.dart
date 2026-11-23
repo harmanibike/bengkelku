@@ -191,9 +191,6 @@ class _CashierPageState extends State<CashierPage> {
         items: _cart.values.map((item) => Map<String, Object?>.from(item)).toList(),
         buyerName: _buyerNameForHold.text,
       );
-      if (confirmedMethod == 'customer_wallet') {
-        await _repository.addSaleWalletPayment(id: id, amount: paid);
-      }
       if (!mounted) return;
       setState(() {
         _cart.clear();
@@ -494,6 +491,7 @@ class _CashierPageState extends State<CashierPage> {
           'unit_price': item['unit_price'],
         }).toList(),
         paid: confirmedMethod == 'customer_wallet' ? 0 : paid,
+        walletPayment: confirmedMethod == 'customer_wallet' ? paid : 0,
         paymentMethod: paymentMethodLabel,
         customerId: customerId,
         customerName: buyerNameController.text.trim().isEmpty ? 'Pelanggan Umum' : buyerNameController.text.trim(),
