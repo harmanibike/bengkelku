@@ -19,6 +19,7 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
   late Future<Set<String>> _enabledFuture;
   Set<String> _enabled = {};
   bool _saving = false;
+  bool _detailsLoading = true;
   final _picker = ImagePicker();
   final _bankName = TextEditingController();
   final _accountNumber = TextEditingController();
@@ -49,9 +50,13 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         _bankName.text = details['bank_name'] ?? '';
         _accountNumber.text = details['bank_account_number'] ?? '';
         _accountHolder.text = details['bank_account_holder'] ?? '';
+        _detailsLoading = false;
       });
     } catch (error) {
-      if (mounted) _message('Gagal memuat detail pembayaran: $error');
+      if (mounted) {
+        setState(() => _detailsLoading = false);
+        _message('Gagal memuat detail pembayaran: $error');
+      }
     }
   }
 
@@ -191,11 +196,11 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _saving ? null : _save,
-                  icon: _saving
+                  onPressed: _saving || _detailsLoading ? null : _save,
+                  icon: _saving || _detailsLoading
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.save_rounded),
-                  label: const Text('Simpan Pengaturan'),
+                  label: Text(_detailsLoading ? 'Memuat pengaturan...' : 'Simpan Pengaturan'),
                 ),
               ),
             ],
