@@ -21,8 +21,6 @@ class _CashierPageState extends State<CashierPage> {
   List<Map<String, String>> _paymentMethods = PaymentMethodsRepository.defaultMethods.map(Map<String, String>.from).toList();
   final TextEditingController _search = TextEditingController();
   final TextEditingController _paid = TextEditingController();
-  final TextEditingController _buyerName = TextEditingController();
-  final TextEditingController _discount = TextEditingController(text: '0');
   List<Map<String, Object?>> _products = [];
   final Map<int, Map<String, Object?>> _cart = {};
   bool _loading = true;
@@ -42,8 +40,6 @@ class _CashierPageState extends State<CashierPage> {
   void dispose() {
     _search.dispose();
     _paid.dispose();
-    _buyerName.dispose();
-    _discount.dispose();
     super.dispose();
   }
 
@@ -151,8 +147,6 @@ class _CashierPageState extends State<CashierPage> {
 
   Future<void> _checkout() async {
     if (_cart.isEmpty) return;
-    _buyerName.text = '';
-    _discount.text = '0';
     _paid.text = _total.toString();
     final paymentController = TextEditingController(text: _paid.text);
     final discountController = TextEditingController(text: '0');
@@ -233,9 +227,6 @@ class _CashierPageState extends State<CashierPage> {
       }
       final finalTotal = _total - discount;
       final paid = int.tryParse(paymentController.text) ?? 0;
-      if (paid < finalTotal && buyerNameController.text.trim().isEmpty) {
-        // Piutang harus ditautkan ke data pelanggan yang terdaftar.
-      }
       final paymentMethodLabel = _paymentMethods.firstWhere(
         (method) => method['code'] == confirmedMethod,
       )['name']!;
