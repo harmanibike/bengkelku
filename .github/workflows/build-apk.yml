@@ -89,6 +89,37 @@ jobs:
           print("Izin kamera disiapkan untuk pemindai barcode.")
           PY
 
+      - name: Declare local network permissions for Server and Client API
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          source = path.read_text()
+          permissions = [
+              '    <uses-permission android:name="android.permission.INTERNET" />',
+              '    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />',
+          ]
+          missing = [item for item in permissions if item.split('"')[1] not in source]
+          if missing:
+              block = "\\n".join(missing) + "\\n"
+              source, count = re.subn(r'(<application\\b)', lambda match: block + match.group(1), source, count=1)
+              if count != 1:
+                  raise SystemExit("Tag application AndroidManifest.xml tidak ditemukan.")
+          if 'android:usesCleartextTraffic=' not in source:
+              source, count = re.subn(
+                  r'(<application\\b)',
+                  r'\\1 android:usesCleartextTraffic="true"',
+                  source,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit("Tag application AndroidManifest.xml tidak ditemukan.")
+          path.write_text(source)
+          print("Izin jaringan dan HTTP LAN lokal disiapkan.")
+          PY
+
       - name: Declare Android contacts read permission
         run: |
           python3 - <<'PY'
