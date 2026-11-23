@@ -703,6 +703,9 @@ class ServiceRepository {
           final productId = request['product_id'] as int?;
           final quantity = request['quantity'] as int? ?? 0;
           final unitPrice = approvedUnitPrice ?? (request['unit_price'] as int? ?? 0);
+          if (approvedUnitPrice == null) {
+            throw StateError('Admin/Kasir harus menentukan harga jual sparepart sebelum menyetujui.');
+          }
           if (productId == null || quantity <= 0) {
             throw StateError('Data sparepart usulan tidak valid.');
           }
@@ -833,7 +836,6 @@ class ServiceRepository {
               }
               final product = products.first;
               final stockBefore = product['stock'] as int? ?? 0;
-              final quantity = item['quantity'] as int? ?? 0;
               await txn.update(
                 'products',
                 {'stock': stockBefore + quantity, 'updated_at': now},
@@ -864,27 +866,28 @@ class ServiceRepository {
         }
       }
 
-      final activeItems = await txn.query(
-        'service_order_items',
-        columns: ['subtotal'],
-        where: "service_order_id = ? AND item_type = 'part' AND is_active = 1",
-        whereArgs: [serviceId],
-      );
-      final newParts = activeItems.fold<int>(
-        0, (sum, item) => sum + (item['subtotal'] as int? ?? 0));
-      final calculated = (oldLabor + newParts > 0 ? oldLabor + newParts : oldEstimated) - oldDiscount;
-      final newTotal = calculated < 0 ? 0 : calculated;
-      final paid = order['down_payment'] as int? ?? 0;
-      if (newTotal < paid) {
-        throw StateError('Total baru lebih kecil dari seluruh pembayaran yang sudah diterima. Proses pengembalian/ kredit pelanggan harus diselesaikan terlebih dahulu; perubahan belum diterapkan.');
-      }
-      await txn.update(
-        'service_orders',
-        {'parts_cost': newParts, 'total_cost': newTotal, 'remaining_payment': newTotal - paid},
-        where: 'id = ?',
-        whereArgs: [serviceId],
-      );
-      await txn.insert('service_estimate_history', {
+      if (approve) {
+        final itemSubtotal = (request['quantity'] as int? ?? 0) *
+            (request['unit_price'] as int? ?? 0);
+        final effectiveSubtotal = request['request_type'] == 'add'
+            ? (request['quantity'] as int? ?? 0) * (approvedUnitPrice ?? 0)
+            : itemSubtotal;
+        final newParts = request['request_type'] == 'add'
+            ? oldParts + effectiveSubtotal
+            : (oldParts - itemSubtotal < 0 ? 0 : oldParts - itemSubtotal);
+        final calculated = (oldLabor + newParts > 0 ? oldLabor + newParts : oldEstimated) - oldDiscount;
+        final newTotal = calculated < 0 ? 0 : calculated;
+        final paid = order['down_payment'] as int? ?? 0;
+        if (newTotal < paid) {
+          throw StateError('Total baru lebih kecil dari seluruh pembayaran yang sudah diterima. Proses pengembalian/ kredit pelanggan harus diselesaikan terlebih dahulu; perubahan belum diterapkan.');
+        }
+        await txn.update(
+          'service_orders',
+          {'parts_cost': newParts, 'total_cost': newTotal, 'remaining_payment': newTotal - paid},
+          where: 'id = ?',
+          whereArgs: [serviceId],
+        );
+        await txn.insert('service_estimate_history', {
         'service_order_id': serviceId,
         'old_estimated_cost': oldEstimated,
         'new_estimated_cost': oldEstimated,
@@ -902,7 +905,8 @@ class ServiceRepository {
         'changed_by_id': session.userId,
         'changed_by_name': session.displayName,
         'changed_at': now,
-      });
+        });
+      }
       await txn.update(
         'service_part_change_requests',
         {
