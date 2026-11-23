@@ -114,6 +114,8 @@ class CustomerRepository {
 
   Future<List<Map<String, Object?>>> getCustomers({
     String keyword = '',
+    int? limit,
+    int offset = 0,
   }) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat pelanggan.');
     final db = await _db;
@@ -128,6 +130,8 @@ class CustomerRepository {
           ? null
           : [search, search],
       orderBy: 'name COLLATE NOCASE ASC',
+      limit: limit,
+      offset: limit == null ? null : offset,
     );
   }
 
