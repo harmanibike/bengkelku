@@ -72,7 +72,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
     int? supplierId = suppliers.first['id'] as int;
     int? productId = products.first['id'] as int;
     final qty = TextEditingController(text: '1');
-    final cost = TextEditingController(text: (products.first['purchase_price'] as int? ?? 0).toString());
+    final cost = TextEditingController(text: formatCurrencyInput(products.first['purchase_price'] ?? 0));
     final items = <Map<String, Object?>>[];
     String? errorText;
 
@@ -118,7 +118,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                         setDialogState(() {
                           productId = v;
                           final selected = products.firstWhere((p) => p['id'] == v);
-                          cost.text = (selected['purchase_price'] as int? ?? 0).toString();
+                          cost.text = formatCurrencyInput(selected['purchase_price'] ?? 0);
                         });
                       },
                     ),
@@ -135,7 +135,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                           onPressed: () {
                             final product = products.firstWhere((p) => p['id'] == productId);
                             final q = int.tryParse(qty.text) ?? 0;
-                            final price = parseCurrencyInput(cost.text);
+                            final price = cost.text.trim().isEmpty ? -1 : parseCurrencyInput(cost.text);
                             if (q <= 0 || price < 0) {
                               setDialogState(() => errorText = 'Jumlah dan harga beli harus valid.');
                               return;
@@ -209,8 +209,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
               TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
               FilledButton(
                 onPressed: () {
-                  final d = parseCurrencyInput(discount.text);
-                  final paid = parseCurrencyInput(payment.text);
+                  final d = discount.text.trim().isEmpty ? -1 : parseCurrencyInput(discount.text);
+                  final paid = payment.text.trim().isEmpty ? -1 : parseCurrencyInput(payment.text);
                   if (invoice.text.trim().isEmpty || supplierId == null || items.isEmpty ||
                       d < 0 || paid < 0 || d > totalItems || paid > totalItems - d) {
                     setDialogState(() => errorText = 'Periksa faktur, barang, diskon, dan pembayaran.');
@@ -417,7 +417,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final paid = row['paid'] as int? ?? 0;
     final returnCredit = row['return_credit'] as int? ?? 0;
     final remaining = total - paid - returnCredit;
-    final amount = TextEditingController(text: remaining.toString());
+    final amount = TextEditingController(text: formatCurrencyInput(remaining));
     final value = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
