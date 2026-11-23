@@ -69,6 +69,8 @@ class ProductRepository {
   Future<List<Map<String, Object?>>> getProducts({
     String keyword = '',
     bool includeInactive = false,
+    int? limit,
+    int offset = 0,
   }) async {
     final db = await _db;
     final query = keyword.trim();
@@ -88,6 +90,8 @@ class ProductRepository {
       where: where.isEmpty ? null : where.join(' AND '),
       whereArgs: args.isEmpty ? null : args,
       orderBy: 'name COLLATE NOCASE ASC',
+      limit: limit,
+      offset: limit == null ? null : offset,
     );
   }
 
