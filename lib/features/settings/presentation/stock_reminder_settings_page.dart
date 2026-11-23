@@ -86,7 +86,7 @@ class _StockReminderSettingsPageState extends State<StockReminderSettingsPage> {
                 ),
                 _option(
                   'Ingatkan kembali setiap hari',
-                  'Pengingat dapat muncul kembali selama stok produk masih berada di bawah batas minimum.',
+                  'Pengingat berulang dijadwalkan setiap 24 jam selama produk masih terdeteksi di bawah batas minimum saat aplikasi melakukan sinkronisasi.',
                   _settings.repeatDaily,
                   (value) => setState(() => _settings = _settings.copyWith(repeatDaily: value)),
                 ),
@@ -103,7 +103,7 @@ class _StockReminderSettingsPageState extends State<StockReminderSettingsPage> {
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Izinkan notifikasi agar BengkelKu dapat mengingatkan stok menipis setiap hari. Pengingat hanya dijadwalkan jika ditemukan produk di bawah batas stok.',
+                          'Izinkan notifikasi Android. Jika ada produk yang mencapai batas minimum, BengkelKu menjadwalkan pengingat harian. Jumlah produk diperbarui saat aplikasi dibuka atau dashboard disegarkan.',
                           style: TextStyle(fontSize: 12),
                         ),
                         const SizedBox(height: 10),
