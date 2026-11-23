@@ -228,6 +228,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
           address: addressController.text,
           email: emailController.text,
           notes: notesController.text,
+          photoBase64: photoBase64,
         );
       }
 
