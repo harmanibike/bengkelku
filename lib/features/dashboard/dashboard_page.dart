@@ -369,7 +369,7 @@ class _DashboardPageState extends State<DashboardPage> {
     required List<Color> colors,
   }) {
     return Container(
-      padding: const EdgeInsets.all(11),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(14),
@@ -380,19 +380,19 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white, size: 29),
+            child: Icon(icon, color: Colors.white, size: 26),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 7),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(value, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (suffix.isNotEmpty)
                   Text(suffix, style: const TextStyle(color: Colors.white70, fontSize: 9)),
               ],
@@ -418,11 +418,11 @@ class _DashboardPageState extends State<DashboardPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Ringkasan Hari Ini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF263238))),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         LayoutBuilder(
           builder: (context, constraints) {
             final columns = constraints.maxWidth >= 560 ? 3 : 2;
-            final ratio = constraints.maxWidth >= 380 ? 1.95 : 1.75;
+            final ratio = constraints.maxWidth >= 380 ? 2.12 : 1.9;
             return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
@@ -464,8 +464,8 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         children: [
           Container(
-            width: 76,
-            height: 76,
+            width: 68,
+            height: 68,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(14),
@@ -475,7 +475,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             child: Icon(icon, color: Colors.white, size: 32),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, height: 1.12, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
         ],
       ),
@@ -513,10 +513,10 @@ class _DashboardPageState extends State<DashboardPage> {
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Menu Utama', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF263238))),
-      const SizedBox(height: 8),
+      const SizedBox(height: 4),
       LayoutBuilder(builder: (context, constraints) {
         final columns = constraints.maxWidth >= 560 ? 4 : 3;
-        final ratio = constraints.maxWidth >= 560 ? 1.05 : 1.02;
+        final ratio = constraints.maxWidth >= 560 ? 1.12 : 1.10;
         return GridView.count(crossAxisCount: columns, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisSpacing: 6, mainAxisSpacing: 6, childAspectRatio: ratio, children: tiles);
       }),
     ]);
@@ -552,11 +552,11 @@ class _DashboardPageState extends State<DashboardPage> {
                             ],
                             if (!AuthSession.instance.isMechanic) ...[
                               _startCashierCard(),
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 7),
                             ],
                             if (AuthSession.instance.isAdmin) ...[
                               _summary(snapshot),
-                              const SizedBox(height: 18),
+                              const SizedBox(height: 9),
                             ],
                             _menu(),
                           ])
