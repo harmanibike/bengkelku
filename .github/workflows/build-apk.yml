@@ -30,6 +30,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install Android SDK Platform 37
+        run: yes | sdkmanager "platforms;android-37"
+
       - name: Generate Android platform if missing
         run: |
           if [ ! -d android ]; then
@@ -264,7 +267,7 @@ jobs:
           build = gradle.read_text()
           build = re.sub(
               r'compileSdk\s*=\s*flutter\.compileSdkVersion',
-              'compileSdk = maxOf(flutter.compileSdkVersion, 35)',
+              'compileSdk = 37',
               build,
               count=1,
           )
@@ -285,7 +288,7 @@ jobs:
                   dependency_end = build.find("}", dependency_match.end())
                   build = build[:dependency_end] + '\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n' + build[dependency_end:]
           gradle.write_text(build)
-          print("Permission, receiver notifikasi, compileSdk 35, dan core library desugaring siap.")
+          print("Permission, receiver notifikasi, compileSdk 37, dan core library desugaring siap.")
           PY
 
       - name: Install dependencies
