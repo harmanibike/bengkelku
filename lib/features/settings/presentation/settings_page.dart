@@ -5,6 +5,7 @@ import 'payment_methods_page.dart';
 import 'account_pages.dart';
 import 'activity_log_page.dart';
 import 'database_backup_page.dart';
+import 'device_mode_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -66,6 +67,15 @@ class SettingsPage extends StatelessWidget {
             title: 'Akun & Hak Akses',
             subtitle: 'Kelola akun Admin, Kasir, dan Mekanik',
             page: const AccountManagementPage(),
+          ),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.devices_rounded,
+            color: const Color(0xFF1565C0),
+            title: 'Mode Perangkat',
+            subtitle: 'Pengaturan mode Lokal, Server, dan Client',
+            page: const DeviceModePage(),
           ),
           const SizedBox(height: 8),
           _item(
