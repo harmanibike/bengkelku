@@ -128,7 +128,7 @@ class _LoyaltySettingsPageState extends State<LoyaltySettingsPage> {
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Text(
-                      'Contoh pengaturan awal: belanja Rp10.000 = 1 poin, 1 poin = Rp100, minimal penukaran 100 poin. Pengaturan ini belum otomatis mengubah saldo poin atau menghitung poin transaksi sampai integrasi loyalty pada proses kasir diaktifkan.',
+                      'Contoh: belanja Rp10.000 = 1 poin, 1 poin bernilai Rp100, minimal penukaran 100 poin. Setelah program diaktifkan, poin otomatis masuk ketika transaksi pelanggan sudah lunas. Poin akan dikurangi kembali jika transaksi dibatalkan atau barang diretur. Penukaran poin sebagai diskon kasir akan diaktifkan pada tahap berikutnya.',
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),
