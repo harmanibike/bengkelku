@@ -134,7 +134,14 @@ class CustomerRepository {
           SELECT SUM(l.points)
           FROM loyalty_point_ledger l
           WHERE l.customer_id = c.id
-        ), 0) AS loyalty_points
+        ), 0) AS loyalty_points,
+        COALESCE((
+          SELECT w.balance_after
+          FROM customer_wallet_ledger w
+          WHERE w.customer_id = c.id
+          ORDER BY w.id DESC
+          LIMIT 1
+        ), 0) AS wallet_balance
       FROM customers c
       $whereClause
       ORDER BY c.name COLLATE NOCASE ASC
