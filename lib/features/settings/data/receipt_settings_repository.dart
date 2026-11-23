@@ -57,8 +57,8 @@ class ReceiptPrintSettings {
       showCustomerDetails: flag('showCustomerDetails', true),
       showTransactionNotes: flag('showTransactionNotes', true),
       showFooter: flag('showFooter', true),
-      fontScale: number('fontScale', 1).clamp(0.85, 1.25),
-      spacing: number('spacing', 1).clamp(0.7, 1.6),
+      fontScale: number('fontScale', 1).clamp(0.85, 1.25).toDouble(),
+      spacing: number('spacing', 1).clamp(0.7, 1.6).toDouble(),
     );
   }
 
