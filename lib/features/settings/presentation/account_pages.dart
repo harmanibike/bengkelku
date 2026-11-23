@@ -1,8 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../core/auth/auth_session.dart';
-import '../dashboard/dashboard_page.dart';
-import 'data/account_repository.dart';
+import '../../../core/auth/auth_session.dart';
+import '../../dashboard/dashboard_page.dart';
+import '../data/account_repository.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
