@@ -130,10 +130,10 @@ class ServiceRepository {
 
       await ActivityLogRepository.record(
         txn,
-        action: 'service_status_changed',
-        description: 'Mengubah status servis ${rows.first['order_number'] ?? id} dari $current menjadi $status.',
+        action: 'service_created',
+        description: 'Menerima servis baru dengan nomor $orderNumber.',
         entityType: 'service_order',
-        entityId: id,
+        entityId: serviceOrderId,
       );
       await txn.insert('service_status_history', {
         'service_order_id': serviceOrderId,
@@ -518,6 +518,13 @@ class ServiceRepository {
         'note': _nullableText(note),
         'changed_at': now,
       });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'service_status_changed',
+        description: 'Mengubah status servis ${rows.first['order_number'] ?? id} dari $current menjadi $status.',
+        entityType: 'service_order',
+        entityId: id,
+      );
       return updated;
     });
   }
