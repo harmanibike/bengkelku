@@ -109,7 +109,7 @@ class CustomerRepository {
 
     String normalizePhone(String value) {
       var digits = value.replaceAll(RegExp(r'[^0-9]'), '');
-      if (digits.startsWith('62')) digits = '0\${digits.substring(2)}';
+      if (digits.startsWith('62')) digits = '0' + digits.substring(2);
       return digits;
     }
 
