@@ -477,13 +477,12 @@ class _PurchasesPageState extends State<PurchasesPage> {
           PopupMenuButton<String>(
             tooltip: 'Menu pembelian lainnya',
             onSelected: (value) {
-              switch (value) {
-                case 'suppliers':
-                  _openSuppliers();
-                case 'returns':
-                  _openPurchaseReturns();
-                case 'debts':
-                  _openSupplierDebts();
+              if (value == 'suppliers') {
+                _openSuppliers();
+              } else if (value == 'returns') {
+                _openPurchaseReturns();
+              } else if (value == 'debts') {
+                _openSupplierDebts();
               }
             },
             itemBuilder: (context) => const [
