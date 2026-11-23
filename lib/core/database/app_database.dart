@@ -708,6 +708,20 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_loyalty_rewards_active ON loyalty_rewards(is_active, points_cost, name)');
+    await db.execute('''
+      CREATE TABLE loyalty_redemptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        reward_id INTEGER,
+        reward_name TEXT NOT NULL,
+        points_spent INTEGER NOT NULL CHECK(points_spent > 0),
+        status TEXT NOT NULL DEFAULT 'completed',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
+        FOREIGN KEY (reward_id) REFERENCES loyalty_rewards(id) ON DELETE SET NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_loyalty_redemptions_customer ON loyalty_redemptions(customer_id, created_at DESC)');
     await _seedDefaultServiceCatalog(db);
     await _seedDefaultProductCategories(db);
   }
@@ -764,6 +778,20 @@ class AppDatabase {
         )
       ''');
       await db.execute('CREATE INDEX idx_loyalty_rewards_active ON loyalty_rewards(is_active, points_cost, name)');
+      await db.execute('''
+        CREATE TABLE loyalty_redemptions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_id INTEGER NOT NULL,
+          reward_id INTEGER,
+          reward_name TEXT NOT NULL,
+          points_spent INTEGER NOT NULL CHECK(points_spent > 0),
+          status TEXT NOT NULL DEFAULT 'completed',
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
+          FOREIGN KEY (reward_id) REFERENCES loyalty_rewards(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_loyalty_redemptions_customer ON loyalty_redemptions(customer_id, created_at DESC)');
     }
 
     // Foto profil pelanggan disimpan opsional sebagai Base64; migrasi aditif.
