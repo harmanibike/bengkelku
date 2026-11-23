@@ -67,7 +67,7 @@ class _BarcodeScannerPageState extends State<BarcodeScannerPage> {
           MobileScanner(
             controller: _controller,
             onDetect: _handleDetection,
-            errorBuilder: (context, error) {
+            errorBuilder: (context, error, [child]) {
               final code = error.errorCode.toString().split('.').last;
               final permissionDenied = code == 'permissionDenied';
 
