@@ -87,6 +87,8 @@ class SupplierRepository {
           WHERE pr.purchase_id = p.id AND pr.status = 'active'), 0) AS returned_amount,
         COALESCE((SELECT SUM(sp.amount) FROM supplier_payments sp
           WHERE sp.purchase_id = p.id), 0) AS payment_history_amount,
+        COALESCE((SELECT SUM(a.amount) FROM supplier_return_credit_applications a
+          WHERE a.purchase_id = p.id), 0) AS credit_application_amount,
         (SELECT COUNT(*) FROM purchase_items pi WHERE pi.purchase_id = p.id) AS item_count
       FROM purchases p
       WHERE p.supplier_id = ?
