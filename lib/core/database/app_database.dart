@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 31;
+  static const int currentVersion = 32;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -648,6 +648,49 @@ class AppDatabase {
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     ''');
+
+    // Saldo deposit pelanggan: kewajiban kepada pelanggan, bukan omzet.
+    batch.execute('''
+      CREATE TABLE customer_wallet_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id INTEGER NOT NULL,
+        entry_type TEXT NOT NULL CHECK(entry_type IN ('deposit', 'service_payment', 'sale_payment', 'refund', 'adjustment')),
+        amount INTEGER NOT NULL CHECK(amount > 0),
+        balance_after INTEGER NOT NULL CHECK(balance_after >= 0),
+        description TEXT,
+        reference_type TEXT,
+        reference_id INTEGER,
+        payment_method TEXT,
+        created_by_id INTEGER,
+        created_by_name TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_customer_wallet_customer ON customer_wallet_ledger(customer_id, created_at DESC, id DESC)');
+    batch.execute('CREATE INDEX idx_customer_wallet_reference ON customer_wallet_ledger(reference_type, reference_id)');
+    // Tip dicatat terpisah dari omzet dan saldo deposit pelanggan.
+    batch.execute('''
+      CREATE TABLE tip_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount INTEGER NOT NULL CHECK(amount > 0),
+        source_type TEXT NOT NULL CHECK(source_type IN ('service_order', 'sale', 'manual')),
+        source_id INTEGER,
+        recipient_account_id INTEGER,
+        recipient_name TEXT,
+        payment_method TEXT,
+        status TEXT NOT NULL DEFAULT 'held' CHECK(status IN ('held', 'handed_over', 'cancelled')),
+        note TEXT,
+        received_by_id INTEGER,
+        received_by_name TEXT,
+        received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        handed_over_by_id INTEGER,
+        handed_over_by_name TEXT,
+        handed_over_at TEXT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_tip_transactions_date ON tip_transactions(received_at DESC, id DESC)');
+    batch.execute('CREATE INDEX idx_tip_transactions_source ON tip_transactions(source_type, source_id)');
 
     // Log pengingat untuk instalasi baru.
     batch.execute('''
@@ -1465,7 +1508,51 @@ class AppDatabase {
       await db.execute('CREATE INDEX idx_service_estimate_history_order ON service_estimate_history(service_order_id, changed_at, id)');
     }
 
-    // Antrian servis harian: nomor dimulai kembali dari 1 setiap tanggal.
+    // Buku saldo deposit pelanggan dan buku tip terpisah. Migrasi aditif.
+    if (oldVersion < 32) {
+      await db.execute('''
+        CREATE TABLE customer_wallet_ledger (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_id INTEGER NOT NULL,
+          entry_type TEXT NOT NULL CHECK(entry_type IN ('deposit', 'service_payment', 'sale_payment', 'refund', 'adjustment')),
+          amount INTEGER NOT NULL CHECK(amount > 0),
+          balance_after INTEGER NOT NULL CHECK(balance_after >= 0),
+          description TEXT,
+          reference_type TEXT,
+          reference_id INTEGER,
+          payment_method TEXT,
+          created_by_id INTEGER,
+          created_by_name TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_customer_wallet_customer ON customer_wallet_ledger(customer_id, created_at DESC, id DESC)');
+      await db.execute('CREATE INDEX idx_customer_wallet_reference ON customer_wallet_ledger(reference_type, reference_id)');
+      await db.execute('''
+        CREATE TABLE tip_transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          amount INTEGER NOT NULL CHECK(amount > 0),
+          source_type TEXT NOT NULL CHECK(source_type IN ('service_order', 'sale', 'manual')),
+          source_id INTEGER,
+          recipient_account_id INTEGER,
+          recipient_name TEXT,
+          payment_method TEXT,
+          status TEXT NOT NULL DEFAULT 'held' CHECK(status IN ('held', 'handed_over', 'cancelled')),
+          note TEXT,
+          received_by_id INTEGER,
+          received_by_name TEXT,
+          received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          handed_over_by_id INTEGER,
+          handed_over_by_name TEXT,
+          handed_over_at TEXT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_tip_transactions_date ON tip_transactions(received_at DESC, id DESC)');
+      await db.execute('CREATE INDEX idx_tip_transactions_source ON tip_transactions(source_type, source_id)');
+    }
+
+        // Antrian servis harian: nomor dimulai kembali dari 1 setiap tanggal.
     if (oldVersion < 30) {
       await db.execute('ALTER TABLE service_orders ADD COLUMN queue_number INTEGER');
       await db.execute('ALTER TABLE service_orders ADD COLUMN queue_date TEXT');
