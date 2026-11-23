@@ -44,22 +44,13 @@ class ReportRepository {
       WHERE datetime(return_date) >= datetime(?) AND datetime(return_date) < datetime(?)
     ''', [from, until]);
 
-    // HPP penjualan: gunakan alokasi batch FIFO jika tersedia.
-    // Transaksi lama tanpa alokasi memakai harga modal yang tersimpan pada item.
+    // HPP memakai snapshot biaya per unit yang disimpan pada baris nota.
+    // Pada metode rata-rata tertimbang, alokasi batch FIFO tetap dipakai untuk
+    // mengembalikan stok ke batch asal, tetapi bukan sebagai HPP transaksi.
+    // Pada metode per batch, snapshot purchase_price berisi rata-rata biaya
+    // batch yang benar-benar terpakai saat nota dibuat.
     final soldCostRows = await db.rawQuery('''
-      SELECT COALESCE(SUM(
-        CASE
-          WHEN EXISTS (
-            SELECT 1 FROM sale_batch_allocations sba
-            WHERE sba.sale_item_id = si.id
-          ) THEN (
-            SELECT COALESCE(SUM(sba.quantity * sba.unit_cost), 0)
-            FROM sale_batch_allocations sba
-            WHERE sba.sale_item_id = si.id
-          )
-          ELSE si.quantity * COALESCE(si.purchase_price, 0)
-        END
-      ), 0) AS amount
+      SELECT COALESCE(SUM(si.quantity * COALESCE(si.purchase_price, 0)), 0) AS amount
       FROM sale_items si
       JOIN sales s ON s.id = si.sale_id
       WHERE datetime(s.transaction_date) >= datetime(?) AND datetime(s.transaction_date) < datetime(?)
@@ -267,6 +258,52 @@ class ReportRepository {
       LIMIT 50
     ''', [from, until, from, until]);
 
+    // Audit HPP retur: biaya yang dikembalikan ke laba-rugi harus sama
+    // dengan snapshot biaya pada nota asal. Alokasi batch tetap diperiksa
+    // terpisah untuk memastikan jumlah stok yang dipulihkan benar.
+    final saleReturnCostAudit = await db.rawQuery('''
+      SELECT
+        sr.id AS return_id,
+        sr.return_number,
+        s.invoice_number,
+        COUNT(CASE
+          WHEN COALESCE(sri.unit_cost, 0) != COALESCE(si.purchase_price, 0)
+          THEN 1 END) AS cost_issue_count,
+        COUNT(CASE
+          WHEN EXISTS (
+            SELECT 1 FROM sale_batch_allocations original_alloc
+            WHERE original_alloc.sale_item_id = sri.sale_item_id
+          )
+          AND COALESCE(return_alloc.allocated_quantity, 0) != sri.quantity
+          THEN 1 END) AS batch_quantity_issue_count,
+        SUM(CASE
+          WHEN COALESCE(sri.unit_cost, 0) != COALESCE(si.purchase_price, 0)
+          THEN 1 ELSE 0 END) AS cost_issue_items
+      FROM sale_returns sr
+      JOIN sales s ON s.id = sr.sale_id
+      JOIN sale_return_items sri ON sri.sale_return_id = sr.id
+      JOIN sale_items si ON si.id = sri.sale_item_id
+      LEFT JOIN (
+        SELECT sale_return_item_id, SUM(quantity) AS allocated_quantity
+        FROM sale_return_batch_allocations
+        GROUP BY sale_return_item_id
+      ) return_alloc ON return_alloc.sale_return_item_id = sri.id
+      WHERE (
+        (datetime(sr.return_date) >= datetime(?) AND datetime(sr.return_date) < datetime(?))
+        OR EXISTS (
+          SELECT 1 FROM cash_transactions cash_check
+          WHERE cash_check.reference_type = 'sale_return'
+            AND cash_check.reference_id = sr.id
+            AND datetime(cash_check.transaction_date) >= datetime(?)
+            AND datetime(cash_check.transaction_date) < datetime(?)
+        )
+      )
+      GROUP BY sr.id, sr.return_number, s.invoice_number
+      HAVING cost_issue_count > 0 OR batch_quantity_issue_count > 0
+      ORDER BY sr.return_date DESC, sr.id DESC
+      LIMIT 50
+    ''', [from, until, from, until]);
+
     final lowStock = await db.rawQuery('''
       SELECT COUNT(*) AS total FROM products
       WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock
@@ -327,6 +364,7 @@ class ReportRepository {
       'supplier_payable_count': supplierPayableRows.first['total'] as int? ?? 0,
       'return_refund_audit_issues': returnRefundAudit,
       'purchase_return_audit_issues': purchaseReturnAudit,
+      'sale_return_cost_audit_issues': saleReturnCostAudit,
       'low_stock': lowStock.first['total'] as int? ?? 0,
       'categories': categories,
       'latest': latest,
