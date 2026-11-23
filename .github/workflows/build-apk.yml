@@ -305,13 +305,13 @@ jobs:
           for path in files:
               source = path.read_text()
               updated, count = re.subn(
-                  r'compileSdkVersion\\s+(?:flutter\\.compileSdkVersion|[0-9]+)',
+                  r'compileSdkVersion\s+(?:flutter\.compileSdkVersion|[0-9]+)',
                   'compileSdkVersion 36',
                   source,
               )
               if count == 0:
                   updated, count = re.subn(
-                      r'compileSdk\\s*=\\s*(?:flutter\\.compileSdkVersion|[0-9]+)',
+                      r'compileSdk\s*=\s*(?:flutter\.compileSdkVersion|[0-9]+)',
                       'compileSdk = 36',
                       source,
                   )
