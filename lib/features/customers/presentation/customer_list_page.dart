@@ -66,6 +66,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
 
     final formKey = GlobalKey<FormState>();
     String? photoBase64 = customer?['photo_base64']?.toString();
+    String? photoBase64 = customer?['photo_base64']?.toString();
 
     Future<void> choosePhoto(ImageSource source, StateSetter setDialogState) async {
       final image = await ImagePicker().pickImage(source: source, imageQuality: 75, maxWidth: 512, maxHeight: 512);
@@ -78,7 +79,8 @@ class _CustomerListPageState extends State<CustomerListPage> {
       final saved = await showDialog<bool>(
         context: context,
         builder: (dialogContext) {
-          return AlertDialog(
+          return StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
             title: Text(
               isEditing ? 'Edit Pelanggan' : 'Tambah Pelanggan',
             ),
@@ -90,6 +92,17 @@ class _CustomerListPageState extends State<CustomerListPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      CircleAvatar(
+                        radius: 38,
+                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                        backgroundImage: photoBase64 == null || photoBase64!.isEmpty ? null : MemoryImage(base64Decode(photoBase64!)),
+                        child: photoBase64 == null || photoBase64!.isEmpty ? Icon(Icons.person, size: 38, color: Theme.of(context).colorScheme.primary) : null,
+                      ),
+                      Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
+                        TextButton.icon(onPressed: () async { final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 512, maxHeight: 512); if (file != null) setDialogState(() async { photoBase64 = base64Encode(await file.readAsBytes()); }); }, icon: const Icon(Icons.photo_library_outlined), label: const Text('Galeri')),
+                        TextButton.icon(onPressed: () async { final file = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 75, maxWidth: 512, maxHeight: 512); if (file != null) setDialogState(() async { photoBase64 = base64Encode(await file.readAsBytes()); }); }, icon: const Icon(Icons.camera_alt_outlined), label: const Text('Kamera')),
+                        if (photoBase64 != null && photoBase64!.isNotEmpty) IconButton(tooltip: 'Hapus foto', onPressed: () => setDialogState(() => photoBase64 = null), icon: const Icon(Icons.delete_outline)),
+                      ]),
                       TextFormField(
                         controller: nameController,
                         decoration: const InputDecoration(
@@ -178,6 +191,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
           address: addressController.text,
           email: emailController.text,
           notes: notesController.text,
+          photoBase64: photoBase64,
         );
       } else {
         await _repository.addCustomer(
@@ -217,7 +231,110 @@ class _CustomerListPageState extends State<CustomerListPage> {
     }
   }
 
-${insert}  Future<void> _deleteCustomer(
+  Future<void> _importPhoneContacts() async {
+    try {
+      final allowed = await FlutterContacts.requestPermission(readonly: true);
+      if (!allowed) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Izin membaca kontak tidak diberikan.')));
+        return;
+      }
+      final contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: true);
+      final usable = contacts.where((item) => item.displayName.trim().isNotEmpty && item.phones.isNotEmpty).toList();
+      if (!mounted) return;
+      if (usable.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada kontak dengan nama dan nomor telepon.')));
+        return;
+      }
+      final selected = <int>{};
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Pilih Kontak untuk Diimpor'),
+            content: SizedBox(
+              width: 520,
+              height: 420,
+              child: Column(children: [
+                Text('Pilih kontak yang ingin dimasukkan. ${usable.length} kontak tersedia.'),
+                const SizedBox(height: 8),
+                Expanded(child: ListView.builder(
+                  itemCount: usable.length,
+                  itemBuilder: (context, index) {
+                    final item = usable[index];
+                    return CheckboxListTile(
+                      value: selected.contains(index),
+                      onChanged: (value) => setDialogState(() {
+                        if (value == true) { selected.add(index); } else { selected.remove(index); }
+                      }),
+                      secondary: CircleAvatar(
+                        backgroundImage: item.photo == null ? null : MemoryImage(item.photo!),
+                        child: item.photo == null ? const Icon(Icons.person) : null,
+                      ),
+                      title: Text(item.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(item.phones.first.number),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    );
+                  },
+                )),
+              ]),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+              TextButton(
+                onPressed: () => setDialogState(() {
+                  if (selected.length == usable.length) { selected.clear(); }
+                  else { selected.addAll(List<int>.generate(usable.length, (i) => i)); }
+                }),
+                child: Text(selected.length == usable.length ? 'Batal Pilih Semua' : 'Pilih Semua'),
+              ),
+              FilledButton(
+                onPressed: selected.isEmpty ? null : () => Navigator.pop(dialogContext, true),
+                child: Text('Impor ${selected.length}'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+
+      final existing = await _repository.getCustomers();
+      String normalizePhone(String value) => value.replaceAll(RegExp(r'[^0-9]'), '').replaceFirst(RegExp(r'^62'), '0');
+      final phones = existing.map((row) => normalizePhone(row['phone']?.toString() ?? '')).where((value) => value.isNotEmpty).toSet();
+      final names = existing.map((row) => (row['name']?.toString() ?? '').trim().toLowerCase()).toSet();
+      var imported = 0;
+      var skipped = 0;
+      for (final index in selected) {
+        final item = usable[index];
+        final name = item.displayName.trim();
+        final phone = item.phones.first.number.trim();
+        final normalized = normalizePhone(phone);
+        if ((normalized.isNotEmpty && phones.contains(normalized)) || names.contains(name.toLowerCase())) {
+          skipped++;
+          continue;
+        }
+        await _repository.addCustomer(
+          name: name,
+          phone: phone,
+          email: item.emails.isEmpty ? null : item.emails.first.address,
+          photoBase64: item.photo == null ? null : base64Encode(item.photo!),
+        );
+        if (normalized.isNotEmpty) phones.add(normalized);
+        names.add(name.toLowerCase());
+        imported++;
+      }
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$imported kontak diimpor, $skipped dilewati karena terdeteksi sudah ada.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengimpor kontak: $error')));
+    }
+  }
+
+  Future<void> _deleteCustomer(
     Map<String, Object?> customer,
   ) async {
     final confirmed = await showDialog<bool>(
@@ -283,10 +400,8 @@ ${insert}  Future<void> _deleteCustomer(
         ),
         leading: CircleAvatar(
           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          child: Icon(
-            Icons.person,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          backgroundImage: (customer['photo_base64']?.toString().isNotEmpty ?? false) ? MemoryImage(base64Decode(customer['photo_base64'].toString())) : null,
+          child: (customer['photo_base64']?.toString().isNotEmpty ?? false) ? null : Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
         ),
         title: Text(
           name,
@@ -353,6 +468,7 @@ ${insert}  Future<void> _deleteCustomer(
       appBar: AppBar(
         title: const Text('Data Pelanggan'),
         actions: [
+          IconButton(tooltip: 'Impor kontak', onPressed: _importPhoneContacts, icon: const Icon(Icons.contacts_outlined)),
           TextButton.icon(
             onPressed: () {
               Navigator.push(
