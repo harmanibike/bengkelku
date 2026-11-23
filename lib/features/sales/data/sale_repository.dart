@@ -744,11 +744,11 @@ class SaleRepository {
     AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses riwayat pembayaran.');
     final db = await _db;
     return db.rawQuery('''
-      SELECT id, amount, category, description, transaction_date, 'cash' AS payment_source
+      SELECT id, transaction_type, amount, category, description, reference_type, reference_id, transaction_date, 'cash' AS payment_source
       FROM cash_transactions
       WHERE reference_id = ? AND reference_type IN ('sale', 'sale_payment') AND transaction_type = 'income'
       UNION ALL
-      SELECT id, amount, 'Saldo Pelanggan' AS category, description, created_at AS transaction_date, 'wallet' AS payment_source
+      SELECT id, 'income' AS transaction_type, amount, 'Saldo Pelanggan' AS category, description, reference_type, reference_id, created_at AS transaction_date, 'wallet' AS payment_source
       FROM customer_wallet_ledger
       WHERE reference_id = ? AND reference_type = 'sale' AND entry_type = 'sale_payment'
       ORDER BY transaction_date ASC, id ASC
