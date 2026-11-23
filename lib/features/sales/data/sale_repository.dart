@@ -9,6 +9,53 @@ import '../../../core/auth/auth_session.dart';
 class SaleRepository {
   Future<Database> get _db => AppDatabase.instance.database;
 
+  Future<void> _awardLoyaltyPoints(
+    Transaction txn, {
+    required int saleId,
+    required int? customerId,
+    required int eligibleAmount,
+    required String description,
+  }) async {
+    if (customerId == null || eligibleAmount <= 0) return;
+    final settingsRows = await txn.query(
+      'app_settings',
+      columns: ['setting_value'],
+      where: 'setting_key = ?',
+      whereArgs: ['loyalty_program_settings'],
+      limit: 1,
+    );
+    if (settingsRows.isEmpty) return;
+    try {
+      final decoded = jsonDecode(settingsRows.first['setting_value']?.toString() ?? '');
+      if (decoded is! Map || decoded['enabled'] != true) return;
+      final spend = decoded['spendAmountPerPoint'];
+      if (spend is! num || spend <= 0) return;
+      final points = eligibleAmount ~/ spend.toInt();
+      if (points <= 0) return;
+      final existing = await txn.query(
+        'loyalty_point_ledger',
+        columns: ['id'],
+        where: 'reference_type = ? AND reference_id = ? AND entry_type = ?',
+        whereArgs: ['sale', saleId, 'earn'],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) return;
+      await txn.insert('loyalty_point_ledger', {
+        'customer_id': customerId,
+        'sale_id': saleId,
+        'reference_type': 'sale',
+        'reference_id': saleId,
+        'entry_type': 'earn',
+        'points': points,
+        'eligible_amount': eligibleAmount,
+        'description': description,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (_) {
+      // Pengaturan loyalty yang belum valid tidak boleh menggagalkan transaksi.
+    }
+  }
+
   Future<List<Map<String, Object?>>> getSellableProducts({String keyword = ''}) async {
     AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses penjualan.');
     final db = await _db;
@@ -233,6 +280,15 @@ class SaleRepository {
           'transaction_date': now.toIso8601String(),
         });
       }
+      if (paymentStatus == 'paid') {
+        await _awardLoyaltyPoints(
+          txn,
+          saleId: saleId,
+          customerId: customerId,
+          eligibleAmount: total,
+          description: 'Poin dari penjualan $invoice',
+        );
+      }
       return saleId;
     });
   }
@@ -313,6 +369,15 @@ class SaleRepository {
         'payment_status': nextStatus,
         'payment_method': paymentMethod ?? sale['payment_method'] ?? 'cash',
       }, where: 'id = ?', whereArgs: [id]);
+      if (nextStatus == 'paid') {
+        await _awardLoyaltyPoints(
+          txn,
+          saleId: id,
+          customerId: sale['customer_id'] as int?,
+          eligibleAmount: effectiveTotal,
+          description: 'Poin dari pelunasan penjualan ${sale['invoice_number'] ?? id}',
+        );
+      }
       await ActivityLogRepository.record(
         txn,
         action: 'sale_payment',
@@ -469,6 +534,30 @@ class SaleRepository {
           'reference_id': id,
           'transaction_date': now,
         });
+      }
+
+      final earnedRows = await txn.query(
+        'loyalty_point_ledger',
+        where: 'sale_id = ? AND entry_type = ?',
+        whereArgs: [id, 'earn'],
+        limit: 1,
+      );
+      if (earnedRows.isNotEmpty) {
+        final earned = earnedRows.first;
+        final points = earned['points'] as int? ?? 0;
+        if (points > 0) {
+          await txn.insert('loyalty_point_ledger', {
+            'customer_id': earned['customer_id'],
+            'sale_id': id,
+            'reference_type': 'sale_cancel',
+            'reference_id': id,
+            'entry_type': 'cancel',
+            'points': -points,
+            'eligible_amount': earned['eligible_amount'] ?? 0,
+            'description': 'Pembatalan poin dari penjualan $invoice',
+            'created_at': now,
+          });
+        }
       }
 
       await ActivityLogRepository.record(
