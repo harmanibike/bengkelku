@@ -57,7 +57,7 @@ class ReceiptDocumentService {
     final remaining = (total - paid - returned + refunded).clamp(0, 1 << 62).toInt();
 
     doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
+      pageFormat: PdfPageFormat(164.4, height, marginAll: 8),
       build: (context) => pw.Container(
         color: PdfColors.white,
         child: pw.Column(
@@ -131,7 +131,7 @@ class ReceiptDocumentService {
     ].where((part) => part.isNotEmpty).join(' ');
 
     doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
+      pageFormat: PdfPageFormat(164.4, height, marginAll: 8),
       build: (context) => pw.Container(
         color: PdfColors.white,
         child: pw.Column(
@@ -192,7 +192,7 @@ class ReceiptDocumentService {
     ].where((part) => part.isNotEmpty).join(' ');
     final height = 440.0 + (_text(service['notes']).isNotEmpty ? 35 : 0);
     doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
+      pageFormat: PdfPageFormat(164.4, height, marginAll: 8),
       build: (context) => pw.Container(
         color: PdfColors.white,
         child: pw.Column(
@@ -258,7 +258,7 @@ class ReceiptDocumentService {
       _text(service['bicycle_model']),
     ].where((part) => part.isNotEmpty).join(' ');
     doc.addPage(pw.Page(
-      pageFormat: PdfPageFormat(226.77, height, marginAll: 12),
+      pageFormat: PdfPageFormat(164.4, height, marginAll: 8),
       build: (context) => pw.Container(
         color: PdfColors.white,
         child: pw.Column(
@@ -306,7 +306,7 @@ class ReceiptDocumentService {
       _text(profile['business_email']),
     ].where((item) => item.isNotEmpty).toList();
     return pw.Column(children: [
-      if (logo != null) pw.Container(height: 42, alignment: pw.Alignment.center, child: pw.Image(logo, fit: pw.BoxFit.contain)),
+      if (logo != null) pw.Container(height: 32, alignment: pw.Alignment.center, child: pw.Image(logo, fit: pw.BoxFit.contain)),
       if (_text(profile['business_name']).isNotEmpty)
         _center(_text(profile['business_name']), bold: true, size: 11),
       ...details.map((detail) => _center(detail, size: 7)),
