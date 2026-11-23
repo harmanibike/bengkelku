@@ -66,7 +66,6 @@ class _CustomerListPageState extends State<CustomerListPage> {
 
     final formKey = GlobalKey<FormState>();
     String? photoBase64 = customer?['photo_base64']?.toString();
-    String? photoBase64 = customer?['photo_base64']?.toString();
 
     Future<void> choosePhoto(ImageSource source, StateSetter setDialogState) async {
       final image = await ImagePicker().pickImage(source: source, imageQuality: 75, maxWidth: 512, maxHeight: 512);
@@ -99,8 +98,8 @@ class _CustomerListPageState extends State<CustomerListPage> {
                         child: photoBase64 == null || photoBase64!.isEmpty ? Icon(Icons.person, size: 38, color: Theme.of(context).colorScheme.primary) : null,
                       ),
                       Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
-                        TextButton.icon(onPressed: () async { final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 512, maxHeight: 512); if (file != null) setDialogState(() async { photoBase64 = base64Encode(await file.readAsBytes()); }); }, icon: const Icon(Icons.photo_library_outlined), label: const Text('Galeri')),
-                        TextButton.icon(onPressed: () async { final file = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 75, maxWidth: 512, maxHeight: 512); if (file != null) setDialogState(() async { photoBase64 = base64Encode(await file.readAsBytes()); }); }, icon: const Icon(Icons.camera_alt_outlined), label: const Text('Kamera')),
+                        TextButton.icon(onPressed: () => choosePhoto(ImageSource.gallery, setDialogState), icon: const Icon(Icons.photo_library_outlined), label: const Text('Galeri')),
+                        TextButton.icon(onPressed: () => choosePhoto(ImageSource.camera, setDialogState), icon: const Icon(Icons.camera_alt_outlined), label: const Text('Kamera')),
                         if (photoBase64 != null && photoBase64!.isNotEmpty) IconButton(tooltip: 'Hapus foto', onPressed: () => setDialogState(() => photoBase64 = null), icon: const Icon(Icons.delete_outline)),
                       ]),
                       TextFormField(
@@ -177,6 +176,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
                 label: const Text('Simpan'),
               ),
             ],
+            ),
           );
         },
       );
