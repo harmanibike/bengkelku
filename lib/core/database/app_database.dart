@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 24;
+  static const int currentVersion = 25;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -88,6 +88,7 @@ class AppDatabase {
         address TEXT,
         email TEXT,
         notes TEXT,
+        photo_base64 TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT
       )
@@ -687,6 +688,11 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    // Foto profil pelanggan disimpan opsional sebagai Base64; migrasi aditif.
+    if (oldVersion < 25) {
+      await db.execute('ALTER TABLE customers ADD COLUMN photo_base64 TEXT');
+    }
+
     // Master kategori produk. Salin kategori teks lama agar tidak hilang.
     if (oldVersion < 24) {
       await db.execute('''
