@@ -206,6 +206,12 @@ class CashbookRepository {
                 AND datetime(ct.transaction_date) >= datetime(?)
                 AND datetime(ct.transaction_date) < datetime(?)
             )
+            OR EXISTS (
+              SELECT 1 FROM customer_wallet_ledger w
+              WHERE w.reference_id = s.id AND w.reference_type = 'sale'
+                AND w.entry_type = 'sale_payment'
+                AND datetime(w.created_at) >= datetime(?) AND datetime(w.created_at) < datetime(?)
+            )
           )
 
         UNION ALL
@@ -241,10 +247,16 @@ class CashbookRepository {
                 AND datetime(ct.transaction_date) >= datetime(?)
                 AND datetime(ct.transaction_date) < datetime(?)
             )
+            OR EXISTS (
+              SELECT 1 FROM customer_wallet_ledger w
+              WHERE w.reference_id = s.id AND w.reference_type = 'service_order'
+                AND w.entry_type = 'service_payment'
+                AND datetime(w.created_at) >= datetime(?) AND datetime(w.created_at) < datetime(?)
+            )
           )
       ) mismatches
       ORDER BY document_type ASC, record_id DESC
-    ''', [from, until, from, until, from, until, from, until]);
+    ''', [from, until, from, until, from, until, from, until, from, until, from, until]);
   }
 
   Future<int> addManualTransaction({
