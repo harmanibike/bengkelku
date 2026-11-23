@@ -240,7 +240,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
         return;
       }
       final contacts = await FlutterContacts.getContacts(withProperties: true, withPhoto: true);
-      final usable = contacts.where((item) => item.displayName.trim().isNotEmpty && item.phones.isNotEmpty).toList();
+      final usable = contacts.where((item) => item.displayName.trim().isNotEmpty && item.phones.any((phone) => phone.number.trim().isNotEmpty)).toList();
       if (!mounted) return;
       if (usable.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada kontak dengan nama dan nomor telepon.')));
@@ -272,7 +272,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
                         child: item.photo == null ? const Icon(Icons.person) : null,
                       ),
                       title: Text(item.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(item.phones.first.number),
+                      subtitle: Text(item.phones.firstWhere((phone) => phone.number.trim().isNotEmpty).number),
                       controlAffinity: ListTileControlAffinity.leading,
                     );
                   },
@@ -301,15 +301,14 @@ class _CustomerListPageState extends State<CustomerListPage> {
       final existing = await _repository.getCustomers();
       String normalizePhone(String value) => value.replaceAll(RegExp(r'[^0-9]'), '').replaceFirst(RegExp(r'^62'), '0');
       final phones = existing.map((row) => normalizePhone(row['phone']?.toString() ?? '')).where((value) => value.isNotEmpty).toSet();
-      final names = existing.map((row) => (row['name']?.toString() ?? '').trim().toLowerCase()).toSet();
       var imported = 0;
       var skipped = 0;
       for (final index in selected) {
         final item = usable[index];
         final name = item.displayName.trim();
-        final phone = item.phones.first.number.trim();
+        final phone = item.phones.firstWhere((entry) => entry.number.trim().isNotEmpty).number.trim();
         final normalized = normalizePhone(phone);
-        if ((normalized.isNotEmpty && phones.contains(normalized)) || names.contains(name.toLowerCase())) {
+        if (normalized.isNotEmpty && phones.contains(normalized)) {
           skipped++;
           continue;
         }
@@ -320,7 +319,6 @@ class _CustomerListPageState extends State<CustomerListPage> {
           photoBase64: item.photo == null ? null : base64Encode(item.photo!),
         );
         if (normalized.isNotEmpty) phones.add(normalized);
-        names.add(name.toLowerCase());
         imported++;
       }
       if (!mounted) return;
