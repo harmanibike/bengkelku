@@ -69,7 +69,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               DropdownButtonFormField<int>(
-                value: purchaseId,
+                initialValue: purchaseId,
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Faktur tujuan', isDense: true),
                 items: invoices.map((invoice) => DropdownMenuItem<int>(
@@ -328,7 +328,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   DropdownButtonFormField<int>(
-                    value: purchaseId,
+                    initialValue: purchaseId,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Pilih faktur pembelian'),
                     items: purchases.map((p) => DropdownMenuItem<int>(
