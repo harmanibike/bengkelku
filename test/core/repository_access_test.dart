@@ -9,6 +9,7 @@ import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
 import 'package:bengkelku_pos/features/receivables/data/receivable_repository.dart';
 import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 import 'package:bengkelku_pos/features/reports/data/report_repository.dart';
+import 'package:bengkelku_pos/core/database/database_backup_service.dart';
 
 void main() {
   setUp(() {
@@ -95,6 +96,20 @@ void main() {
           start: DateTime(2026, 1, 1),
           end: DateTime(2026, 1, 2),
         ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('database backup rejects unauthenticated access', () async {
+      await expectLater(
+        DatabaseBackupService().createBackup(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('database restore rejects unauthenticated access', () async {
+      await expectLater(
+        DatabaseBackupService().restoreBackup('/not-used.db'),
         throwsA(isA<StateError>()),
       );
     });
