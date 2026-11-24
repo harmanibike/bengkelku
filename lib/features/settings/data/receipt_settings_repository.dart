@@ -34,6 +34,9 @@ class ReceiptPrintSettings {
 
   double get paperWidthPoints => paperWidthMm == 80 ? 226.8 : 164.4;
   double get marginPoints => paperWidthMm == 80 ? 14 : 12;
+  int get thermalDots => paperWidthMm == 80 ? 576 : 384;
+  double get thermalLayoutWidth => thermalDots / 1.2;
+  double get thermalMargin => 8;
 
   Map<String, Object?> toJson() => {
     'paperWidthMm': paperWidthMm,

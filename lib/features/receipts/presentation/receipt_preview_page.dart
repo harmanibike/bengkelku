@@ -44,7 +44,6 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
   bool _loading = true;
   bool _sharing = false;
   bool _printing = false;
-  bool _printTextScale = false;
 
   bool get _nativeReceipt => const {'sale', 'service', 'service_final_payment'}.contains(widget.receiptType);
 
@@ -125,23 +124,11 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       final settings = await ReceiptSettingsRepository().getReceiptSettings();
       final saved = await ReceiptSettingsRepository().getSavedPrinter();
       if (saved == null) throw StateError('Printer thermal belum diatur. Hubungkan printer melalui Pengaturan Printer.');
-      // Render thermal output separately with larger text; keep the preview/WhatsApp
-      // image untouched so their approved appearance does not change.
-      if (mounted) setState(() => _printTextScale = true);
-      await WidgetsBinding.instance.endOfFrame;
-      final printObject = _receiptKey.currentContext?.findRenderObject();
-      if (printObject is! RenderRepaintBoundary) {
-        throw StateError('Layout cetak nota belum siap.');
-      }
-      final printImage = await printObject.toImage(pixelRatio: 1.2);
-      final printData = await printImage.toByteData(format: ui.ImageByteFormat.png);
-      printImage.dispose();
-      if (mounted) setState(() => _printTextScale = false);
-      if (printData == null) throw StateError('Gagal merender nota untuk printer.');
-      final bytes = printData.buffer.asUint8List();
+      final bytes = _imageBytes;
+      if (bytes == null) throw StateError('Gambar nota belum siap.');
       final decoded = img.decodeImage(bytes);
       if (decoded == null) throw StateError('Gambar nota tidak dapat dibaca.');
-      final width = settings.paperWidthMm == 80 ? 576 : 384;
+      final width = settings.thermalDots;
       final resized = decoded.width == width
           ? decoded
           : img.copyResize(decoded, width: width, interpolation: img.Interpolation.nearest);
@@ -171,7 +158,6 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       }
       if (mounted) setState(() {
         _printing = false;
-        _printTextScale = false;
       });
     }
   }
@@ -190,7 +176,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
               ? SingleChildScrollView(child: InteractiveViewer(
                   child: RepaintBoundary(key: _receiptKey, child: MediaQuery(
                     data: MediaQuery.of(context).copyWith(
-                      textScaler: TextScaler.linear(_printTextScale ? 1.0 : 1.0),
+                      textScaler: TextScaler.linear(1.0),
                     ),
                     child: ReceiptLayout(
                       receiptType: widget.receiptType!,
