@@ -27,13 +27,13 @@ class ReceiptLayout extends StatelessWidget {
   }
   Widget dash(double w) => SizedBox(width:w, child: const Text('----------------------------------------------------------------', maxLines:1, softWrap:false, overflow:TextOverflow.clip, style:TextStyle(fontFamily:'monospace',fontSize:13)));
   Widget rowText(String label,String value,double w,{bool bold=false}) => SizedBox(width:w, child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    SizedBox(width:w*.42,child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:Text(label,maxLines:1,style:TextStyle(fontSize:18*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal)))),
+    SizedBox(width:w*.37,child:Text(label,softWrap:true,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal))),
     const Text(' : '), Expanded(child:Text(value,softWrap:true,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal))),
   ]));
   Widget summaryRow(String label,String value,double w,{bool bold=false}) => SizedBox(width:w, child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Expanded(child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:Text(label,maxLines:1,style:TextStyle(fontSize:(bold?24:20)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal)))),
+    Expanded(child:Text(label,softWrap:true,style:TextStyle(fontSize:(bold?24:20)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
     SizedBox(width:4*settings.spacing),
-    Expanded(child:FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerRight,child:Text(value,maxLines:1,textAlign:TextAlign.right,style:TextStyle(fontSize:(bold?24:20)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal)))),
+    Expanded(child:Text(value,textAlign:TextAlign.right,softWrap:true,style:TextStyle(fontSize:(bold?24:20)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
   ]));
   @override
   Widget build(BuildContext context) {
