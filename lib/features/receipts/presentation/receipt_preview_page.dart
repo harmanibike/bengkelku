@@ -147,18 +147,28 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       maxCharsPerLine: 32, linesAfter: linesAfter);
   }
 
+  String _fitReceiptLine(String left, String right, {int width = 32}) {
+    final safeLeft = left.replaceAll(RegExp(r'[^\\x20-\\x7E]'), ' ').trim();
+    final safeRight = right.replaceAll(RegExp(r'[^\\x20-\\x7E]'), ' ').trim();
+    if (safeLeft.isEmpty) return safeRight.length > width ? safeRight.substring(0, width) : safeRight;
+    if (safeRight.isEmpty) return safeLeft.length > width ? safeLeft.substring(0, width) : safeLeft;
+    final available = width - safeLeft.length - safeRight.length;
+    if (available >= 1) return '$safeLeft${' ' * available}$safeRight';
+    final labelWidth = (width - safeRight.length - 1).clamp(1, width);
+    return '${safeLeft.substring(0, safeLeft.length.clamp(0, labelWidth))} $safeRight';
+  }
+
   void _ticketLabel(Ticket ticket, String label, String value, {bool bold = false}) {
     if (value.trim().isEmpty) return;
-    // Avoid bold PrintColumn rows: some 58 mm clone printers render the
-    // package's CR-overstrike fallback as visibly duplicated text.
-    if (bold) {
-      _ticketText(ticket, '$label: $value', bold: true);
-      return;
-    }
-    ticket.row([
-      PrintColumn(text: label, flex: 5, style: const PrintTextStyle(fontType: FontType.fontA)),
-      PrintColumn(text: value, flex: 7, align: PrintAlign.right, style: const PrintTextStyle(fontType: FontType.fontA)),
-    ]);
+    // Use one complete ASCII line. PrintColumn uses positioned mid-line
+    // writes which can be duplicated/wrapped by some 58 mm ESC/POS clones.
+    _ticketText(ticket, _fitReceiptLine(label, value), bold: bold);
+  }
+
+  void _ticketItemAmount(Ticket ticket, int quantity, Object? unitPrice, Object? subtotal) {
+    final left = '$quantity x ${_receiptMoney(unitPrice)}';
+    final right = _receiptMoney(subtotal);
+    _ticketText(ticket, _fitReceiptLine(left, right));
   }
 
   String _paymentMethod(Map<String, Object?> payment) {
@@ -227,10 +237,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       for (final item in items) {
         final name = _receiptText(item['product_name']);
         if (name.isNotEmpty) _ticketText(ticket, name);
-        ticket.row([
-          PrintColumn(text: '${_receiptInt(item['quantity'])} x ${_receiptMoney(item['unit_price'])}', flex: 7),
-          PrintColumn(text: _receiptMoney(item['subtotal']), flex: 5, align: PrintAlign.right),
-        ]);
+        _ticketItemAmount(ticket, _receiptInt(item['quantity']), item['unit_price'], item['subtotal']);
       }
       ticket.separator();
       _ticketLabel(ticket, 'Subtotal', _receiptMoney(source['subtotal']));
@@ -275,10 +282,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         for (final item in items) {
           final name = _receiptText(item['item_name']);
           if (name.isNotEmpty) _ticketText(ticket, name);
-          ticket.row([
-            PrintColumn(text: '${_receiptInt(item['quantity'])} x ${_receiptMoney(item['unit_price'])}', flex: 7),
-            PrintColumn(text: _receiptMoney(item['subtotal']), flex: 5, align: PrintAlign.right, style: const PrintTextStyle(bold: true)),
-          ]);
+          _ticketItemAmount(ticket, _receiptInt(item['quantity']), item['unit_price'], item['subtotal']);
         }
         _ticketLabel(ticket, 'Total sparepart', _receiptMoney(source['parts_cost']));
         _ticketLabel(ticket, 'Diskon', _receiptMoney(source['discount']));
@@ -304,7 +308,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         String two(int n) => n.toString().padLeft(2, '0');
         final dateText = parsed == null ? '-' : '${two(parsed.day)}/${two(parsed.month)} ${two(parsed.hour)}:${two(parsed.minute)}';
         final method = _paymentMethod(payment);
-        _ticketText(ticket, '$dateText ${method.isEmpty ? '' : '· $method'}');
+        _ticketText(ticket, '$dateText ${method.isEmpty ? '' : '- $method'}');
         _ticketText(ticket, _receiptMoney(payment['amount']), bold: true, align: PrintAlign.right);
       }
     }
