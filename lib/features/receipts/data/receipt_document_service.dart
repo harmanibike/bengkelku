@@ -52,7 +52,7 @@ class ReceiptDocumentService {
     final items = List<Map<String, Object?>>.from(sale['items'] as List? ?? const []);
     final logo = await _logo(profile);
     final doc = pw.Document();
-    final height = 360.0 + items.length * 34.0 + payments.length * 25.0;
+    final height = 240.0 + items.length * 34.0 + payments.length * 25.0;
     final total = _int(sale['total']);
     final paid = _int(sale['paid']);
     final returned = _int(returnSummary['returned_amount']);
