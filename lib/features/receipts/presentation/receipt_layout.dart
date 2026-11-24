@@ -95,6 +95,7 @@ class ReceiptLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSale = receiptType == 'sale';
     final isFinalPayment = receiptType == 'service_final_payment';
+    final isIntake = receiptType == 'service_intake';
     final source = Map<String, Object?>.from(payload[isSale ? 'sale' : 'service'] as Map);
     final profile = Map<String, String>.from(payload['profile'] as Map);
     final payments = List<Map<String, Object?>>.from(
@@ -116,7 +117,7 @@ class ReceiptLayout extends StatelessWidget {
     final logo = s(profile['business_logo_path']);
     final number = s(isSale ? source['invoice_number'] : source['order_number']);
     final when = isSale ? source['transaction_date'] : source['received_at'];
-    final title = isSale ? 'NOTA PENJUALAN' : isFinalPayment ? 'BUKTI PELUNASAN SERVIS' : 'NOTA SERVIS';
+    final title = isSale ? 'NOTA PENJUALAN' : isFinalPayment ? 'BUKTI PELUNASAN SERVIS' : isIntake ? 'BUKTI PENERIMAAN SEPEDA' : 'NOTA SERVIS';
 
     return Container(
       width: width,
@@ -156,7 +157,20 @@ class ReceiptLayout extends StatelessWidget {
             labelRow('No. Telp', s(source['customer_phone']).isEmpty ? '-' : s(source['customer_phone']), innerWidth),
           ],
           separator(innerWidth),
-          if (isSale) ...[
+          if (isIntake) ...[
+            labelRow('Sepeda', [
+              s(source['bicycle_brand']),
+              s(source['bicycle_model']),
+              s(source['bicycle_type']),
+            ].where((part) => part.isNotEmpty).join(' '), innerWidth),
+            labelRow('Warna', s(source['bicycle_color']), innerWidth),
+            labelRow('Ukuran frame', s(source['bicycle_frame_size']), innerWidth),
+            labelRow('No. rangka', s(source['bicycle_serial_number']), innerWidth),
+            labelRow('Keluhan', s(source['complaint']), innerWidth),
+            if (s(source['diagnosis']).isNotEmpty) labelRow('Pemeriksaan awal', s(source['diagnosis']), innerWidth),
+            amountRow('Estimasi biaya', money(source['estimated_cost']), innerWidth, bold: true),
+            labelRow('Status servis', s(source['service_status']), innerWidth),
+          ] else if (isSale) ...[
             const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text('Barang', style: TextStyle(fontWeight: FontWeight.bold)),
               Text('Harga', style: TextStyle(fontWeight: FontWeight.bold)),
