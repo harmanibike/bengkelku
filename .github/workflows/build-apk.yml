@@ -27,12 +27,21 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
+      - name: Cache Flutter pub packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
 
       - name: Generate Android platform if missing
         run: |
@@ -322,6 +331,12 @@ jobs:
           gradle.write_text(build)
           print("Permission, receiver notifikasi, compileSdk 36, dan core library desugaring siap.")
           PY
+
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android/sdk/ndk/28.2.13676358
+          key: ${{ runner.os }}-android-ndk-28.2.13676358
 
       - name: Install Android NDK with retry
         run: |
