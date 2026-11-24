@@ -172,6 +172,7 @@ class PurchaseRepository {
           'transaction_type': 'expense', 'category': 'Pembayaran pembelian',
           'description': 'Pembayaran awal faktur ${invoice}', 'amount': initialPayment,
           'reference_type': 'purchase_payment', 'reference_id': purchaseId,
+          'payment_method': _nullable(paymentMethod) ?? 'cash',
           'transaction_date': paymentAt,
         });
       }
@@ -216,6 +217,7 @@ class PurchaseRepository {
         'transaction_type': 'expense', 'category': 'Pembayaran pembelian',
         'description': 'Pembayaran faktur ${row['invoice_number']}', 'amount': amount,
         'reference_type': 'purchase_payment', 'reference_id': purchaseId,
+        'payment_method': _nullable(paymentMethod) ?? 'cash',
         'transaction_date': paymentAt,
       });
       await ActivityLogRepository.record(
