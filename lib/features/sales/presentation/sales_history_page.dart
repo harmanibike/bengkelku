@@ -316,9 +316,10 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                 ],
               ),
             ),
-          ),
+          ],
         ),
-      );
+      ),
+    );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
