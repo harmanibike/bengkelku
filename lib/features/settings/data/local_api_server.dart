@@ -11,6 +11,9 @@ class LocalApiServer {
   static const String maximumClientVersion = '1.0.99';
   static const int defaultPort = 8765;
 
+  /// Instance condivisa a livello applicazione: non appartiene alla pagina UI.
+  static final LocalApiServer instance = LocalApiServer();
+
   HttpServer? _server;
 
   bool get isRunning => _server != null;
