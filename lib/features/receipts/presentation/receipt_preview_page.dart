@@ -190,7 +190,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
               ? SingleChildScrollView(child: InteractiveViewer(
                   child: RepaintBoundary(key: _receiptKey, child: MediaQuery(
                     data: MediaQuery.of(context).copyWith(
-                      textScaler: TextScaler.linear(_printTextScale ? 1.25 : 1.0),
+                      textScaler: TextScaler.linear(_printTextScale ? 1.0 : 1.0),
                     ),
                     child: ReceiptLayout(
                       receiptType: widget.receiptType!,
