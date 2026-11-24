@@ -186,6 +186,7 @@ void main() {
     final legacyRows = await upgradedDb.query('purchase_return_items');
     expect(legacyRows, hasLength(1));
     expect(legacyRows.single['stock_deducted'], isNull);
-    expect(await upgradedDb.getVersion(), AppDatabase.currentVersion);
+    final versionRows = await upgradedDb.rawQuery('PRAGMA user_version');
+    expect(versionRows.single['user_version'], AppDatabase.currentVersion);
   });
 }
