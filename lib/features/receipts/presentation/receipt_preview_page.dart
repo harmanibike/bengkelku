@@ -194,7 +194,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     ticket.setGlobalFont(FontType.fontA);
     ticket.setGlobalCodeTable('CP437');
     final logoPath = profile['business_logo_path']?.trim() ?? '';
-    if (logoPath.isNotEmpty) {
+    if (settings.showLogo && logoPath.isNotEmpty) {
       final logoFile = File(logoPath);
       if (await logoFile.exists()) {
         try {
