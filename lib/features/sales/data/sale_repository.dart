@@ -202,7 +202,23 @@ class SaleRepository {
       final change = paid > cashDue ? paid - cashDue : 0;
       final paymentStatus = totalPaid >= total ? 'paid' : (totalPaid > 0 ? 'partial' : 'unpaid');
       final now = DateTime.now();
-      final invoice = 'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.microsecondsSinceEpoch}';
+      final invoiceDate =
+          '${now.year.toString().substring(2)}'
+          '${now.month.toString().padLeft(2, '0')}'
+          '${now.day.toString().padLeft(2, '0')}';
+      // Nomor invoice baru dibuat singkat sejak transaksi disimpan:
+      // INV-YYMMDD-0001. Hitung transaksi pada tanggal yang sama di dalam
+      // database transaction agar nomor berurutan dan tidak bentrok.
+      final dateKey =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final invoiceCountRows = await txn.rawQuery(
+        'SELECT COUNT(*) AS total FROM sales WHERE transaction_date LIKE ?',
+        ['$dateKey%'],
+      );
+      final dailySequence =
+          ((invoiceCountRows.first['total'] as num?)?.toInt() ?? 0) + 1;
+      final invoice =
+          'INV-$invoiceDate-${dailySequence.toString().padLeft(4, '0')}';
 
       var savedCustomerName = customerName?.trim().isNotEmpty == true ? customerName!.trim() : 'Pelanggan Umum';
       if (customerId != null) {
