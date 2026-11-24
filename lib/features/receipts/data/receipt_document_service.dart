@@ -52,7 +52,7 @@ class ReceiptDocumentService {
     final items = List<Map<String, Object?>>.from(sale['items'] as List? ?? const []);
     final logo = await _logo(profile);
     final doc = pw.Document();
-    final height = 240.0 + items.length * 34.0 + payments.length * 25.0;
+    final height = 220.0 + items.length * 34.0 + payments.length * 25.0;
     final total = _int(sale['total']);
     final paid = _int(sale['paid']);
     final returned = _int(returnSummary['returned_amount']);
@@ -129,7 +129,7 @@ class ReceiptDocumentService {
     final serviceItems = (service['items'] as List? ?? const [])
         .map((item) => Map<String, Object?>.from(item as Map))
         .toList();
-    final height = 470.0 + payments.length * 25.0 + serviceItems.length * 22.0;
+    final height = 420.0 + payments.length * 25.0 + serviceItems.length * 22.0;
     final paid = _int(service['down_payment']);
     final total = _int(service['total_cost']);
     final remaining = _int(service['remaining_payment']);
@@ -209,7 +209,7 @@ class ReceiptDocumentService {
       _text(service['bicycle_model']),
       _text(service['bicycle_type']),
     ].where((part) => part.isNotEmpty).join(' ');
-    final height = 440.0 + (_text(service['notes']).isNotEmpty ? 35 : 0);
+    final height = 390.0 + (_text(service['notes']).isNotEmpty ? 35 : 0);
     doc.addPage(pw.Page(
       pageFormat: PdfPageFormat(settings.paperWidthPoints, height, marginAll: settings.marginPoints),
       build: (context) => pw.Container(
@@ -269,7 +269,7 @@ class ReceiptDocumentService {
     final settings = await ReceiptSettingsRepository().getReceiptSettings();
     final logo = await _logo(profile);
     final doc = pw.Document();
-    final height = 390.0 + payments.length * 25.0;
+    final height = 350.0 + payments.length * 25.0;
     final total = _int(service['total_cost']);
     final remaining = _int(service['remaining_payment']);
     final paid = (total - remaining).clamp(0, 1 << 62).toInt();
