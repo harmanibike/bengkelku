@@ -219,6 +219,8 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
       case 'debit_card':
       case 'credit_card':
         return Icons.credit_card_rounded;
+      case 'e_wallet':
+        return Icons.account_balance_wallet_rounded;
       default:
         return Icons.payments_rounded;
     }
