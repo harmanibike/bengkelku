@@ -19,7 +19,9 @@ class _DeviceModePageState extends State<DeviceModePage> {
   final DeviceModeRepository _repository = DeviceModeRepository();
   final ClientConnectionService _clientConnectionService =
       ClientConnectionService();
-  final LocalApiServer _localApiServer = LocalApiServer();
+  // Il servizio è condiviso a livello applicazione e non viene chiuso
+  // quando la pagina viene rimossa o l'utente esegue il logout.
+  final LocalApiServer _localApiServer = LocalApiServer.instance;
   final DevicePairingRepository _pairingRepository = DevicePairingRepository();
   late Future<List<PairedDeviceInfo>> _pairedDevicesFuture;
   DevicePairingCode? _activePairingCode;
@@ -59,7 +61,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
 
   @override
   void dispose() {
-    _localApiServer.stop();
+    // Jangan hentikan API di sini: lifecycle layanan tidak mengikuti halaman.
     _hostController.dispose();
     _portController.dispose();
     super.dispose();
