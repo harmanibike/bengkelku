@@ -86,7 +86,7 @@ class DevicePairingRepository {
 
     // Kode 10 digit memberi ruang tebak yang jauh lebih besar dibanding PIN kasir.
     for (var attempt = 0; attempt < 5; attempt++) {
-      final code = (1000000000 + _random.nextInt(9000000000)).toString();
+      final code = '${_random.nextInt(9) + 1}' +\n          List.generate(9, (_) => _random.nextInt(10)).join();
       try {
         await db.insert('device_pairing_codes', {
           'code_hash': _sha256(code),
