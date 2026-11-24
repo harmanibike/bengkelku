@@ -221,3 +221,40 @@ Salin pesan berikut saat memulai percakapan baru:
 > Lanjutkan proyek BengkelKu POS dari repository https://github.com/harmanibike/bengkelku, branch main. Baca PROJECT_HANDOVER.md terlebih dahulu dan verifikasi kondisi repository serta CI terbaru sebelum mengubah kode. Pertahankan keputusan produk dan aturan kerja di dokumen tersebut. Fokus hanya pada masalah yang benar-benar terbukti, laporkan progres sebagai estimasi, dan jangan mengklaim test atau fitur lulus tanpa hasil verifikasi.
 
 **Catatan:** dokumen ini adalah ringkasan operasional, bukan pengganti source code, commit Git, test, atau pemeriksaan ulang kondisi terbaru repository.
+
+
+## 12. Hasil pemeriksaan lanjutan — 24 November 2026
+
+### CI dan branch
+- Run `45327364795` selesai dengan **success** pada commit kode `8d53ebef`.
+- Semua step job `Build Signed Android APK` berhasil, termasuk format, analyze, test, build release, verifikasi signature, dan upload artifact.
+- Branch `main` kemudian bergerak ke commit dokumentasi `ae74964f` untuk penambahan dokumen handover. Perubahan tersebut tidak mengubah kode aplikasi.
+
+### Batas keamanan jaringan Android
+Pemeriksaan workflow `.github/workflows/build-apk.yml` menemukan bahwa workflow menghasilkan AndroidManifest dengan `android:usesCleartextTraffic="true"` pada tingkat aplikasi. Client saat ini memang memanggil health-check melalui HTTP dan server bind ke `anyIPv4`.
+
+- Saat ini endpoint server hanya health-check GET; tidak ada endpoint transaksi atau pengiriman token pada server tersebut.
+- Ini tetap merupakan izin cleartext yang luas untuk aplikasi, bukan pembatasan hanya ke endpoint health-check.
+- Jangan menambahkan pertukaran pairing code, token, atau data transaksi melalui HTTP biasa.
+- Sebelum endpoint sensitif dibuat, rancang transport terenkripsi dan konfigurasi Android yang lebih ketat. Jangan menghapus izin cleartext secara membabi buta sebelum health-check lokal dipindahkan/dirancang ulang, karena koneksi Client saat ini memakai skema HTTP.
+- Temuan ini dicatat sebagai **batas keamanan yang harus diselesaikan sebelum Server–Client dipakai untuk data sensitif**, bukan sebagai alasan untuk membuka endpoint baru sekarang.
+
+### Backup dan restore — hasil review statis awal
+File yang ditinjau: `lib/core/database/database_backup_service.dart`.
+
+Hal positif yang terlihat:
+- Backup dan restore dibatasi untuk Admin.
+- Backup memeriksa `PRAGMA integrity_check`, menjalankan WAL checkpoint, menutup database sebelum menyalin file, lalu membuka kembali database dalam blok `finally`.
+- Restore memvalidasi file kandidat, integritas SQLite, rentang `user_version`, dan keberadaan tabel inti sebelum mengganti database.
+- Restore membuat salinan database sebelum pemulihan dan mencoba mengembalikan salinan tersebut bila proses restore gagal.
+
+Batas pemeriksaan:
+- Peninjauan ini bersifat statis; belum ada uji perangkat/restore aktual yang dijalankan dalam sesi ini.
+- Pencarian tree repository tidak menemukan test khusus untuk `DatabaseBackupService` / skenario backup-restore.
+- Karena itu, backup-restore **belum boleh dinyatakan teruji penuh**. Prioritaskan test untuk backup database aktif, restore versi lama yang harus termigrasi, file rusak/tidak valid, skema yang tidak lengkap, kegagalan saat penggantian file, dan rollback ke salinan pengaman.
+- Periksa juga keberadaan file SQLite sidecar (`-wal` / `-shm`) pada skenario perangkat nyata; pastikan proses close/checkpoint benar-benar membuat salinan konsisten.
+
+### Status setelah pemeriksaan
+- Tidak ada perubahan kode aplikasi yang dilakukan berdasarkan review statis ini.
+- Estimasi progres tetap: POS Local **90%**, Server–Client **12%**.
+- Penghambat utama yang dicatat: uji backup-restore khusus belum tersedia/terkonfirmasi; transport cleartext global harus diselesaikan sebelum fitur jaringan sensitif diaktifkan.
