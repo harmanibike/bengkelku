@@ -330,7 +330,17 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         return;
       }
 
-      manager = PrinterManager();
+      // EPOS RPP02N dan printer SPP sekelasnya dapat kehilangan karakter
+      // bila data dikirim terlalu cepat. Pecah pekerjaan menjadi potongan kecil
+      // dengan jeda agar buffer serial internal printer sempat mengosongkan data.
+      manager = PrinterManager(
+        bluetoothConnector: BluetoothConnector(
+          chunkSize: 128,
+          interChunkDelay: const Duration(milliseconds: 20),
+          drainBytesPerSecond: 6 * 1024,
+          maxDrainWait: const Duration(seconds: 10),
+        ),
+      );
       await manager.connect(BluetoothPrinterDevice(
         name: savedPrinter['name']!,
         address: savedPrinter['address']!,
