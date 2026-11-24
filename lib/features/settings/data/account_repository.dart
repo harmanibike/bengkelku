@@ -155,7 +155,100 @@ class AccountRepository {
       'display_name': user['display_name'],
       'username': user['username'],
       'role': user['role'],
+      'phone': user['phone'],
+      'profile_photo_path': user['profile_photo_path'],
     };
+  }
+
+  Future<Map<String, Object?>> getCurrentProfile() async {
+    final id = AuthSession.instance.userId;
+    if (id == null) throw StateError('Tidak ada akun yang sedang login.');
+    final db = await _db;
+    final rows = await db.query(
+      'app_users',
+      columns: ['id', 'display_name', 'username', 'role', 'phone', 'profile_photo_path'],
+      where: 'id = ? AND is_active = 1',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) throw StateError('Akun tidak ditemukan atau sudah nonaktif.');
+    return rows.first;
+  }
+
+  Future<void> updateOwnProfile({
+    required String displayName,
+    required String username,
+    required String phone,
+    required String profilePhotoPath,
+  }) async {
+    final id = AuthSession.instance.userId;
+    if (id == null) throw StateError('Tidak ada akun yang sedang login.');
+    final name = displayName.trim();
+    final login = username.trim();
+    if (name.isEmpty || login.isEmpty) {
+      throw ArgumentError('Nama dan username wajib diisi.');
+    }
+    final db = await _db;
+    await db.transaction((txn) async {
+      final changed = await txn.update(
+        'app_users',
+        {
+          'display_name': name,
+          'username': login,
+          'phone': phone.trim(),
+          'profile_photo_path': profilePhotoPath.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ? AND is_active = 1',
+        whereArgs: [id],
+      );
+      if (changed == 0) throw StateError('Akun tidak ditemukan atau nonaktif.');
+      await ActivityLogRepository.record(
+        txn,
+        action: 'account_profile_updated',
+        description: 'Memperbarui profil akun $name ($login).',
+        entityType: 'app_user',
+        entityId: id,
+      );
+    });
+    final profile = await getCurrentProfile();
+    AuthSession.instance.signIn(profile);
+  }
+
+  Future<void> changeOwnPin({
+    required String currentPin,
+    required String newPin,
+  }) async {
+    final id = AuthSession.instance.userId;
+    final username = AuthSession.instance.user?['username']?.toString() ?? '';
+    if (id == null || username.isEmpty) {
+      throw StateError('Tidak ada akun yang sedang login.');
+    }
+    if (!_validPin(newPin)) throw ArgumentError('PIN baru harus 6–8 digit.');
+    final verified = await authenticate(username: username, pin: currentPin);
+    if (verified == null || verified['id'] != id) {
+      throw StateError('PIN saat ini salah.');
+    }
+    final db = await _db;
+    final salt = _newSalt();
+    await db.transaction((txn) async {
+      await txn.update(
+        'app_users',
+        {
+          'pin_hash': _encodePinHash(newPin, salt),
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      await ActivityLogRepository.record(
+        txn,
+        action: 'account_pin_changed',
+        description: 'Mengganti PIN akun sendiri.',
+        entityType: 'app_user',
+        entityId: id,
+      );
+    });
   }
 
   Future<List<Map<String, Object?>>> getAccounts() async {
