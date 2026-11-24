@@ -324,7 +324,21 @@ class ReceiptDocumentService {
         : (_text(payment['method']).isNotEmpty
             ? _text(payment['method'])
             : _text(payment['payment_method_name']));
-    final label = method.isEmpty ? dateTime : '$dateTime · ${method.toUpperCase()}';
+    final normalizedMethod = method.trim().toLowerCase().replaceAll('-', '_');
+    const methodLabels = <String, String>{
+      'cash': 'TUNAI',
+      'tunai': 'TUNAI',
+      'bank_transfer': 'TRANSFER',
+      'transfer': 'TRANSFER',
+      'transfer bank': 'TRANSFER',
+      'qris': 'QRIS',
+      'debit_card': 'KARTU DEBIT',
+      'credit_card': 'KARTU KREDIT',
+      'e_wallet': 'E-WALLET',
+      'customer_wallet': 'SALDO PELANGGAN',
+    };
+    final displayMethod = methodLabels[normalizedMethod] ?? method.toUpperCase();
+    final label = method.isEmpty ? dateTime : '$dateTime · $displayMethod';
     return pw.Padding(
       padding: pw.EdgeInsets.symmetric(vertical: 1 * settings.spacing),
       child: pw.Row(
