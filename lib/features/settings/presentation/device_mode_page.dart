@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import '../data/client_connection_service.dart';
+import '../data/device_pairing_repository.dart';
+import '../../../core/auth/auth_session.dart';
 import '../data/local_api_server.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,6 +20,10 @@ class _DeviceModePageState extends State<DeviceModePage> {
   final ClientConnectionService _clientConnectionService =
       ClientConnectionService();
   final LocalApiServer _localApiServer = LocalApiServer();
+  final DevicePairingRepository _pairingRepository = DevicePairingRepository();
+  late Future<List<PairedDeviceInfo>> _pairedDevicesFuture;
+  DevicePairingCode? _activePairingCode;
+  bool _creatingPairingCode = false;
   late Future<String> _modeFuture;
   bool _saving = false;
   bool _savingClient = false;
@@ -34,6 +40,9 @@ class _DeviceModePageState extends State<DeviceModePage> {
   void initState() {
     super.initState();
     _modeFuture = _repository.getMode();
+    _pairedDevicesFuture = AuthSession.instance.isAdmin
+        ? _pairingRepository.getPairedDevices()
+        : Future.value(const <PairedDeviceInfo>[]);
     _hostController = TextEditingController();
     _portController = TextEditingController(
       text: DeviceModeRepository.defaultClientPort.toString(),
@@ -152,6 +161,65 @@ class _DeviceModePageState extends State<DeviceModePage> {
       });
     } finally {
       if (mounted) setState(() => _testingClient = false);
+    }
+  }
+
+  Future<void> _refreshPairedDevices() async {
+    setState(() {
+      _pairedDevicesFuture = _pairingRepository.getPairedDevices();
+    });
+  }
+
+  Future<void> _createPairingCode() async {
+    setState(() => _creatingPairingCode = true);
+    try {
+      final code = await _pairingRepository.createPairingCode();
+      if (!mounted) return;
+      setState(() => _activePairingCode = code);
+      await _refreshPairedDevices();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membuat kode pairing: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _creatingPairingCode = false);
+    }
+  }
+
+  Future<void> _revokePairedDevice(PairedDeviceInfo device) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Putuskan perangkat?'),
+        content: Text(
+          'Perangkat "${device.deviceName}" tidak akan dapat memakai token ini lagi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Putuskan'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await _pairingRepository.revokeDevice(device.id);
+      if (!mounted) return;
+      await _refreshPairedDevices();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Perangkat berhasil diputus.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memutus perangkat: $error')),
+      );
     }
   }
 
@@ -289,6 +357,114 @@ class _DeviceModePageState extends State<DeviceModePage> {
                   ),
                 ),
               ),
+              if (AuthSession.instance.isAdmin) ...[
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Pairing Perangkat Client',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 5),
+                        const Text(
+                          'Admin dapat membuat kode sekali pakai untuk menghubungkan perangkat. Kode berlaku 3 menit. Pertukaran kode melalui jaringan belum diaktifkan sampai koneksi terenkripsi tersedia.',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton.icon(
+                          onPressed: _creatingPairingCode ? null : _createPairingCode,
+                          icon: _creatingPairingCode
+                              ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.vpn_key_outlined),
+                          label: Text(_creatingPairingCode ? 'Membuat kode...' : 'Buat Kode Pairing'),
+                        ),
+                        if (_activePairingCode != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Column(
+                              children: [
+                                const Text('KODE PAIRING', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                SelectableText(
+                                  _activePairingCode!.code,
+                                  style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w800, letterSpacing: 4),
+                                ),
+                                Text(
+                                  'Berlaku sampai ${_activePairingCode!.expiresAt.toLocal().toString().substring(0, 16)}',
+                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Kode hanya ditampilkan di perangkat Admin ini. Jangan bagikan kepada orang yang tidak dipercaya.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const Divider(height: 20),
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text('Perangkat Terhubung', style: TextStyle(fontWeight: FontWeight.w600)),
+                            ),
+                            IconButton(
+                              tooltip: 'Muat ulang',
+                              onPressed: _refreshPairedDevices,
+                              icon: const Icon(Icons.refresh),
+                            ),
+                          ],
+                        ),
+                        FutureBuilder<List<PairedDeviceInfo>>(
+                          future: _pairedDevicesFuture,
+                          builder: (context, devicesSnapshot) {
+                            if (devicesSnapshot.connectionState == ConnectionState.waiting) {
+                              return const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+                            if (devicesSnapshot.hasError) {
+                              return Text('Gagal memuat perangkat: ${devicesSnapshot.error}');
+                            }
+                            final devices = devicesSnapshot.data ?? const <PairedDeviceInfo>[];
+                            if (devices.isEmpty) {
+                              return const Text('Belum ada perangkat Client yang dipasangkan.', style: TextStyle(fontSize: 11, color: Colors.grey));
+                            }
+                            return Column(
+                              children: devices.map((device) => ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.phone_android),
+                                title: Text(device.deviceName, style: const TextStyle(fontSize: 13)),
+                                subtitle: Text(
+                                  device.lastSeenAt == null
+                                      ? 'Dipairing: ${device.createdAt}'
+                                      : 'Terakhir aktif: ${device.lastSeenAt}',
+                                  style: const TextStyle(fontSize: 10),
+                                ),
+                                trailing: IconButton(
+                                  tooltip: 'Putuskan perangkat',
+                                  onPressed: () => _revokePairedDevice(device),
+                                  icon: const Icon(Icons.link_off, color: Colors.red),
+                                ),
+                              )).toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               const Text(
                 'Konfigurasi Client',
