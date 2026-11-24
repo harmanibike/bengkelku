@@ -12,6 +12,7 @@ import 'package:bengkelku_pos/features/customers/data/customer_wallet_repository
 import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
+import 'package:bengkelku_pos/features/purchases/data/purchase_return_repository.dart';
 
 void main() {
   late Directory testDirectory;
@@ -426,6 +427,154 @@ void main() {
       whereArgs: [returnId],
     )).single;
     expect(expense['amount'], 40000);
+  });
+
+  test('purchase return cancellation restores stock and original cost batch', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Pedal Uji',
+      'selling_price': 60000,
+      'purchase_price': 25000,
+      'stock': 5,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final purchaseId = await db.insert('purchases', {
+      'invoice_number': 'PO-RETUR-UJI-001',
+      'subtotal': 75000,
+      'total': 75000,
+      'paid': 75000,
+      'payment_status': 'paid',
+      'status': 'active',
+    });
+    final purchaseItemId = await db.insert('purchase_items', {
+      'purchase_id': purchaseId,
+      'product_id': productId,
+      'product_name': 'Pedal Uji',
+      'quantity': 3,
+      'unit_cost': 25000,
+      'subtotal': 75000,
+    });
+    final batchId = await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'purchase_id': purchaseId,
+      'purchase_item_id': purchaseItemId,
+      'quantity_received': 3,
+      'quantity_remaining': 3,
+      'unit_cost': 25000,
+    });
+
+    final returns = PurchaseReturnRepository();
+    final returnId = await returns.createReturn(
+      purchaseId: purchaseId,
+      returnNumber: 'PR-RETUR-UJI-001',
+      quantities: {purchaseItemId: 2},
+      notes: 'Pengujian retur pembelian',
+    );
+
+    var product = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    var batch = (await db.query(
+      'inventory_cost_batches',
+      where: 'id = ?',
+      whereArgs: [batchId],
+    )).single;
+    expect(product['stock'], 3);
+    expect(batch['quantity_remaining'], 1);
+
+    await returns.cancelReturn(
+      returnId: returnId,
+      reason: 'Retur dibatalkan untuk pengujian',
+    );
+
+    product = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    batch = (await db.query(
+      'inventory_cost_batches',
+      where: 'id = ?',
+      whereArgs: [batchId],
+    )).single;
+    expect(product['stock'], 5);
+    expect(batch['quantity_remaining'], 3);
+
+    final returnRow = (await db.query(
+      'purchase_returns',
+      where: 'id = ?',
+      whereArgs: [returnId],
+    )).single;
+    expect(returnRow['status'], 'cancelled');
+    final movements = await db.query(
+      'stock_movements',
+      where: 'reference_type = ? AND reference_id = ?',
+      whereArgs: ['purchase_return_cancel', returnId],
+    );
+    expect(movements, hasLength(1));
+    expect(movements.single['quantity'], 2);
+  });
+
+  test('purchase return rejects quantity beyond remaining purchased amount', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Sadel Uji',
+      'selling_price': 40000,
+      'purchase_price': 15000,
+      'stock': 2,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final purchaseId = await db.insert('purchases', {
+      'invoice_number': 'PO-RETUR-UJI-002',
+      'subtotal': 30000,
+      'total': 30000,
+      'paid': 30000,
+      'payment_status': 'paid',
+      'status': 'active',
+    });
+    final purchaseItemId = await db.insert('purchase_items', {
+      'purchase_id': purchaseId,
+      'product_id': productId,
+      'product_name': 'Sadel Uji',
+      'quantity': 2,
+      'unit_cost': 15000,
+      'subtotal': 30000,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'purchase_id': purchaseId,
+      'purchase_item_id': purchaseItemId,
+      'quantity_received': 2,
+      'quantity_remaining': 2,
+      'unit_cost': 15000,
+    });
+
+    final returns = PurchaseReturnRepository();
+    await returns.createReturn(
+      purchaseId: purchaseId,
+      returnNumber: 'PR-RETUR-UJI-002',
+      quantities: {purchaseItemId: 1},
+    );
+    await expectLater(
+      returns.createReturn(
+        purchaseId: purchaseId,
+        returnNumber: 'PR-RETUR-UJI-003',
+        quantities: {purchaseItemId: 2},
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(await db.query('purchase_returns'), hasLength(1));
+    final product = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    expect(product['stock'], 1);
   });
 
   test('version 33 migration preserves legacy return rows as unknown snapshot', () async {
