@@ -35,6 +35,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   final _otherDirectCostController = TextEditingController(text: '0');
   final _discountController = TextEditingController(text: '0');
   final _downPaymentController = TextEditingController(text: '0');
+  String _downPaymentMethod = 'cash';
   final _mechanicController = TextEditingController();
   final _notesController = TextEditingController();
   final _customerSearchController = TextEditingController();
@@ -471,6 +472,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
         otherDirectCost: _amount(_otherDirectCostController),
         discount: _amount(_discountController),
         downPayment: _amount(_downPaymentController),
+        downPaymentMethod: _downPaymentMethod,
         mechanicName: _selectedMechanicId == null ? _mechanicController.text : _mechanics.firstWhere((m) => m['id'] == _selectedMechanicId)['display_name']?.toString(),
         assignedMechanicId: _selectedMechanicId,
         notes: _notesController.text,
@@ -919,6 +921,18 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                             child: _moneyField('Uang muka (DP)', _downPaymentController),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: _downPaymentMethod,
+                        decoration: const InputDecoration(labelText: 'Metode pembayaran DP'),
+                        items: const [
+                          DropdownMenuItem(value: 'cash', child: Text('Tunai')),
+                          DropdownMenuItem(value: 'bank_transfer', child: Text('Transfer Bank')),
+                          DropdownMenuItem(value: 'qris', child: Text('QRIS')),
+                          DropdownMenuItem(value: 'other_non_cash', child: Text('Nontunai lainnya')),
+                        ],
+                        onChanged: (value) { if (value != null) setState(() => _downPaymentMethod = value); },
                       ),
                       const SizedBox(height: 8),
                       Card(
