@@ -935,9 +935,22 @@ class AppDatabase {
     }
 
     // Profil akun: nomor HP dan foto disimpan per akun, tanpa mengubah role.
+    // Beberapa database legacy/test tidak memiliki tabel app_users; jangan gagalkan
+    // seluruh migrasi hanya karena tabel akun belum pernah dibuat.
     if (oldVersion < 36) {
-      await db.execute('ALTER TABLE app_users ADD COLUMN phone TEXT');
-      await db.execute('ALTER TABLE app_users ADD COLUMN profile_photo_path TEXT');
+      final accountTable = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_users' LIMIT 1",
+      );
+      if (accountTable.isNotEmpty) {
+        final columns = await db.rawQuery('PRAGMA table_info(app_users)');
+        final names = columns.map((column) => column['name']?.toString()).toSet();
+        if (!names.contains('phone')) {
+          await db.execute('ALTER TABLE app_users ADD COLUMN phone TEXT');
+        }
+        if (!names.contains('profile_photo_path')) {
+          await db.execute('ALTER TABLE app_users ADD COLUMN profile_photo_path TEXT');
+        }
+      }
     }
 
     // Pastikan tabel pengaturan tersedia pada semua database lama tanpa menghapus data.
