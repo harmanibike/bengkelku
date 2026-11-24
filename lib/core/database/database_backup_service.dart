@@ -66,10 +66,10 @@ class DatabaseBackupService {
 
     final directory = await _backupDirectory();
     final candidate = File(p.join(directory.path, 'restore_candidate_${_timestamp()}.db'));
-    await source.copy(candidate.path);
-
     Database? checkDb;
+    var candidateValidated = false;
     try {
+      await source.copy(candidate.path);
       checkDb = await openDatabase(
         candidate.path,
         readOnly: true,
@@ -95,8 +95,12 @@ class DatabaseBackupService {
       if (missing.isNotEmpty) {
         throw FormatException('File bukan backup BengkelKu yang valid. Tabel tidak ditemukan: ${missing.join(', ')}.');
       }
+      candidateValidated = true;
     } finally {
       await checkDb?.close();
+      if (!candidateValidated && await candidate.exists()) {
+        await candidate.delete();
+      }
     }
 
     final databasePath = await _databasePath();
@@ -126,6 +130,9 @@ class DatabaseBackupService {
       return safetyCopy.path;
     } catch (error) {
       await AppDatabase.instance.close();
+      if (await candidate.exists()) {
+        await candidate.delete();
+      }
       if (await safetyCopy.exists()) {
         await safetyCopy.copy(databasePath);
         await AppDatabase.instance.database;
