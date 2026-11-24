@@ -52,7 +52,10 @@ class ReceiptLayout extends StatelessWidget {
     final profile=Map<String,String>.from(payload['profile'] as Map);
     final payments=List<Map<String,Object?>>.from((payload['payments'] as List? ?? const []).map((e)=>Map<String,Object?>.from(e as Map)));
     final items=List<Map<String,Object?>>.from((source['items'] as List? ?? const []).map((e)=>Map<String,Object?>.from(e as Map)));
-    final w=settings.thermalLayoutWidth, inner=w-12;
+    // 18 logical px x 1.2 raster = sekitar 22 dot atau 3 mm pada 58 mm.
+    // Margin ini dipakai bersama oleh teks, garis, dan kolom harga.
+    const horizontalPadding = 18.0;
+    final w=settings.thermalLayoutWidth, inner=w-(horizontalPadding*2);
     final total=n(sale?source['total']:source['total_cost']);
     final returnSummary=Map<String,Object?>.from(payload['return_summary'] as Map? ?? const {});
     final paid=finalPay? (total-n(source['remaining_payment'])).clamp(0,1<<62).toInt() : n(sale?source['paid']:source['down_payment']);
@@ -63,7 +66,7 @@ class ReceiptLayout extends StatelessWidget {
     final title=sale?'NOTA PENJUALAN':finalPay?'BUKTI PELUNASAN SERVIS':'NOTA SERVIS';
     final textScale = settings.fontScale;
     final gap = settings.spacing;
-    return Container(width:w,color:Colors.white,padding:EdgeInsets.symmetric(horizontal:6,vertical:10*gap),
+    return Container(width:w,color:Colors.white,padding:EdgeInsets.symmetric(horizontal:horizontalPadding,vertical:10*gap),
       child:DefaultTextStyle(style:TextStyle(color:Colors.black,fontFamily:'monospace',fontSize:20*textScale,height:1.15),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
         Row(children:[
