@@ -20,12 +20,16 @@ class ReceiptPreviewPage extends StatefulWidget {
     required this.fileName,
     required this.shareText,
     required this.title,
+    this.receiptType,
+    this.receiptPayload,
   });
 
   final Uint8List pdfBytes;
   final String fileName;
   final String shareText;
   final String title;
+  final String? receiptType;
+  final Map<String, Object?>? receiptPayload;
 
   @override
   State<ReceiptPreviewPage> createState() => _ReceiptPreviewPageState();
@@ -124,6 +128,178 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     }
   }
 
+  String _plain(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty || text == 'null') return '-';
+    return text
+        .replaceAll(RegExp(r'[\\r\\n\\t]+'), ' ')
+        .replaceAll('—', '-')
+        .replaceAll('–', '-')
+        .replaceAll('•', '-');
+  }
+
+  int _amount(Object? value) =>
+      value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+
+  String _rupiah(Object? value) {
+    final digits = _amount(value).toString();
+    final out = StringBuffer('Rp');
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) out.write('.');
+      out.write(digits[i]);
+    }
+    return out.toString();
+  }
+
+  String _fitLine(String left, String right, int width) {
+    final amount = right.length > width ? right.substring(right.length - width) : right;
+    final available = width - amount.length;
+    final label = left.length > available
+        ? left.substring(0, available)
+        : left.padRight(available);
+    return '$label$amount';
+  }
+
+  Future<void> _printSaleHybrid(
+    Ticket ticket,
+    Map<String, Object?> payload,
+    int paperWidthMm,
+  ) async {
+    final sale = Map<String, Object?>.from(payload['sale'] as Map);
+    final profile = Map<String, String>.from(payload['profile'] as Map);
+    final payments = List<Map<String, Object?>>.from(
+      (payload['payments'] as List? ?? const []).map(
+        (item) => Map<String, Object?>.from(item as Map),
+      ),
+    );
+    final returns = Map<String, Object?>.from(
+      payload['return_summary'] as Map? ?? const <String, Object?>{},
+    );
+    final width = paperWidthMm == 80 ? 48 : 32;
+    final logoPath = profile['business_logo_path']?.trim() ?? '';
+    if (logoPath.isNotEmpty) {
+      final logoFile = File(logoPath);
+      if (await logoFile.exists()) {
+        try {
+          final decoded = img.decodeImage(await logoFile.readAsBytes());
+          if (decoded != null) {
+            final logo = img.copyResize(
+              decoded,
+              width: paperWidthMm == 80 ? 300 : 220,
+            );
+            ticket.imageRaster(
+              logo,
+              align: PrintAlign.center,
+              maxWidth: paperWidthMm == 80 ? 300 : 220,
+            );
+            ticket.emptyLines();
+          }
+        } catch (_) {
+          // Logo rusak/tidak didukung tidak boleh menggagalkan cetak teks.
+        }
+      }
+    }
+
+    if (profile['business_name']?.trim().isNotEmpty == true) {
+      ticket.text(
+        _plain(profile['business_name']),
+        align: PrintAlign.center,
+        style: const PrintTextStyle(bold: true, height: TextSize.size2),
+      );
+    }
+    for (final key in ['business_address', 'business_phone', 'business_whatsapp']) {
+      final value = profile[key]?.trim() ?? '';
+      if (value.isNotEmpty) {
+        ticket.text(_plain(value), align: PrintAlign.center, maxCharsPerLine: width);
+      }
+    }
+    ticket.separator();
+    ticket.text(
+      'NOTA PENJUALAN',
+      align: PrintAlign.center,
+      style: const PrintTextStyle(bold: true, height: TextSize.size2),
+    );
+    ticket.emptyLines();
+
+    final date = DateTime.tryParse(_plain(sale['transaction_date']))?.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final dateText = date == null
+        ? _plain(sale['transaction_date'])
+        : '${two(date.day)}/${two(date.month)}/${date.year} ${two(date.hour)}:${two(date.minute)}';
+    ticket.text('No: ${_plain(sale['invoice_number'])}', maxCharsPerLine: width);
+    ticket.text('Tanggal: $dateText', maxCharsPerLine: width);
+    if ((sale['customer_name']?.toString().trim().isNotEmpty ?? false)) {
+      ticket.text('Pelanggan: ${_plain(sale['customer_name'])}', maxCharsPerLine: width);
+    }
+    if ((sale['customer_phone']?.toString().trim().isNotEmpty ?? false)) {
+      ticket.text('Telepon: ${_plain(sale['customer_phone'])}', maxCharsPerLine: width);
+    }
+    ticket.separator();
+
+    final items = List<Map<String, Object?>>.from(
+      (sale['items'] as List? ?? const []).map(
+        (item) => Map<String, Object?>.from(item as Map),
+      ),
+    );
+    for (final item in items) {
+      ticket.text(_plain(item['product_name']), maxCharsPerLine: width);
+      final qty = _amount(item['quantity']);
+      final unit = _rupiah(item['unit_price']);
+      final subtotal = _rupiah(item['subtotal']);
+      ticket.text('  $qty x $unit', maxCharsPerLine: width);
+      ticket.text(_fitLine('', subtotal, width), align: PrintAlign.right, maxCharsPerLine: width);
+    }
+    ticket.separator();
+
+    final total = _amount(sale['total']);
+    final paid = _amount(sale['paid']);
+    final returned = _amount(returns['returned_amount']);
+    final refunded = _amount(returns['refunded_amount']);
+    final remaining = (total - paid - returned + refunded).clamp(0, 1 << 62).toInt();
+    for (final row in [
+      ['Subtotal', _rupiah(sale['subtotal'])],
+      ['Diskon', _rupiah(sale['discount'])],
+      ['TOTAL', _rupiah(total)],
+      ['Sudah dibayar', _rupiah(paid)],
+      if (returned > 0) ['Total retur', _rupiah(returned)],
+      if (refunded > 0) ['Uang dikembalikan', _rupiah(refunded)],
+      ['Sisa tagihan', _rupiah(remaining)],
+    ]) {
+      ticket.text(
+        _fitLine(row[0], row[1], width),
+        style: row[0] == 'TOTAL' || row[0] == 'Sisa tagihan'
+            ? const PrintTextStyle(bold: true)
+            : const PrintTextStyle(),
+        maxCharsPerLine: width,
+      );
+    }
+
+    if (payments.isNotEmpty) {
+      ticket.separator();
+      ticket.text('RIWAYAT PEMBAYARAN', style: const PrintTextStyle(bold: true));
+      for (final payment in payments) {
+        final dateValue = DateTime.tryParse(_plain(payment['transaction_date']))?.toLocal();
+        final paymentDate = dateValue == null
+            ? _plain(payment['transaction_date'])
+            : '${two(dateValue.day)}/${two(dateValue.month)}/${dateValue.year} ${two(dateValue.hour)}:${two(dateValue.minute)}';
+        ticket.text(_fitLine(paymentDate, _rupiah(payment['amount']), width), maxCharsPerLine: width);
+      }
+    }
+    final notes = sale['notes']?.toString().trim() ?? '';
+    if (notes.isNotEmpty) {
+      ticket.separator();
+      ticket.text('Catatan: ${_plain(notes)}', maxCharsPerLine: width);
+    }
+    final footer = profile['business_footer_note']?.trim() ?? '';
+    ticket.emptyLines();
+    if (footer.isNotEmpty) {
+      ticket.text(_plain(footer), align: PrintAlign.center, maxCharsPerLine: width);
+    } else {
+      ticket.text('Terima kasih atas kunjungan Anda.', align: PrintAlign.center);
+    }
+    ticket.feed(2);
+  }
+
   Future<void> _print() async {
     if (_printing) return;
     setState(() => _printing = true);
@@ -151,14 +327,20 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       final paperSize = settings.paperWidthMm == 80
           ? PaperSize.mm80
           : PaperSize.mm58;
-      // Sisakan margin aman karena area cetak efektif printer 58 mm dapat lebih
-      // kecil dari lebar nominal kertas.
-      final maxWidth = settings.paperWidthMm == 80 ? 470 : 320;
-      var printedPages = 0;
+      final ticket = await Ticket.create(paperSize);
 
-      // Render per halaman agar nota panjang tidak perlu digabung menjadi
-      // satu bitmap besar di memori.
-      await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
+      // Nota penjualan memakai hybrid ESC/POS: logo bitmap kecil, isi teks
+      // native printer agar angka dan kolom tidak terpotong oleh raster PDF.
+      if (widget.receiptType == 'sale' && widget.receiptPayload != null) {
+        await _printSaleHybrid(ticket, widget.receiptPayload!, settings.paperWidthMm);
+        ticket.cut();
+        await manager.printTicket(ticket);
+        await manager.waitWriteComplete();
+      } else {
+        // Dokumen selain nota penjualan sementara tetap memakai jalur lama.
+        final maxWidth = settings.paperWidthMm == 80 ? 470 : 320;
+        var printedPages = 0;
+        await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
         final pageBytes = await page.toPng();
         final decoded = img.decodeImage(pageBytes);
         if (decoded == null) {
@@ -177,11 +359,12 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         ticket.cut();
         await manager.printTicket(ticket);
         await manager.waitWriteComplete();
-        printedPages++;
-      }
+          printedPages++;
+        }
 
-      if (printedPages == 0) {
-        throw StateError('Dokumen nota tidak memiliki halaman untuk dicetak.');
+        if (printedPages == 0) {
+          throw StateError('Dokumen nota tidak memiliki halaman untuk dicetak.');
+        }
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
