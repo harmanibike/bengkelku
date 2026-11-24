@@ -131,6 +131,12 @@ void main() {
     expect(completed?['remaining_payment'], 10000);
     expect(await wallet.getBalance(customerId), 0);
 
+    final paymentMismatches = await CashbookRepository().getCustomerPaymentMismatches(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(paymentMismatches, isEmpty);
+
     // Alur status yang sah: selesai -> dikerjakan kembali -> dibatalkan.
     await service.updateServiceStatus(id: serviceId, status: 'in_progress');
     await service.updateServiceStatus(
