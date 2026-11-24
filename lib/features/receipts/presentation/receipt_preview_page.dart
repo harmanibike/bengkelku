@@ -337,25 +337,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       final settings = await ReceiptSettingsRepository().getReceiptSettings();
       final saved = await ReceiptSettingsRepository().getSavedPrinter();
       if (saved == null) throw StateError('Printer thermal belum diatur. Hubungkan printer melalui Pengaturan Printer.');
-      final imageBytes = _imageBytes;
-      if (imageBytes == null) {
-        throw StateError('Gambar nota belum siap. Silakan tunggu pratinjau selesai dimuat.');
-      }
-      final receiptImage = img.decodeImage(imageBytes);
-      if (receiptImage == null) {
-        throw StateError('Gambar nota tidak dapat dibaca untuk dicetak.');
-      }
-
-      // Cetak raster dari sumber gambar yang sama dengan file PNG WhatsApp.
-      // Dengan begitu susunan, garis, logo, dan ukuran teks pada keduanya identik.
-      final ticket = await Ticket.create(
-        settings.paperWidthMm == 80 ? PaperSize.mm80 : PaperSize.mm58,
-      );
-      final maxWidth = settings.paperWidthMm == 80 ? 576 : 384;
-      ticket.imageRaster(receiptImage, align: PrintAlign.center, maxWidth: maxWidth);
-      ticket.emptyLines(2);
-      ticket.cut();
-
+      final ticket = await _buildRawReceiptTicket(settings);
       manager = PrinterManager(bluetoothConnector: BluetoothConnector(
         chunkSize: 128,
         interChunkDelay: const Duration(milliseconds: 20),
