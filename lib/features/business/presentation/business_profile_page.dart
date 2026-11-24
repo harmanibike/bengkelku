@@ -26,7 +26,6 @@ class _BusinessProfilePageState extends State<BusinessProfilePage> {
     'business_email': TextEditingController(),
     'business_website': TextEditingController(),
     'business_tax_number': TextEditingController(),
-    'business_footer_note': TextEditingController(),
   };
   String _logoPath = '';
   bool _loading = true;
@@ -271,21 +270,6 @@ class _BusinessProfilePageState extends State<BusinessProfilePage> {
                   _field(
                     'business_tax_number',
                     'NPWP / nomor pajak (opsional)',
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Nota & Struk',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _field(
-                    'business_footer_note',
-                    'Catatan bawah nota',
-                    maxLines: 2,
-                    hint: 'Contoh: Terima kasih telah berbelanja',
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
