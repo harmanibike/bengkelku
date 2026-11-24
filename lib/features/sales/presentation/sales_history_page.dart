@@ -184,6 +184,8 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
           ),
           child: AlertDialog(
             backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+            constraints: const BoxConstraints(maxWidth: 720),
             surfaceTintColor: Colors.white,
             title: const Text('Detail Penjualan'),
           content: SizedBox(
@@ -242,72 +244,80 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
             ),
           ),
           actions: [
-            if (['partial', 'unpaid'].contains(sale['payment_status']?.toString()) && sale['customer_id'] != null)
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _paySaleFromWallet(sale, returnSummary);
-                },
-                icon: const Icon(Icons.account_balance_wallet_outlined),
-                label: const Text('Bayar dari saldo'),
-              ),
-            if (['partial', 'unpaid'].contains(sale['payment_status']?.toString()))
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  final total = sale['total'] as int? ?? 0;
-                  final paid = sale['paid'] as int? ?? 0;
-                  final returned = returnSummary['returned_amount'] as int? ?? 0;
-                  final refunded = returnSummary['refunded_amount'] as int? ?? 0;
-                  _addPayment(id, (total - returned - paid + refunded).clamp(0, 1 << 62).toInt());
-                },
-                icon: const Icon(Icons.payments_outlined),
-                label: const Text('Catat pembayaran'),
-              ),
-            if (sale['payment_status']?.toString() != 'cancelled')
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => SaleReturnsPage(initialSaleId: id),
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (['partial', 'unpaid'].contains(sale['payment_status']?.toString()) && sale['customer_id'] != null)
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _paySaleFromWallet(sale, returnSummary);
+                      },
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      label: const Text('Bayar dari saldo'),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.assignment_return_outlined),
-                label: const Text('Retur barang'),
+                  if (['partial', 'unpaid'].contains(sale['payment_status']?.toString()))
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        final total = sale['total'] as int? ?? 0;
+                        final paid = sale['paid'] as int? ?? 0;
+                        final returned = returnSummary['returned_amount'] as int? ?? 0;
+                        final refunded = returnSummary['refunded_amount'] as int? ?? 0;
+                        _addPayment(id, (total - returned - paid + refunded).clamp(0, 1 << 62).toInt());
+                      },
+                      icon: const Icon(Icons.payments_outlined),
+                      label: const Text('Catat pembayaran'),
+                    ),
+                  if (sale['payment_status']?.toString() != 'cancelled')
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => SaleReturnsPage(initialSaleId: id)),
+                        );
+                      },
+                      icon: const Icon(Icons.assignment_return_outlined),
+                      label: const Text('Retur barang'),
+                    ),
+                  if (['paid', 'partial', 'unpaid'].contains(sale['payment_status']?.toString()))
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        _confirmCancel(id, sale['invoice_number']?.toString() ?? '-');
+                      },
+                      icon: const Icon(Icons.cancel_outlined, color: Colors.red),
+                      label: const Text('Batalkan nota', style: TextStyle(color: Colors.red)),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      ReceiptShareLauncher.showHistory(context, sourceType: 'sale', sourceId: id);
+                    },
+                    icon: const Icon(Icons.history),
+                    label: const Text('Riwayat Nota'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      ReceiptShareLauncher.sale(context, id);
+                    },
+                    icon: const Icon(Icons.receipt_long_outlined),
+                    label: const Text('Nota / Bagikan'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Tutup'),
+                  ),
+                ],
               ),
-            if (['paid', 'partial', 'unpaid'].contains(sale['payment_status']?.toString()))
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _confirmCancel(id, sale['invoice_number']?.toString() ?? '-');
-                },
-                icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                label: const Text('Batalkan nota', style: TextStyle(color: Colors.red)),
-              ),
-            OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                ReceiptShareLauncher.showHistory(context, sourceType: 'sale', sourceId: id);
-              },
-              icon: const Icon(Icons.history),
-              label: const Text('Riwayat Nota'),
             ),
-            OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                ReceiptShareLauncher.sale(context, id);
-              },
-              icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('Nota / Bagikan'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Tutup'),
-            ),
-          ],
           ),
         ),
       );
