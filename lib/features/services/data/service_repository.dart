@@ -1125,6 +1125,14 @@ class ServiceRepository {
     if (!serviceStatuses.contains(status)) {
       throw ArgumentError('Status servis tidak valid.');
     }
+    // Pembatalan dapat memicu pengembalian uang tunai dan saldo pelanggan.
+    // Karena itu mekanik tidak boleh membatalkan nota melalui pemanggilan
+    // repository langsung, meskipun UI saat ini menyembunyikan opsi tersebut.
+    if (status == 'cancelled') {
+      AuthSession.instance.requireCashierOrAdmin(
+        'Hanya Admin dan Kasir yang dapat membatalkan servis.',
+      );
+    }
     final session = AuthSession.instance;
     if (session.isMechanic && (actingMechanicId == null || actingMechanicId != session.userId)) {
       throw StateError('Akses ditolak: akun mekanik hanya boleh mengubah tugasnya sendiri.');
