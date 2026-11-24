@@ -1,21 +1,19 @@
-import 'dart:ui' as ui;
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:image/image.dart' as img;
-
 import 'package:material_ui/material_ui.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
-
-import 'receipt_layout.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:unified_esc_pos_printer/unified_esc_pos_printer.dart';
 
 import '../../settings/data/receipt_settings_repository.dart';
+import 'receipt_layout.dart';
 
 class ReceiptPreviewPage extends StatefulWidget {
   const ReceiptPreviewPage({
@@ -40,86 +38,62 @@ class ReceiptPreviewPage extends StatefulWidget {
 }
 
 class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
-  Uint8List? _imageBytes;
   final GlobalKey _receiptKey = GlobalKey();
-  bool get _nativeReceipt => const {'sale', 'service', 'service_final_payment'}.contains(widget.receiptType);
-  bool get _formalPdf => !_nativeReceipt;
-  bool _loadingImage = false;
+  Uint8List? _imageBytes;
+  ReceiptPrintSettings _settings = const ReceiptPrintSettings();
+  bool _loading = true;
   bool _sharing = false;
   bool _printing = false;
-  ReceiptPrintSettings _currentSettings = const ReceiptPrintSettings();
+
+  bool get _nativeReceipt => const {'sale', 'service', 'service_final_payment'}.contains(widget.receiptType);
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _preparePhoto();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prepareOutput());
   }
 
-  Future<void> _preparePhoto() async {
-    if (_imageBytes != null || _loadingImage) return;
-    setState(() => _loadingImage = true);
+  Future<void> _prepareOutput() async {
     try {
-      _currentSettings = await ReceiptSettingsRepository().getReceiptSettings();
+      _settings = await ReceiptSettingsRepository().getReceiptSettings();
       if (_nativeReceipt) {
+        if (mounted) setState(() {});
         await WidgetsBinding.instance.endOfFrame;
         final object = _receiptKey.currentContext?.findRenderObject();
-        if (object is! RenderRepaintBoundary) throw StateError('Layout nota belum siap dirender.');
+        if (object is! RenderRepaintBoundary) {
+          throw StateError('Layout nota belum siap.');
+        }
         final image = await object.toImage(pixelRatio: 1.2);
         final data = await image.toByteData(format: ui.ImageByteFormat.png);
         image.dispose();
-        if (data == null) throw StateError('Gagal mengambil gambar layout nota.');
-        final bytes = data.buffer.asUint8List();
-        if (!mounted) return;
-        setState(() { _imageBytes = bytes; _loadingImage = false; });
-        return;
+        if (data == null) throw StateError('Gagal mengambil gambar nota.');
+        _imageBytes = data.buffer.asUint8List();
+      } else {
+        final pdf = widget.pdfBytes;
+        if (pdf == null) throw StateError('Dokumen PDF tidak tersedia.');
+        final pages = <img.Image>[];
+        await for (final page in Printing.raster(pdf, dpi: 180)) {
+          final decoded = img.decodeImage(await page.toPng());
+          if (decoded != null) pages.add(decoded);
+        }
+        if (pages.isEmpty) throw StateError('Dokumen PDF tidak memiliki halaman.');
+        final width = pages.fold<int>(0, (v, p) => p.width > v ? p.width : v);
+        final height = pages.fold<int>(0, (v, p) => v + p.height);
+        final combined = img.Image(width: width, height: height);
+        img.fill(combined, color: img.ColorRgb8(255, 255, 255));
+        var top = 0;
+        for (final page in pages) {
+          img.compositeImage(combined, page, dstX: (width - page.width) ~/ 2, dstY: top);
+          top += page.height;
+        }
+        _imageBytes = Uint8List.fromList(img.encodePng(combined));
       }
-      final pdf = widget.pdfBytes;
-      if (pdf == null) throw StateError('Dokumen PDF tidak tersedia.');
-      // Render only formal PDF documents for on-screen preview.
-      final pages = <img.Image>[];
-      await for (final page in Printing.raster(pdf, dpi: 180)) {
-        final pageBytes = await page.toPng();
-        final decoded = img.decodeImage(pageBytes);
-        if (decoded != null) pages.add(decoded);
-      }
-      if (pages.isEmpty) {
-        throw StateError('Dokumen nota tidak memiliki halaman yang dapat dirender.');
-      }
-
-      final width = pages.fold<int>(
-        0,
-        (maximum, page) => page.width > maximum ? page.width : maximum,
-      );
-      final height = pages.fold<int>(
-        0,
-        (total, page) => total + page.height,
-      );
-      final combined = img.Image(width: width, height: height);
-      img.fill(combined, color: img.ColorRgb8(255, 255, 255));
-      var top = 0;
-      for (final page in pages) {
-        img.compositeImage(
-          combined,
-          page,
-          dstX: (width - page.width) ~/ 2,
-          dstY: top,
-        );
-        top += page.height;
-      }
-      final bytes = Uint8List.fromList(img.encodePng(combined));
-      if (!mounted) return;
-      setState(() {
-        _imageBytes = bytes;
-        _loadingImage = false;
-      });
     } catch (error) {
-      if (!mounted) return;
-      setState(() => _loadingImage = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membuat foto nota: $error')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyiapkan dokumen: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -127,313 +101,58 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     if (_sharing) return;
     setState(() => _sharing = true);
     try {
-      final directory = await getTemporaryDirectory();
-      final isPdf = _formalPdf;
-      final extension = isPdf ? 'pdf' : 'png';
-      final baseName = widget.fileName.replaceAll(RegExp(r'\.pdf
-      await SharePlus.instance.share(ShareParams(
-        title: widget.title,
-        text: widget.shareText,
-        files: [XFile(file.path)],
-      ));
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membagikan nota: $error')),
-      );
-    } finally {
-      if (mounted) setState(() => _sharing = false);
-    }
-  }
-
-  Future<void> _print() async {
-    if (_printing) return;
-    setState(() => _printing = true);
-    PrinterManager? manager;
-    try {
-      final settings = await ReceiptSettingsRepository().getReceiptSettings();
-      final savedPrinter = await ReceiptSettingsRepository().getSavedPrinter();
-
-      // Nota hanya dicetak melalui printer thermal yang sudah dikonfigurasi.
-      // Jangan membuka dialog cetak PDF sebagai jalur pengganti.
-      if (savedPrinter == null) {
-        throw StateError('Printer thermal belum diatur. Hubungkan printer melalui Pengaturan Printer.');
-      }
-
-      // EPOS RPP02N dan printer SPP sekelasnya dapat kehilangan karakter
-      // bila data dikirim terlalu cepat. Pecah pekerjaan menjadi potongan kecil
-      // dengan jeda agar buffer serial internal printer sempat mengosongkan data.
-      manager = PrinterManager(
-        bluetoothConnector: BluetoothConnector(
-          chunkSize: 128,
-          interChunkDelay: const Duration(milliseconds: 20),
-          drainBytesPerSecond: 6 * 1024,
-          maxDrainWait: const Duration(seconds: 10),
-        ),
-      );
-      await manager.connect(BluetoothPrinterDevice(
-        name: savedPrinter['name']!,
-        address: savedPrinter['address']!,
-      ));
-
-      if (_formalPdf) throw StateError('Dokumen formal dibagikan sebagai PDF dan tidak dicetak melalui printer thermal.');
-      final paperSize = settings.paperWidthMm == 80 ? PaperSize.mm80 : PaperSize.mm58;
-
-      // Semua jenis nota dicetak dari dokumen PDF yang sama dengan
-      // pratinjau dan file WhatsApp. Dengan demikian logo, ukuran huruf,
-      // jarak, garis, dan tata letak konsisten untuk seluruh dokumen.
-      // Gunakan lebar titik cetak standar printer thermal: 384 dot (58 mm)
-      // dan 576 dot (80 mm). Hindari batas 320 px yang mengecilkan nota dan
-      // membuat tata letak tampak terjepit pada beberapa printer.
-      final printableWidthDots = settings.paperWidthMm == 80 ? 576 : 384;
-      var printedPages = 0;
-      final sourceBytes = _imageBytes;
-      if (sourceBytes == null) throw StateError('Foto nota belum siap.');
-      final decoded = img.decodeImage(sourceBytes);
-      if (decoded == null) throw StateError('Gambar nota tidak dapat dibaca.');
-      {
-        if (decoded == null) {
-          throw StateError('Halaman nota tidak dapat dikonversi menjadi gambar.');
-        }
-
-        // Samakan lebar gambar dengan area cetak dan bersihkan noise abu-abu
-        // pada latar putih agar kertas tetap putih, bukan membentuk blok gelap.
-        final resized = img.copyResize(
-          decoded,
-          width: printableWidthDots,
-          interpolation: img.Interpolation.linear,
-        );
-        final receiptImage = img.grayscale(resized);
-        for (final pixel in receiptImage) {
-          final luminance = pixel.luminance;
-          final value = luminance >= 225 ? 255 : (luminance <= 90 ? 0 : 0);
-          pixel
-            ..r = value
-            ..g = value
-            ..b = value;
-        }
-
-        final pageTicket = await Ticket.create(paperSize);
-        pageTicket.imageRaster(
-          receiptImage,
-          align: PrintAlign.center,
-          maxWidth: printableWidthDots,
-        );
-        pageTicket.cut();
-        await manager.printTicket(pageTicket);
-        await manager.waitWriteComplete();
-        printedPages++;
-      }
-
-      if (printedPages == 0) {
-        throw StateError('Dokumen nota tidak memiliki halaman untuk dicetak.');
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Nota berhasil dikirim ke printer ${savedPrinter['name']}.'),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mencetak nota: $error')),
-      );
-    } finally {
-      if (manager != null) {
-        try {
-          // dispose menutup koneksi dan menunggu buffer cetak dikirim.
-          await manager.dispose();
-        } catch (_) {
-          // Jangan menutupi hasil utama jika pelepasan koneksi gagal.
-        }
-      }
-      if (mounted) setState(() => _printing = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-            child: const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Nota dibagikan sebagai foto dan dicetak menggunakan printer thermal.'),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: _loadingImage
-                  ? const CircularProgressIndicator()
-                  : _imageBytes == null
-                      ? const Text('Pratinjau foto belum tersedia.')
-                      : _nativeReceipt
-                          ? InteractiveViewer(child: RepaintBoundary(key: _receiptKey, child: ReceiptLayout(
-                              receiptType: widget.receiptType!,
-                              payload: widget.receiptPayload!,
-                              settings: _currentSettings,
-                            )))
-                          : InteractiveViewer(child: Image.memory(_imageBytes!, fit: BoxFit.contain)),
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Row(
-                children: [
-                  if (_nativeReceipt) Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _printing ? null : _print,
-                      icon: _printing
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.print_outlined),
-                      label: Text(_printing ? 'Mengirim...' : 'Cetak'),
-                    ),
-                  ),
-                  if (_nativeReceipt) const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _sharing || _loadingImage || _imageBytes == null ? null : _share,
-                      icon: _sharing
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.share_outlined),
-                      label: const Text('Bagikan'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-, caseSensitive: false), '');
-      final file = File('${directory.path}/$baseName.$extension');
+      final isPdf = !_nativeReceipt;
       final bytes = isPdf ? widget.pdfBytes : _imageBytes;
-      if (bytes == null) throw StateError('Berkas dokumen belum siap.');
+      if (bytes == null) throw StateError('Berkas belum siap.');
+      final directory = await getTemporaryDirectory();
+      final base = widget.fileName.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
+      final file = File(directory.path + '/' + base + (isPdf ? '.pdf' : '.png'));
       await file.writeAsBytes(bytes, flush: true);
-      await SharePlus.instance.share(ShareParams(
-        title: widget.title,
-        text: widget.shareText,
-        files: [XFile(file.path)],
-      ));
+      await SharePlus.instance.share(ShareParams(title: widget.title, text: widget.shareText, files: [XFile(file.path)]));
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membagikan nota: $error')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal membagikan dokumen: $error')));
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
   }
 
   Future<void> _print() async {
-    if (_printing) return;
+    if (!_nativeReceipt || _printing) return;
     setState(() => _printing = true);
     PrinterManager? manager;
     try {
       final settings = await ReceiptSettingsRepository().getReceiptSettings();
-      final savedPrinter = await ReceiptSettingsRepository().getSavedPrinter();
-
-      // Nota hanya dicetak melalui printer thermal yang sudah dikonfigurasi.
-      // Jangan membuka dialog cetak PDF sebagai jalur pengganti.
-      if (savedPrinter == null) {
-        throw StateError('Printer thermal belum diatur. Hubungkan printer melalui Pengaturan Printer.');
+      final saved = await ReceiptSettingsRepository().getSavedPrinter();
+      if (saved == null) throw StateError('Printer thermal belum diatur. Hubungkan printer melalui Pengaturan Printer.');
+      final bytes = _imageBytes;
+      if (bytes == null) throw StateError('Gambar nota belum siap.');
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) throw StateError('Gambar nota tidak dapat dibaca.');
+      final width = settings.paperWidthMm == 80 ? 576 : 384;
+      final resized = img.copyResize(decoded, width: width, interpolation: img.Interpolation.linear);
+      final receipt = img.grayscale(resized);
+      for (final pixel in receipt) {
+        final value = pixel.luminance < 180 ? 0 : 255;
+        pixel..r = value..g = value..b = value;
       }
-
-      // EPOS RPP02N dan printer SPP sekelasnya dapat kehilangan karakter
-      // bila data dikirim terlalu cepat. Pecah pekerjaan menjadi potongan kecil
-      // dengan jeda agar buffer serial internal printer sempat mengosongkan data.
-      manager = PrinterManager(
-        bluetoothConnector: BluetoothConnector(
-          chunkSize: 128,
-          interChunkDelay: const Duration(milliseconds: 20),
-          drainBytesPerSecond: 6 * 1024,
-          maxDrainWait: const Duration(seconds: 10),
-        ),
-      );
-      await manager.connect(BluetoothPrinterDevice(
-        name: savedPrinter['name']!,
-        address: savedPrinter['address']!,
+      manager = PrinterManager(bluetoothConnector: BluetoothConnector(
+        chunkSize: 128,
+        interChunkDelay: const Duration(milliseconds: 20),
+        drainBytesPerSecond: 6 * 1024,
+        maxDrainWait: const Duration(seconds: 10),
       ));
-
-      final paperSize = settings.paperWidthMm == 80
-          ? PaperSize.mm80
-          : PaperSize.mm58;
-
-      // Semua jenis nota dicetak dari dokumen PDF yang sama dengan
-      // pratinjau dan file WhatsApp. Dengan demikian logo, ukuran huruf,
-      // jarak, garis, dan tata letak konsisten untuk seluruh dokumen.
-      // Gunakan lebar titik cetak standar printer thermal: 384 dot (58 mm)
-      // dan 576 dot (80 mm). Hindari batas 320 px yang mengecilkan nota dan
-      // membuat tata letak tampak terjepit pada beberapa printer.
-      final printableWidthDots = settings.paperWidthMm == 80 ? 576 : 384;
-      var printedPages = 0;
-      await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
-        final pageBytes = await page.toPng();
-        final decoded = img.decodeImage(pageBytes);
-        if (decoded == null) {
-          throw StateError('Halaman nota tidak dapat dikonversi menjadi gambar.');
-        }
-
-        // Samakan lebar gambar dengan area cetak dan bersihkan noise abu-abu
-        // pada latar putih agar kertas tetap putih, bukan membentuk blok gelap.
-        final resized = img.copyResize(
-          decoded,
-          width: printableWidthDots,
-          interpolation: img.Interpolation.linear,
-        );
-        final receiptImage = img.grayscale(resized);
-        for (final pixel in receiptImage) {
-          final luminance = pixel.luminance;
-          final value = luminance >= 225 ? 255 : (luminance <= 90 ? 0 : 0);
-          pixel
-            ..r = value
-            ..g = value
-            ..b = value;
-        }
-
-        final pageTicket = await Ticket.create(paperSize);
-        pageTicket.imageRaster(
-          receiptImage,
-          align: PrintAlign.center,
-          maxWidth: printableWidthDots,
-        );
-        pageTicket.cut();
-        await manager.printTicket(pageTicket);
-        await manager.waitWriteComplete();
-        printedPages++;
-      }
-
-      if (printedPages == 0) {
-        throw StateError('Dokumen nota tidak memiliki halaman untuk dicetak.');
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Nota berhasil dikirim ke printer ${savedPrinter['name']}.'),
-        ),
-      );
+      await manager.connect(BluetoothPrinterDevice(name: saved['name']!, address: saved['address']!));
+      final ticket = await Ticket.create(settings.paperWidthMm == 80 ? PaperSize.mm80 : PaperSize.mm58);
+      ticket.imageRaster(receipt, align: PrintAlign.center, maxWidth: width);
+      ticket.cut();
+      await manager.printTicket(ticket);
+      await manager.waitWriteComplete();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Nota dikirim ke printer ' + saved['name']! + '.')));
     } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mencetak nota: $error')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mencetak nota: $error')));
     } finally {
       if (manager != null) {
-        try {
-          // dispose menutup koneksi dan menunggu buffer cetak dikirim.
-          await manager.dispose();
-        } catch (_) {
-          // Jangan menutupi hasil utama jika pelepasan koneksi gagal.
-        }
+        try { await manager.dispose(); } catch (_) {}
       }
       if (mounted) setState(() => _printing = false);
     }
@@ -443,57 +162,43 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-            child: const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Nota dibagikan sebagai foto dan dicetak menggunakan printer thermal.'),
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: _loadingImage
+      body: Column(children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 8, 12, 6),
+          child: Align(alignment: Alignment.centerLeft, child: Text('Nota dibagikan sebagai foto dan dicetak menggunakan printer thermal.')),
+        ),
+        Expanded(child: Center(
+          child: _nativeReceipt
+              ? SingleChildScrollView(child: InteractiveViewer(
+                  child: RepaintBoundary(key: _receiptKey, child: ReceiptLayout(
+                    receiptType: widget.receiptType!,
+                    payload: widget.receiptPayload!,
+                    settings: _settings,
+                  )),
+                ))
+              : _loading
                   ? const CircularProgressIndicator()
                   : _imageBytes == null
-                      ? const Text('Pratinjau foto belum tersedia.')
-                      : InteractiveViewer(
-                          child: Image.memory(_imageBytes!, fit: BoxFit.contain),
-                        ),
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _printing ? null : _print,
-                      icon: _printing
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.print_outlined),
-                      label: Text(_printing ? 'Mengirim...' : 'Cetak'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _sharing || _loadingImage || _imageBytes == null ? null : _share,
-                      icon: _sharing
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.share_outlined),
-                      label: const Text('Bagikan'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+                      ? const Text('Pratinjau dokumen tidak tersedia.')
+                      : InteractiveViewer(child: Image.memory(_imageBytes!, fit: BoxFit.contain)),
+        )),
+        SafeArea(top: false, child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Row(children: [
+            if (_nativeReceipt) Expanded(child: OutlinedButton.icon(
+              onPressed: _loading || _printing ? null : _print,
+              icon: _printing ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2)) : const Icon(Icons.print_outlined),
+              label: Text(_printing ? 'Mengirim...' : 'Cetak'),
+            )),
+            if (_nativeReceipt) const SizedBox(width: 8),
+            Expanded(child: FilledButton.icon(
+              onPressed: _loading || _sharing ? null : _share,
+              icon: _sharing ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2)) : const Icon(Icons.share_outlined),
+              label: const Text('Bagikan'),
+            )),
+          ]),
+        )),
+      ]),
     );
   }
 }
