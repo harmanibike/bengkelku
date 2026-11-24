@@ -130,7 +130,7 @@ class ReceiptDocumentService {
     final serviceItems = (service['items'] as List? ?? const [])
         .map((item) => Map<String, Object?>.from(item as Map))
         .toList();
-    final height = 420.0 + payments.length * 25.0 + serviceItems.length * 22.0;
+    final height = 450.0 + payments.length * 30.0 + serviceItems.length * 38.0;
     final paid = _int(service['down_payment']);
     final total = _int(service['total_cost']);
     final remaining = _int(service['remaining_payment']);
@@ -160,13 +160,19 @@ class ReceiptDocumentService {
           if (_text(service['diagnosis']).isNotEmpty) _line('Diagnosis', _text(service['diagnosis']), settings: settings),
           if (_text(service['mechanic_name']).isNotEmpty) _line('Mekanik', _text(service['mechanic_name']), settings: settings),
           pw.Divider(),
+          _line('Rincian biaya', '', bold: true, settings: settings),
           _line('Jasa servis', rupiah(service['labor_cost']), settings: settings),
           if (serviceItems.isNotEmpty) ...[
             pw.Text('RINCIAN SPAREPART', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
-            ...serviceItems.map((item) => _line(
-              '${_text(item['item_name'])} × ${_int(item['quantity'])}',
-              rupiah(item['subtotal']),
-              settings: settings,
+            ...serviceItems.map((item) => pw.Padding(
+              padding: pw.EdgeInsets.only(bottom: 5 * settings.spacing),
+              child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                pw.Text(_text(item['item_name']), style: pw.TextStyle(fontSize: 9 * settings.fontScale)),
+                pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+                  pw.Text('${_int(item['quantity'])} x ${rupiah(item['unit_price'])}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
+                  pw.Text(rupiah(item['subtotal']), style: pw.TextStyle(fontSize: 9 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
+                ]),
+              ]),
             )),
             _line('Total sparepart', rupiah(service['parts_cost']), bold: true, settings: settings),
           ] else
