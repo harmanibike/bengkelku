@@ -187,11 +187,11 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     } finally {
       if (manager != null) {
         try {
-          await manager.disconnect();
+          // dispose menutup koneksi dan menunggu buffer cetak dikirim.
+          await manager.dispose();
         } catch (_) {
-          // Abaikan kegagalan pemutusan setelah pekerjaan cetak selesai/gagal.
+          // Jangan menutupi hasil utama jika pelepasan koneksi gagal.
         }
-        manager.dispose();
       }
       if (mounted) setState(() => _printing = false);
     }
