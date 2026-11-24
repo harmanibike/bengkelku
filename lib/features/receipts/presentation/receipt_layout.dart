@@ -30,6 +30,10 @@ class ReceiptLayout extends StatelessWidget {
     SizedBox(width:w*.37,child:Text(label,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal))),
     const Text(' : '), Expanded(child:Text(value,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal))),
   ]));
+  Widget summaryRow(String label,String value,double w,{bool bold=false}) => SizedBox(width:w, child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
+    Text(label,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal)),
+    Text(value,textAlign:TextAlign.right,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal)),
+  ]));
   @override
   Widget build(BuildContext context) {
     final sale=receiptType=='sale', finalPay=receiptType=='service_final_payment';
@@ -75,20 +79,20 @@ class ReceiptLayout extends StatelessWidget {
             Text(s(it['product_name'])),
             Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text(n(it['quantity']).toString()+' x '+money(it['unit_price'])),Text(money(it['subtotal']),style:const TextStyle(fontWeight:FontWeight.bold))]),
           ]))),
-          dash(inner), rowText('Subtotal',money(source['subtotal']),inner), rowText('Diskon',money(source['discount']),inner),
-          rowText('Total',money(total),inner,bold:true), rowText('Sudah dibayar',money(paid),inner), rowText('Sisa tagihan',money(remaining),inner,bold:true),
+          dash(inner), summaryRow('Subtotal',money(source['subtotal']),inner), summaryRow('Diskon',money(source['discount']),inner),
+          summaryRow('Total',money(total),inner,bold:true), summaryRow('Sudah dibayar',money(paid),inner), summaryRow('Sisa tagihan',money(remaining),inner,bold:true),
         ] else ...[
           rowText('Sepeda',(s(source['bicycle_brand'])+' '+s(source['bicycle_model'])).trim(),inner),
           rowText('Keluhan',s(source['complaint']),inner), dash(inner),
           if(finalPay)...[
-            rowText('Total biaya servis',money(total),inner),rowText('Sudah dibayar',money(paid),inner,bold:true),rowText('Sisa tagihan',money(remaining),inner,bold:true),
+            summaryRow('Total biaya servis',money(total),inner),rowText('Sudah dibayar',money(paid),inner,bold:true),rowText('Sisa tagihan',money(remaining),inner,bold:true),
           ] else ...[
             rowText('Jasa servis',money(source['labor_cost']),inner),
             ...items.map((it)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               Text(s(it['item_name'])),
               Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text(n(it['quantity']).toString()+' x '+money(it['unit_price'])),Text(money(it['subtotal']),style:const TextStyle(fontWeight:FontWeight.bold))]),
             ])),
-            rowText('Total biaya',money(total),inner,bold:true),rowText('Sudah dibayar',money(paid),inner),rowText('Sisa tagihan',money(remaining),inner,bold:true),
+            summaryRow('Total biaya',money(total),inner,bold:true),rowText('Sudah dibayar',money(paid),inner),rowText('Sisa tagihan',money(remaining),inner,bold:true),
           ],
         ],
         dash(inner),
