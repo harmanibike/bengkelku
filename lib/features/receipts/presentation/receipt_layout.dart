@@ -136,7 +136,7 @@ class ReceiptLayout extends StatelessWidget {
                 if (settings.showBusinessName)
                   Text(
                     s(profile['business_name']).isEmpty ? 'HARMANI BIKE' : s(profile['business_name']),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, height: 1.08),
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, height: 1.08),
                   ),
                 if (settings.showBusinessAddress && s(profile['business_address']).isNotEmpty)
                   Text(s(profile['business_address']), style: const TextStyle(fontSize: 14)),
