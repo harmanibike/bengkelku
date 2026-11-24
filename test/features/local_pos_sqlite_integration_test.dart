@@ -18,6 +18,7 @@ import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
 import 'package:bengkelku_pos/features/purchases/data/purchase_return_repository.dart';
 import 'package:bengkelku_pos/features/purchases/data/purchase_repository.dart';
 import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
+import 'package:bengkelku_pos/features/products/data/stock_opname_repository.dart';
 
 void main() {
   late Directory testDirectory;
@@ -110,6 +111,123 @@ void main() {
       end: DateTime(2100),
     );
     expect(clean, isEmpty);
+  });
+
+  test('stock opname applies surplus with average remaining batch cost', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Produk Opname Surplus',
+      'selling_price': 30000,
+      'purchase_price': 14000,
+      'stock': 5,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    for (final batch in [
+      {'quantity': 3, 'cost': 10000},
+      {'quantity': 2, 'cost': 20000},
+    ]) {
+      await db.insert('inventory_cost_batches', {
+        'product_id': productId,
+        'batch_code': 'OPN-TEST-${batch['cost']}',
+        'quantity_received': batch['quantity'],
+        'quantity_remaining': batch['quantity'],
+        'unit_cost': batch['cost'],
+        'received_at': DateTime.now().toIso8601String(),
+      });
+    }
+
+    final opname = StockOpnameRepository();
+    final sessionId = await opname.createSession();
+    final items = await opname.getItems(sessionId);
+    expect(items, hasLength(1));
+    expect(items.single['system_quantity'], 5);
+    await opname.setCount(items.single['id'] as int, 7);
+    await opname.applySession(sessionId);
+
+    final product = await db.query('products',
+      columns: ['stock'], where: 'id = ?', whereArgs: [productId], limit: 1);
+    expect(product.single['stock'], 7);
+    final adjustmentBatch = await db.query('inventory_cost_batches',
+      where: 'product_id = ? AND batch_code = ?',
+      whereArgs: [productId, 'OPN-$sessionId-$productId'], limit: 1);
+    expect(adjustmentBatch.single['quantity_remaining'], 2);
+    expect(adjustmentBatch.single['unit_cost'], 14000);
+
+    final movement = await db.query('stock_movements',
+      where: "reference_type = 'stock_opname' AND reference_id = ?",
+      whereArgs: [sessionId], limit: 1);
+    expect(movement.single['movement_type'], 'in');
+    expect(movement.single['quantity'], 2);
+    final sessions = await db.query('stock_opname_sessions',
+      where: 'id = ?', whereArgs: [sessionId], limit: 1);
+    expect(sessions.single['status'], 'applied');
+  });
+
+  test('stock opname refuses to overwrite stock changed during counting', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Produk Opname Berubah',
+      'selling_price': 20000,
+      'purchase_price': 10000,
+      'stock': 5,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final opname = StockOpnameRepository();
+    final sessionId = await opname.createSession();
+    final item = (await opname.getItems(sessionId)).single;
+    await opname.setCount(item['id'] as int, 4);
+    await db.update('products', {'stock': 6},
+      where: 'id = ?', whereArgs: [productId]);
+
+    await expectLater(opname.applySession(sessionId), throwsA(isA<StateError>()));
+    final product = await db.query('products',
+      columns: ['stock'], where: 'id = ?', whereArgs: [productId], limit: 1);
+    expect(product.single['stock'], 6);
+    final session = await db.query('stock_opname_sessions',
+      where: 'id = ?', whereArgs: [sessionId], limit: 1);
+    expect(session.single['status'], 'draft');
+  });
+
+  test('stock opname batch shortage rolls back all inventory changes', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Produk Batch Tidak Cukup',
+      'selling_price': 20000,
+      'purchase_price': 10000,
+      'stock': 5,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'batch_code': 'BATCH-TIDAK-LENGKAP',
+      'quantity_received': 3,
+      'quantity_remaining': 3,
+      'unit_cost': 10000,
+      'received_at': DateTime.now().toIso8601String(),
+    });
+
+    final opname = StockOpnameRepository();
+    final sessionId = await opname.createSession();
+    final item = (await opname.getItems(sessionId)).single;
+    await opname.setCount(item['id'] as int, 1);
+
+    await expectLater(opname.applySession(sessionId), throwsA(isA<StateError>()));
+    final product = await db.query('products',
+      columns: ['stock'], where: 'id = ?', whereArgs: [productId], limit: 1);
+    expect(product.single['stock'], 5);
+    final batch = await db.query('inventory_cost_batches',
+      where: 'product_id = ?', whereArgs: [productId], limit: 1);
+    expect(batch.single['quantity_remaining'], 3);
+    final session = await db.query('stock_opname_sessions',
+      where: 'id = ?', whereArgs: [sessionId], limit: 1);
+    expect(session.single['status'], 'draft');
+    final movements = await db.query('stock_movements',
+      where: "reference_type = 'stock_opname' AND reference_id = ?",
+      whereArgs: [sessionId]);
+    expect(movements, isEmpty);
   });
 
   test('database backup creation is restricted to Admin', () async {
