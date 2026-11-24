@@ -18,7 +18,12 @@ class CashbookRepository {
     final from = start.toIso8601String();
     final until = end.toIso8601String();
     final openingRows = await db.rawQuery('''
-      SELECT COALESCE(SUM(CASE WHEN transaction_type='income' THEN amount ELSE -amount END),0) AS balance
+      SELECT
+        COALESCE(SUM(CASE WHEN transaction_type='income' THEN amount ELSE -amount END),0) AS balance,
+        COALESCE(SUM(CASE WHEN LOWER(COALESCE(payment_method,'cash')) IN ('cash','tunai')
+          THEN CASE WHEN transaction_type='income' THEN amount ELSE -amount END ELSE 0 END),0) AS cash_balance,
+        COALESCE(SUM(CASE WHEN LOWER(COALESCE(payment_method,'cash')) NOT IN ('cash','tunai')
+          THEN CASE WHEN transaction_type='income' THEN amount ELSE -amount END ELSE 0 END),0) AS non_cash_balance
       FROM cash_transactions WHERE datetime(transaction_date) < datetime(?)
     ''', [from]);
     final rows = await db.rawQuery('''
@@ -29,26 +34,49 @@ class CashbookRepository {
     var balance = (openingRows.first['balance'] as num?)?.toInt() ?? 0;
     var income = 0;
     var expense = 0;
+    var cashIncome = 0;
+    var cashExpense = 0;
+    var nonCashIncome = 0;
+    var nonCashExpense = 0;
+    final methodTotals = <String, int>{};
     final entries = <Map<String, Object?>>[];
     for (final row in rows) {
       final amount = (row['amount'] as num?)?.toInt() ?? 0;
       final isIncome = row['transaction_type'] == 'income';
+      final method = (row['payment_method']?.toString().trim().isNotEmpty == true)
+          ? row['payment_method'].toString().toLowerCase()
+          : 'cash';
+      final isCash = method == 'cash' || method == 'tunai';
+      methodTotals[method] = (methodTotals[method] ?? 0) + (isIncome ? amount : -amount);
       if (isIncome) {
         income += amount;
         balance += amount;
+        if (isCash) { cashIncome += amount; } else { nonCashIncome += amount; }
       } else {
         expense += amount;
         balance -= amount;
+        if (isCash) { cashExpense += amount; } else { nonCashExpense += amount; }
       }
       if (type == 'all' || row['transaction_type'] == type) {
         entries.add({...row, 'running_balance': balance});
       }
     }
+    final openingCash = (openingRows.first['cash_balance'] as num?)?.toInt() ?? 0;
+    final openingNonCash = (openingRows.first['non_cash_balance'] as num?)?.toInt() ?? 0;
     return {
       'opening_balance': (openingRows.first['balance'] as num?)?.toInt() ?? 0,
       'income': income,
       'expense': expense,
       'closing_balance': balance,
+      'cash_opening_balance': openingCash,
+      'cash_income': cashIncome,
+      'cash_expense': cashExpense,
+      'cash_closing_balance': openingCash + cashIncome - cashExpense,
+      'non_cash_opening_balance': openingNonCash,
+      'non_cash_income': nonCashIncome,
+      'non_cash_expense': nonCashExpense,
+      'non_cash_closing_balance': openingNonCash + nonCashIncome - nonCashExpense,
+      'payment_method_totals': methodTotals,
       'entries': entries.reversed.toList(),
       'count': entries.length,
     };
@@ -280,6 +308,7 @@ class CashbookRepository {
     required String category,
     required String description,
     required int amount,
+    String paymentMethod = 'cash',
     DateTime? date,
   }) async {
     AuthSession.instance.requireAdmin('Pencatatan transaksi kas manual hanya dapat dilakukan Admin.');
@@ -298,6 +327,7 @@ class CashbookRepository {
       'category': cleanCategory,
       'description': cleanDescription,
       'amount': amount,
+      'payment_method': paymentMethod,
       'reference_type': 'manual_cash',
       'reference_id': null,
       'transaction_date': (date ?? DateTime.now()).toIso8601String(),
