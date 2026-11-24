@@ -14,6 +14,7 @@ class PaymentMethodsRepository {
     {'code': 'qris', 'name': 'QRIS'},
     {'code': 'debit_card', 'name': 'Kartu Debit'},
     {'code': 'credit_card', 'name': 'Kartu Kredit'},
+    {'code': 'e_wallet', 'name': 'E-Wallet'},
   ];
 
   Future<Database> get _db => AppDatabase.instance.database;
