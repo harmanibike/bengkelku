@@ -85,7 +85,7 @@ class ReceiptLayout extends StatelessWidget {
           rowText('Sepeda',(s(source['bicycle_brand'])+' '+s(source['bicycle_model'])).trim(),inner),
           rowText('Keluhan',s(source['complaint']),inner), dash(inner),
           if(finalPay)...[
-            summaryRow('Total biaya servis',money(total),inner),rowText('Sudah dibayar',money(paid),inner,bold:true),rowText('Sisa tagihan',money(remaining),inner,bold:true),
+            summaryRow('Total biaya servis',money(total),inner,bold:true),rowText('Sudah dibayar',money(paid),inner,bold:true),rowText('Sisa tagihan',money(remaining),inner,bold:true),
           ] else ...[
             rowText('Jasa servis',money(source['labor_cost']),inner),
             ...items.map((it)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
