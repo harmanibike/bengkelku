@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:material_ui/material_ui.dart';
 
 import '../../core/auth/auth_session.dart';
 import '../../core/notifications/stock_reminder_notification_service.dart';
 import '../settings/presentation/account_pages.dart';
+import '../settings/presentation/account_profile_page.dart';
 
 import '../bicycles/presentation/bicycle_list_page.dart';
 import '../customers/presentation/customer_list_page.dart';
@@ -217,18 +219,27 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _shopCard() {
+    final user = AuthSession.instance.user;
+    final role = user?['role'] == 'admin' ? 'Admin' : user?['role'] == 'cashier' ? 'Kasir' : 'Mekanik';
+    final photoPath = user?['profile_photo_path']?.toString() ?? '';
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: const BorderSide(color: Color(0xFFE9E9EF)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () async {
+          await Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountProfilePage()));
+          if (mounted) setState(() {});
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
               height: 40,
               decoration: BoxDecoration(
                 color: const Color(0xFFE8EAF6),
@@ -236,19 +247,48 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               child: const Icon(Icons.storefront_rounded, color: Color(0xFF5C6BC0), size: 24),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 17,
+                          backgroundColor: const Color(0xFFE8EAF6),
+                          backgroundImage: photoPath.isNotEmpty && File(photoPath).existsSync() ? FileImage(File(photoPath)) : null,
+                          child: photoPath.isEmpty || !File(photoPath).existsSync()
+                              ? Icon(user?['role'] == 'admin' ? Icons.admin_panel_settings : user?['role'] == 'cashier' ? Icons.point_of_sale : Icons.build, size: 18, color: const Color(0xFF5C6BC0))
+                              : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(user?['display_name']?.toString() ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                              Text('@${user?['username'] ?? '-'} • $role', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 5),
+              const Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Bengkel & Toko Sepeda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  const SizedBox(height: 2),
-                  Text(AuthSession.instance.isMechanic ? 'Lihat tugas servis yang ditugaskan' : 'Kelola servis dan transaksi', style: const TextStyle(color: Colors.grey, fontSize: 10)),
+                  Icon(Icons.edit_outlined, color: Color(0xFF5C6BC0), size: 19),
+                  Text('Edit', style: TextStyle(fontSize: 9, color: Color(0xFF5C6BC0))),
                 ],
               ),
-            ),
-            const Icon(Icons.chevron_right, color: Colors.grey),
-          ],
+            ],
+          ),
         ),
       ),
     );
