@@ -59,38 +59,50 @@ class LocalApiServer {
   Future<void> _handleRequests(HttpServer server, String serverName) async {
     try {
       await for (final request in server) {
-        request.response.headers.contentType = ContentType.json;
-        request.response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
-        request.response.headers.set('X-Content-Type-Options', 'nosniff');
+        // Kesalahan pada satu koneksi tidak boleh menghentikan listener untuk
+        // semua perangkat lain yang sedang memakai Server.
+        try {
+          request.response.headers.contentType = ContentType.json;
+          request.response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+          request.response.headers.set('X-Content-Type-Options', 'nosniff');
 
-        if (request.method == 'GET' && request.uri.path == '/api/v1/health') {
-          request.response.statusCode = HttpStatus.ok;
-          request.response.write(jsonEncode({
-            'app': 'bengkelku_pos',
-            'status': 'ok',
-            'server_name': serverName,
-            'app_version': appVersion,
-            'api_version': apiVersion,
-            'min_client_version': minimumClientVersion,
-            'max_client_version': maximumClientVersion,
-          }));
-        } else if (request.uri.path == '/api/v1/health') {
-          request.response.statusCode = HttpStatus.methodNotAllowed;
-          request.response.headers.set(HttpHeaders.allowHeader, 'GET');
-          request.response.write(jsonEncode({
-            'app': 'bengkelku_pos',
-            'status': 'method_not_allowed',
-            'message': 'Endpoint pemeriksaan hanya menerima GET.',
-          }));
-        } else {
-          request.response.statusCode = HttpStatus.notFound;
-          request.response.write(jsonEncode({
-            'app': 'bengkelku_pos',
-            'status': 'not_found',
-            'message': 'Endpoint BengkelKu tidak ditemukan.',
-          }));
+          if (request.method == 'GET' && request.uri.path == '/api/v1/health') {
+            request.response.statusCode = HttpStatus.ok;
+            request.response.write(jsonEncode({
+              'app': 'bengkelku_pos',
+              'status': 'ok',
+              'server_name': serverName,
+              'app_version': appVersion,
+              'api_version': apiVersion,
+              'min_client_version': minimumClientVersion,
+              'max_client_version': maximumClientVersion,
+            }));
+          } else if (request.uri.path == '/api/v1/health') {
+            request.response.statusCode = HttpStatus.methodNotAllowed;
+            request.response.headers.set(HttpHeaders.allowHeader, 'GET');
+            request.response.write(jsonEncode({
+              'app': 'bengkelku_pos',
+              'status': 'method_not_allowed',
+              'message': 'Endpoint pemeriksaan hanya menerima GET.',
+            }));
+          } else {
+            request.response.statusCode = HttpStatus.notFound;
+            request.response.write(jsonEncode({
+              'app': 'bengkelku_pos',
+              'status': 'not_found',
+              'message': 'Endpoint BengkelKu tidak ditemukan.',
+            }));
+          }
+          await request.response.close();
+        } catch (_) {
+          // Klien dapat memutus koneksi kapan saja. Abaikan kegagalan respons
+          // tersebut dan lanjutkan menerima permintaan berikutnya.
+          try {
+            request.response.abort();
+          } catch (_) {
+            // Respons mungkin sudah ditutup oleh socket.
+          }
         }
-        await request.response.close();
       }
     } on HttpException {
       // Server mungkin sedang dihentikan saat koneksi terputus.

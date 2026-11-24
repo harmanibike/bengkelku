@@ -68,6 +68,16 @@ void main() {
         response.headers.value('X-Content-Type-Options'),
         'nosniff',
       );
+
+      // Request berikutnya tetap harus dilayani setelah method yang ditolak.
+      final healthRequest = await client.get(
+        InternetAddress.loopbackIPv4.address,
+        port,
+        '/api/v1/health',
+      );
+      final healthResponse = await healthRequest.close();
+      expect(healthResponse.statusCode, HttpStatus.ok);
+      await healthResponse.drain<void>();
     } finally {
       client.close(force: true);
     }
