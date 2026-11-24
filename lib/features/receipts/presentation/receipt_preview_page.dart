@@ -250,10 +250,9 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     final dateText = date == null
         ? _plain(sale['transaction_date'])
         : '${two(date.day)}/${two(date.month)}/${date.year} ${two(date.hour)}:${two(date.minute)}';
-    // Pisahkan label dan nomor agar nomor invoice panjang tidak menyisakan
-    // satu digit sendirian di baris berikutnya.
-    ticket.text('No. Nota:', maxCharsPerLine: width);
-    ticket.text(_displayInvoiceNumber(sale['invoice_number']), maxCharsPerLine: width);
+    // Label dan nomor nota dicetak sejajar selama masih muat pada lebar kertas.
+    final invoiceLine = 'No. Nota: ${_displayInvoiceNumber(sale['invoice_number'])}';
+    ticket.text(invoiceLine, maxCharsPerLine: width);
     ticket.text('Tanggal: $dateText', maxCharsPerLine: width);
     if (settings.showCustomerDetails && (sale['customer_name']?.toString().trim().isNotEmpty ?? false)) {
       ticket.text('Pelanggan: ${_plain(sale['customer_name'])}', maxCharsPerLine: width);
@@ -273,8 +272,11 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       final qty = _amount(item['quantity']);
       final unit = _rupiah(item['unit_price']);
       final subtotal = _rupiah(item['subtotal']);
-      ticket.text('  $qty x $unit', maxCharsPerLine: width);
-      ticket.text(_fitLine('', subtotal, width), align: PrintAlign.right, maxCharsPerLine: width);
+      // Jumlah, harga satuan, dan subtotal berada dalam satu baris.
+      ticket.text(
+        _fitLine('  $qty x $unit', subtotal, width),
+        maxCharsPerLine: width,
+      );
     }
     ticket.separator();
 
