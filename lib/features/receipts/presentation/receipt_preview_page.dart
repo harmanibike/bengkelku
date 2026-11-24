@@ -116,6 +116,185 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     }
   }
 
+  String _receiptText(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    return text == 'null' ? '' : text;
+  }
+
+  int _receiptInt(Object? value) => value is num ? value.toInt() : int.tryParse('$value') ?? 0;
+
+  String _receiptMoney(Object? value) {
+    final digits = _receiptInt(value).toString();
+    final out = StringBuffer('Rp.');
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) out.write('.');
+      out.write(digits[i]);
+    }
+    return out.toString();
+  }
+
+  String _receiptDate(Object? value) {
+    final parsed = DateTime.tryParse(_receiptText(value))?.toLocal();
+    if (parsed == null) return '-';
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '\${two(parsed.day)}/\${two(parsed.month)}/\${parsed.year} \${two(parsed.hour)}:\${two(parsed.minute)}';
+  }
+
+  void _ticketText(Ticket ticket, String value, {bool bold = false, PrintAlign align = PrintAlign.left, int linesAfter = 0}) {
+    if (value.trim().isEmpty) return;
+    ticket.text(value, align: align,
+      style: PrintTextStyle(bold: bold, fontType: FontType.fontA),
+      maxCharsPerLine: 32, linesAfter: linesAfter);
+  }
+
+  void _ticketLabel(Ticket ticket, String label, String value, {bool bold = false}) {
+    if (value.trim().isEmpty) return;
+    ticket.row([
+      PrintColumn(text: label, flex: 5, style: PrintTextStyle(bold: bold, fontType: FontType.fontA)),
+      PrintColumn(text: value, flex: 7, align: PrintAlign.right, style: PrintTextStyle(bold: bold, fontType: FontType.fontA)),
+    ]);
+  }
+
+  String _paymentMethod(Map<String, Object?> payment) {
+    final raw = _receiptText(payment['payment_method'] ?? payment['method'] ?? payment['payment_method_name']);
+    final key = raw.toLowerCase().replaceAll('-', '_');
+    const labels = {'cash':'TUNAI','tunai':'TUNAI','bank_transfer':'TRANSFER','transfer':'TRANSFER','transfer bank':'TRANSFER','qris':'QRIS','debit_card':'KARTU DEBIT','credit_card':'KARTU KREDIT','e_wallet':'E-WALLET','customer_wallet':'SALDO PELANGGAN'};
+    return labels[key] ?? raw.toUpperCase();
+  }
+
+  Future<Ticket> _buildRawReceiptTicket(ReceiptPrintSettings settings) async {
+    final type = widget.receiptType!;
+    final isSale = type == 'sale';
+    final isFinalPayment = type == 'service_final_payment';
+    final source = Map<String, Object?>.from(widget.receiptPayload![isSale ? 'sale' : 'service'] as Map);
+    final profile = Map<String, String>.from(widget.receiptPayload!['profile'] as Map);
+    final payments = List<Map<String, Object?>>.from((widget.receiptPayload!['payments'] as List? ?? const []).map((item) => Map<String, Object?>.from(item as Map)));
+    final items = List<Map<String, Object?>>.from((source['items'] as List? ?? const []).map((item) => Map<String, Object?>.from(item as Map)));
+    final total = _receiptInt(isSale ? source['total'] : source['total_cost']);
+    final paid = isFinalPayment ? (total - _receiptInt(source['remaining_payment'])).clamp(0, 1 << 62).toInt() : _receiptInt(isSale ? source['paid'] : source['down_payment']);
+    final returns = Map<String, Object?>.from(widget.receiptPayload!['return_summary'] as Map? ?? const {});
+    final remaining = isSale ? (total - paid - _receiptInt(returns['returned_amount']) + _receiptInt(returns['refunded_amount'])).clamp(0, 1 << 62).toInt() : _receiptInt(source['remaining_payment']);
+
+    final ticket = await Ticket.create(settings.paperWidthMm == 80 ? PaperSize.mm80 : PaperSize.mm58);
+    final logoPath = _receiptText(profile['business_logo_path']);
+    if (settings.showLogo && logoPath.isNotEmpty) {
+      final file = File(logoPath);
+      if (await file.exists()) {
+        try {
+          final decoded = img.decodeImage(await file.readAsBytes());
+          if (decoded != null) {
+            final maxWidth = settings.paperWidthMm == 80 ? 320 : 240;
+            final logo = decoded.width > maxWidth ? img.copyResize(decoded, width: maxWidth) : decoded;
+            ticket.imageRaster(logo, align: PrintAlign.center, maxWidth: maxWidth);
+          }
+        } catch (_) {}
+      }
+    }
+    if (settings.showBusinessName) {
+      final name = _receiptText(profile['business_name']);
+      if (name.isNotEmpty) _ticketText(ticket, name.toUpperCase(), bold: true, align: PrintAlign.center);
+    }
+    if (settings.showBusinessAddress) _ticketText(ticket, _receiptText(profile['business_address']), align: PrintAlign.center);
+    if (settings.showBusinessContact) {
+      final phone = _receiptText(profile['business_phone']);
+      final wa = _receiptText(profile['business_whatsapp']);
+      if (phone.isNotEmpty) _ticketText(ticket, 'Telp. $phone', align: PrintAlign.center);
+      if (wa.isNotEmpty && wa != phone) _ticketText(ticket, 'WA. $wa', align: PrintAlign.center);
+    }
+
+    ticket.separator();
+    _ticketText(ticket, isSale ? 'NOTA PENJUALAN' : isFinalPayment ? 'BUKTI PELUNASAN SERVIS' : 'NOTA SERVIS', bold: true, align: PrintAlign.center);
+    ticket.separator();
+    _ticketLabel(ticket, 'No. Nota', _receiptText(isSale ? source['invoice_number'] : source['order_number']));
+    _ticketLabel(ticket, 'Tanggal', _receiptDate(isSale ? source['transaction_date'] : source['received_at']));
+    if (settings.showCustomerDetails) {
+      final customer = _receiptText(source['customer_name']);
+      _ticketLabel(ticket, 'Pelanggan', customer.isEmpty ? 'Pembeli Umum' : customer);
+      final phone = _receiptText(source['customer_phone']);
+      if (phone.isNotEmpty) _ticketLabel(ticket, 'No. Telp', phone);
+    }
+
+    if (isSale) {
+      ticket.separator();
+      _ticketText(ticket, 'BARANG', bold: true);
+      for (final item in items) {
+        final name = _receiptText(item['product_name']);
+        if (name.isNotEmpty) _ticketText(ticket, name);
+        ticket.row([
+          PrintColumn(text: '\${_receiptInt(item['quantity'])} x \${_receiptMoney(item['unit_price'])}', flex: 7),
+          PrintColumn(text: _receiptMoney(item['subtotal']), flex: 5, align: PrintAlign.right, style: const PrintTextStyle(bold: true)),
+        ]);
+      }
+      ticket.separator();
+      _ticketLabel(ticket, 'Subtotal', _receiptMoney(source['subtotal']));
+      _ticketLabel(ticket, 'Diskon', _receiptMoney(source['discount']));
+      _ticketLabel(ticket, 'TOTAL', _receiptMoney(total), bold: true);
+      _ticketLabel(ticket, 'Sudah dibayar', _receiptMoney(paid));
+      _ticketLabel(ticket, 'Sisa tagihan', _receiptMoney(remaining), bold: true);
+    } else {
+      final bicycle = [_receiptText(source['bicycle_brand']), _receiptText(source['bicycle_model'])].where((part) => part.isNotEmpty).join(' ');
+      if (bicycle.isNotEmpty) _ticketLabel(ticket, 'Sepeda', bicycle);
+      final complaint = _receiptText(source['complaint']);
+      if (complaint.isNotEmpty) { _ticketText(ticket, 'Keluhan:', bold: true); _ticketText(ticket, complaint); }
+      if (!isFinalPayment) {
+        final diagnosis = _receiptText(source['diagnosis']);
+        if (diagnosis.isNotEmpty) { _ticketText(ticket, 'Diagnosis:', bold: true); _ticketText(ticket, diagnosis); }
+        final mechanic = _receiptText(source['mechanic_name']);
+        if (mechanic.isNotEmpty) _ticketLabel(ticket, 'Mekanik', mechanic);
+        ticket.separator();
+        _ticketLabel(ticket, 'Jasa servis', _receiptMoney(source['labor_cost']));
+        for (final item in items) {
+          final name = _receiptText(item['item_name']);
+          if (name.isNotEmpty) _ticketText(ticket, name);
+          ticket.row([
+            PrintColumn(text: '\${_receiptInt(item['quantity'])} x \${_receiptMoney(item['unit_price'])}', flex: 7),
+            PrintColumn(text: _receiptMoney(item['subtotal']), flex: 5, align: PrintAlign.right, style: const PrintTextStyle(bold: true)),
+          ]);
+        }
+        _ticketLabel(ticket, 'Total sparepart', _receiptMoney(source['parts_cost']));
+        _ticketLabel(ticket, 'Diskon', _receiptMoney(source['discount']));
+        _ticketLabel(ticket, 'TOTAL BIAYA', _receiptMoney(total), bold: true);
+        _ticketLabel(ticket, 'Sudah dibayar', _receiptMoney(paid));
+        _ticketLabel(ticket, 'Sisa tagihan', _receiptMoney(remaining), bold: true);
+        final status = _receiptText(source['service_status']);
+        if (status.isNotEmpty) _ticketLabel(ticket, 'Status', status);
+      } else {
+        ticket.separator();
+        _ticketLabel(ticket, 'Total biaya servis', _receiptMoney(total));
+        _ticketLabel(ticket, 'Total pembayaran', _receiptMoney(paid), bold: true);
+        _ticketLabel(ticket, 'Sisa tagihan', _receiptMoney(remaining), bold: true);
+        _ticketText(ticket, 'LUNAS - TIDAK ADA SISA TAGIHAN', bold: true, align: PrintAlign.center);
+      }
+    }
+
+    if (payments.isNotEmpty) {
+      ticket.separator();
+      _ticketText(ticket, 'RIWAYAT PEMBAYARAN', bold: true, align: PrintAlign.center);
+      for (final payment in payments) {
+        final parsed = DateTime.tryParse(_receiptText(payment['transaction_date']))?.toLocal();
+        String two(int n) => n.toString().padLeft(2, '0');
+        final dateText = parsed == null ? '-' : '\${two(parsed.day)}/\${two(parsed.month)} \${two(parsed.hour)}:\${two(parsed.minute)}';
+        final method = _paymentMethod(payment);
+        _ticketText(ticket, '$dateText \${method.isEmpty ? '' : '· $method'}');
+        _ticketText(ticket, _receiptMoney(payment['amount']), bold: true, align: PrintAlign.right);
+      }
+    }
+    if (settings.showTransactionNotes && _receiptText(source['notes']).isNotEmpty) {
+      ticket.separator();
+      _ticketText(ticket, 'Catatan:', bold: true);
+      _ticketText(ticket, _receiptText(source['notes']));
+    }
+    ticket.separator();
+    if (settings.showFooter) {
+      final footer = settings.footerNote.trim().isEmpty ? 'Terima kasih atas kunjungan Anda.' : settings.footerNote.trim();
+      _ticketText(ticket, footer, align: PrintAlign.center, linesAfter: 2);
+    } else {
+      ticket.emptyLines(2);
+    }
+    ticket.cut();
+    return ticket;
+  }
+
   Future<void> _print() async {
     if (!_nativeReceipt || _printing) return;
     setState(() => _printing = true);
@@ -124,19 +303,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       final settings = await ReceiptSettingsRepository().getReceiptSettings();
       final saved = await ReceiptSettingsRepository().getSavedPrinter();
       if (saved == null) throw StateError('Printer thermal belum diatur. Hubungkan printer melalui Pengaturan Printer.');
-      final bytes = _imageBytes;
-      if (bytes == null) throw StateError('Gambar nota belum siap.');
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) throw StateError('Gambar nota tidak dapat dibaca.');
-      final width = settings.thermalDots;
-      final resized = decoded.width == width
-          ? decoded
-          : img.copyResize(decoded, width: width, interpolation: img.Interpolation.nearest);
-      final receipt = img.grayscale(resized);
-      for (final pixel in receipt) {
-        final value = pixel.luminance < 180 ? 0 : 255;
-        pixel..r = value..g = value..b = value;
-      }
+      final ticket = await _buildRawReceiptTicket(settings);
       manager = PrinterManager(bluetoothConnector: BluetoothConnector(
         chunkSize: 128,
         interChunkDelay: const Duration(milliseconds: 20),
@@ -144,21 +311,14 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         maxDrainWait: const Duration(seconds: 10),
       ));
       await manager.connect(BluetoothPrinterDevice(name: saved['name']!, address: saved['address']!));
-      final ticket = await Ticket.create(settings.paperWidthMm == 80 ? PaperSize.mm80 : PaperSize.mm58);
-      ticket.imageRaster(receipt, align: PrintAlign.center, maxWidth: width);
-      ticket.cut();
       await manager.printTicket(ticket);
       await manager.waitWriteComplete();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Nota dikirim ke printer ' + saved['name']! + '.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Nota ESC/POS dikirim ke printer \${saved['name']!}.')));
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mencetak nota: $error')));
     } finally {
-      if (manager != null) {
-        try { await manager.dispose(); } catch (_) {}
-      }
-      if (mounted) setState(() {
-        _printing = false;
-      });
+      if (manager != null) { try { await manager.dispose(); } catch (_) {} }
+      if (mounted) setState(() => _printing = false);
     }
   }
 
