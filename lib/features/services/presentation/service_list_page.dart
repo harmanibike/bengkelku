@@ -363,7 +363,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final tipAmount = extra > 0 && choice == 'tip' ? extra : 0;
     final walletDepositAmount = extra > 0 && choice == 'wallet' ? extra : 0;
     final change = extra > 0 && choice == 'change' ? extra : 0;
-    final paymentMethod = result['payment_method']?.toString() ?? 'cash';
+    final selectedPaymentMethod = result['payment_method']?.toString() ?? 'cash';
     try {
       await _repository.addPayment(
         id: id,
@@ -371,7 +371,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
         tipAmount: tipAmount,
         walletDepositAmount: walletDepositAmount,
         tipRecipientName: order?['mechanic_name']?.toString(),
-        paymentMethod: paymentMethod,
+        paymentMethod: selectedPaymentMethod,
       );
       if (!mounted) return;
       _refresh();
