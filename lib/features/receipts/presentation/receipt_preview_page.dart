@@ -519,21 +519,12 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
           : PaperSize.mm58;
       final ticket = await Ticket.create(paperSize);
 
-      // Nota penjualan dan servis memakai teks ESC/POS native agar kolom rapi.
-      if ((widget.receiptType == 'sale' || widget.receiptType == 'service') && widget.receiptPayload != null) {
-        if (widget.receiptType == 'sale') {
-          await _printSaleHybrid(ticket, widget.receiptPayload!, settings.paperWidthMm, settings);
-        } else {
-          await _printServiceHybrid(ticket, widget.receiptPayload!, settings.paperWidthMm, settings);
-        }
-        ticket.cut();
-        await manager.printTicket(ticket);
-        await manager.waitWriteComplete();
-      } else {
-        // Dokumen selain nota penjualan sementara tetap memakai jalur lama.
-        final maxWidth = settings.paperWidthMm == 80 ? 470 : 320;
-        var printedPages = 0;
-        await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
+      // Semua jenis nota dicetak dari dokumen PDF yang sama dengan
+      // pratinjau dan file WhatsApp. Dengan demikian logo, ukuran huruf,
+      // jarak, garis, dan tata letak konsisten untuk seluruh dokumen.
+      final maxWidth = settings.paperWidthMm == 80 ? 470 : 320;
+      var printedPages = 0;
+      await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
         final pageBytes = await page.toPng();
         final decoded = img.decodeImage(pageBytes);
         if (decoded == null) {
@@ -543,21 +534,20 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
             ? img.copyResize(decoded, width: maxWidth)
             : decoded;
 
-        final ticket = await Ticket.create(paperSize);
-        ticket.imageRaster(
+        final pageTicket = await Ticket.create(paperSize);
+        pageTicket.imageRaster(
           receiptImage,
           align: PrintAlign.center,
           maxWidth: maxWidth,
         );
-        ticket.cut();
-        await manager.printTicket(ticket);
+        pageTicket.cut();
+        await manager.printTicket(pageTicket);
         await manager.waitWriteComplete();
-          printedPages++;
-        }
+        printedPages++;
+      }
 
-        if (printedPages == 0) {
-          throw StateError('Dokumen nota tidak memiliki halaman untuk dicetak.');
-        }
+      if (printedPages == 0) {
+        throw StateError('Dokumen nota tidak memiliki halaman untuk dicetak.');
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
