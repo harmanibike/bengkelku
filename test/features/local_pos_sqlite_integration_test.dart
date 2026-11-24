@@ -13,6 +13,7 @@ import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
 import 'package:bengkelku_pos/features/purchases/data/purchase_return_repository.dart';
+import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
 
 void main() {
   late Directory testDirectory;
@@ -86,6 +87,12 @@ void main() {
     final withdrawal = cash.where((row) => row['category'] == 'Penarikan Saldo Pelanggan');
     expect(deposit.fold<int>(0, (sum, row) => sum + (row['amount'] as int)), 150000);
     expect(withdrawal.fold<int>(0, (sum, row) => sum + (row['amount'] as int)), 50000);
+
+    final issues = await CashbookRepository().getReconciliationIssues(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(issues, isEmpty);
   });
 
   test('service cancellation refunds cash and wallet without mixing tip', () async {
@@ -575,6 +582,60 @@ void main() {
       whereArgs: [productId],
     )).single;
     expect(product['stock'], 1);
+  });
+
+
+  test('cashbook calculates opening, running and closing balances consistently', () async {
+    final db = await AppDatabase.instance.database;
+    await db.insert('cash_transactions', {
+      'transaction_type': 'income',
+      'category': 'Modal awal',
+      'description': 'Saldo sebelum periode',
+      'amount': 10000,
+      'reference_type': 'manual_cash',
+      'transaction_date': '2026-01-01T09:00:00.000',
+    });
+    await db.insert('cash_transactions', {
+      'transaction_type': 'income',
+      'category': 'Penjualan',
+      'description': 'Kas masuk',
+      'amount': 5000,
+      'reference_type': 'manual_cash',
+      'transaction_date': '2026-01-02T09:00:00.000',
+    });
+    await db.insert('cash_transactions', {
+      'transaction_type': 'expense',
+      'category': 'Operasional',
+      'description': 'Kas keluar',
+      'amount': 2000,
+      'reference_type': 'manual_cash',
+      'transaction_date': '2026-01-02T10:00:00.000',
+    });
+
+    final cashbook = CashbookRepository();
+    final ledger = await cashbook.getLedger(
+      start: DateTime(2026, 1, 2),
+      end: DateTime(2026, 1, 3),
+    );
+    expect(ledger['opening_balance'], 10000);
+    expect(ledger['income'], 5000);
+    expect(ledger['expense'], 2000);
+    expect(ledger['closing_balance'], 13000);
+    final entries = ledger['entries'] as List<Map<String, Object?>>;
+    expect(entries, hasLength(2));
+    expect(entries.first['running_balance'], 13000);
+    expect(entries.last['running_balance'], 15000);
+
+    final incomeOnly = await cashbook.getLedger(
+      start: DateTime(2026, 1, 2),
+      end: DateTime(2026, 1, 3),
+      type: 'income',
+    );
+    expect(incomeOnly['entries'], hasLength(1));
+    // Filter hanya menyaring daftar transaksi; saldo dan ringkasan tetap total periode.
+    expect(incomeOnly['income'], 5000);
+    expect(incomeOnly['expense'], 2000);
+    expect(incomeOnly['closing_balance'], 13000);
   });
 
   test('version 33 migration preserves legacy return rows as unknown snapshot', () async {
