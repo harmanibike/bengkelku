@@ -177,8 +177,12 @@ Berlaku untuk semua merek dan model printer yang didukung, bukan hanya satu mode
 - Saldo pelanggan dapat ditarik sesuai alur yang disediakan aplikasi.
 - Pastikan setiap perpindahan saldo memiliki catatan ledger dan tidak menggandakan pemasukan kas.
 
-### 8.5 Nota WhatsApp
-Saat membagikan nota melalui WhatsApp, pengguna diberi pilihan format **foto atau PDF**.
+### 8.5 Kebijakan output nota dan laporan
+- **Nota penjualan, nota servis, bukti pelunasan servis, dan bukti penerimaan sepeda:** hanya dicetak melalui printer thermal 58/80 mm dan dibagikan melalui WhatsApp sebagai foto (PNG/JPG).
+- Tidak boleh ada pilihan ekspor, pratinjau, atau berbagi PDF untuk nota dan bukti transaksi tersebut.
+- **Laporan serah terima sepeda:** hanya tersedia dalam format PDF; bukan struk thermal dan bukan foto WhatsApp.
+- Logo toko dari Profil Usaha, nama toko tebal, rincian transaksi, riwayat pembayaran, dan footer harus konsisten pada hasil thermal dan foto nota.
+- Jangan menganggap penggunaan PDF internal sebagai sumber render berarti PDF boleh ditawarkan kepada pengguna. Format PDF yang dapat dipilih/dibagikan hanya untuk laporan serah terima sepeda.
 
 ## 9. Checklist sebelum menyatakan siap
 
@@ -258,3 +262,7 @@ Batas pemeriksaan:
 - Tidak ada perubahan kode aplikasi yang dilakukan berdasarkan review statis ini.
 - Estimasi progres tetap: POS Local **90%**, Server–Client **12%**.
 - Penghambat utama yang dicatat: uji backup-restore khusus belum tersedia/terkonfirmasi; transport cleartext global harus diselesaikan sebelum fitur jaringan sensitif diaktifkan.
+
+
+## 13. Keputusan output nota — 24 November 2026
+Keputusan terbaru pengguna menggantikan kebijakan lama yang membolehkan PDF untuk nota. Nota dan bukti transaksi hanya boleh dibagikan sebagai foto dan dicetak melalui thermal printer; laporan serah terima sepeda hanya PDF. Commit 3ca444dc mulai membatasi halaman pratinjau nota menjadi foto saja dan menghapus jalur cetak PDF Android ketika printer thermal belum dikonfigurasi. Build untuk commit tersebut masih perlu diverifikasi. Jalur cetak thermal saat ini masih merender sumber dokumen menjadi bitmap sebelum dikirim melalui ESC/POS; implementasi cetak teks ESC/POS native dan penyamaan layout dengan foto masih menjadi pekerjaan lanjutan, jangan mengklaim sudah selesai.
