@@ -39,6 +39,40 @@ void main() {
     }
   });
 
+
+  test('concurrent start calls share one listening server', () async {
+    final ports = await Future.wait([
+      server.start(port: 0),
+      server.start(port: 0),
+      server.start(port: 0),
+    ]);
+
+    expect(ports.toSet(), hasLength(1));
+    expect(server.isRunning, isTrue);
+    expect(server.port, ports.first);
+  });
+
+  test('health endpoint rejects methods other than GET', () async {
+    final port = await server.start(port: 0);
+    final client = HttpClient();
+    try {
+      final request = await client.post(
+        InternetAddress.loopbackIPv4.address,
+        port,
+        '/api/v1/health',
+      );
+      final response = await request.close();
+      expect(response.statusCode, HttpStatus.methodNotAllowed);
+      expect(response.headers.value(HttpHeaders.allowHeader), 'GET');
+      expect(
+        response.headers.value('X-Content-Type-Options'),
+        'nosniff',
+      );
+    } finally {
+      client.close(force: true);
+    }
+  });
+
   test('returns not found for unsupported endpoints', () async {
     final port = await server.start(port: 0);
     final client = HttpClient();
