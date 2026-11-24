@@ -11,6 +11,7 @@ import 'package:bengkelku_pos/core/database/app_database.dart';
 import 'package:bengkelku_pos/features/customers/data/customer_wallet_repository.dart';
 import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
+import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
 
 void main() {
   late Directory testDirectory;
@@ -235,6 +236,142 @@ void main() {
     final product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
     expect(product['stock'], 1);
     expect(await db.query('cash_transactions'), isEmpty);
+  });
+
+  test('sale return restores original stock batch and records cash refund', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Rantai Uji',
+      'selling_price': 50000,
+      'purchase_price': 20000,
+      'stock': 3,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final batchId = await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 3,
+      'quantity_remaining': 3,
+      'unit_cost': 20000,
+    });
+
+    final saleId = await SaleRepository().checkout(
+      items: [
+        {'product_id': productId, 'quantity': 2, 'unit_price': 50000},
+      ],
+      paid: 100000,
+      paymentMethod: 'cash',
+    );
+    final saleItem = (await db.query(
+      'sale_items',
+      where: 'sale_id = ?',
+      whereArgs: [saleId],
+    )).single;
+
+    final returnId = await SaleReturnRepository().createReturn(
+      saleId: saleId,
+      items: [
+        {'sale_item_id': saleItem['id'], 'quantity': 1},
+      ],
+      refundAmount: 50000,
+      notes: 'Barang dikembalikan',
+    );
+
+    final product = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    final batch = (await db.query(
+      'inventory_cost_batches',
+      where: 'id = ?',
+      whereArgs: [batchId],
+    )).single;
+    expect(product['stock'], 2);
+    expect(batch['quantity_remaining'], 2);
+
+    final allocations = await db.query(
+      'sale_return_batch_allocations',
+      where: 'batch_id = ?',
+      whereArgs: [batchId],
+    );
+    expect(allocations, hasLength(1));
+    expect(allocations.single['quantity'], 1);
+
+    final refund = (await db.query(
+      'cash_transactions',
+      where: "reference_type = 'sale_return' AND reference_id = ?",
+      whereArgs: [returnId],
+    )).single;
+    expect(refund['transaction_type'], 'expense');
+    expect(refund['amount'], 50000);
+
+    final sale = (await db.query(
+      'sales',
+      where: 'id = ?',
+      whereArgs: [saleId],
+    )).single;
+    expect(sale['payment_status'], 'paid');
+    expect(await SaleReturnRepository().getReturnableItems(saleId), isNotEmpty);
+  });
+
+  test('sale return rejects quantities beyond the remaining returnable amount', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Kabel Uji',
+      'selling_price': 25000,
+      'purchase_price': 10000,
+      'stock': 2,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 2,
+      'quantity_remaining': 2,
+      'unit_cost': 10000,
+    });
+
+    final saleId = await SaleRepository().checkout(
+      items: [
+        {'product_id': productId, 'quantity': 2, 'unit_price': 25000},
+      ],
+      paid: 50000,
+      paymentMethod: 'cash',
+    );
+    final saleItem = (await db.query(
+      'sale_items',
+      where: 'sale_id = ?',
+      whereArgs: [saleId],
+    )).single;
+    final returns = SaleReturnRepository();
+
+    await returns.createReturn(
+      saleId: saleId,
+      items: [
+        {'sale_item_id': saleItem['id'], 'quantity': 1},
+      ],
+      refundAmount: 25000,
+    );
+
+    await expectLater(
+      returns.createReturn(
+        saleId: saleId,
+        items: [
+          {'sale_item_id': saleItem['id'], 'quantity': 2},
+        ],
+        refundAmount: 50000,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(await db.query('sale_returns'), hasLength(1));
+    final product = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    expect(product['stock'], 1);
   });
 
   test('version 33 migration preserves legacy return rows as unknown snapshot', () async {
