@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart' show Database, databaseFactory, getDatabasesPath, openDatabase;
@@ -8,6 +10,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart'
 
 import 'package:bengkelku_pos/core/auth/auth_session.dart';
 import 'package:bengkelku_pos/core/database/app_database.dart';
+import 'package:bengkelku_pos/core/database/database_backup_service.dart';
 import 'package:bengkelku_pos/features/customers/data/customer_wallet_repository.dart';
 import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
@@ -18,8 +21,10 @@ import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
 
 void main() {
   late Directory testDirectory;
+  const pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
 
   setUpAll(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   });
@@ -27,6 +32,7 @@ void main() {
   setUp(() async {
     testDirectory = await Directory.systemTemp.createTemp('bengkelku_sqlite_test_');
     await databaseFactory.setDatabasesPath(testDirectory.path);
+    pathProviderChannel.setMockMethodCallHandler((call) async => testDirectory.path);
     AuthSession.instance.signIn({
       'id': 1,
       'role': 'admin',
@@ -37,6 +43,7 @@ void main() {
   tearDown(() async {
     await AppDatabase.instance.close();
     AuthSession.instance.signOut();
+    pathProviderChannel.setMockMethodCallHandler(null);
     if (await testDirectory.exists()) {
       await testDirectory.delete(recursive: true);
     }
@@ -103,6 +110,91 @@ void main() {
       end: DateTime(2100),
     );
     expect(clean, isEmpty);
+  });
+
+  test('database backup restores data and preserves a safety copy', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Produk Sebelum Backup',
+      'selling_price': 50000,
+      'purchase_price': 25000,
+      'stock': 4,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+
+    final backupService = DatabaseBackupService();
+    final backup = await backupService.createBackup();
+    expect(await backup.exists(), isTrue);
+    expect(await backup.length(), greaterThan(100));
+
+    final currentDb = await AppDatabase.instance.database;
+    await currentDb.update(
+      'products',
+      {'name': 'Produk Setelah Backup'},
+      where: 'id = ?',
+      whereArgs: [productId],
+    );
+
+    final safetyCopyPath = await backupService.restoreBackup(backup.path);
+    expect(await File(safetyCopyPath).exists(), isTrue);
+
+    final restoredDb = await AppDatabase.instance.database;
+    final restored = await restoredDb.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+      limit: 1,
+    );
+    expect(restored.single['name'], 'Produk Sebelum Backup');
+    expect(
+      Sqflite.firstIntValue(await restoredDb.rawQuery('PRAGMA integrity_check')),
+      1,
+    );
+  });
+
+  test('invalid database backup is rejected and temporary candidate is removed', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Data Tetap Aman',
+      'selling_price': 10000,
+      'purchase_price': 5000,
+      'stock': 1,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+
+    final invalidBackup = File(p.join(testDirectory.path, 'invalid_backup.db'));
+    final invalidDb = await openDatabase(
+      invalidBackup.path,
+      version: AppDatabase.currentVersion,
+      onCreate: (database, version) async {
+        await database.execute('CREATE TABLE unrelated (id INTEGER PRIMARY KEY)');
+      },
+    );
+    await invalidDb.close();
+
+    final backupService = DatabaseBackupService();
+    await expectLater(
+      backupService.restoreBackup(invalidBackup.path),
+      throwsA(isA<FormatException>()),
+    );
+
+    final candidates = Directory(p.join(testDirectory.path, 'BengkelKuBackups'));
+    final leftovers = await candidates
+        .list()
+        .where((entity) => p.basename(entity.path).startsWith('restore_candidate_'))
+        .toList();
+    expect(leftovers, isEmpty);
+
+    final unchangedDb = await AppDatabase.instance.database;
+    final unchanged = await unchangedDb.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+      limit: 1,
+    );
+    expect(unchanged.single['name'], 'Data Tetap Aman');
   });
 
   test('wallet deposit and withdrawal keep Rupiah ledger consistent', () async {
