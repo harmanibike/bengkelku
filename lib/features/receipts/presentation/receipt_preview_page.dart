@@ -191,7 +191,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         } catch (_) {
           // Abaikan kegagalan pemutusan setelah pekerjaan cetak selesai/gagal.
         }
-        await manager.dispose();
+        manager.dispose();
       }
       if (mounted) setState(() => _printing = false);
     }
