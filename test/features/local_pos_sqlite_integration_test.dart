@@ -225,6 +225,12 @@ void main() {
     );
     expect(tips, hasLength(1));
     expect(tips.single['amount'], 5000);
+
+    final reconciliationIssues = await CashbookRepository().getReconciliationIssues(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(reconciliationIssues, isEmpty);
   });
 
 
