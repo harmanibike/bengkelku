@@ -148,8 +148,8 @@ void main() {
     );
     expect(restored.single['name'], 'Produk Sebelum Backup');
     expect(
-      Sqflite.firstIntValue(await restoredDb.rawQuery('PRAGMA integrity_check')),
-      1,
+      (await restoredDb.rawQuery('PRAGMA integrity_check')).single.values.first,
+      'ok',
     );
   });
 
