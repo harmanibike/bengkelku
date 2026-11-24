@@ -209,11 +209,9 @@ class SaleRepository {
       // Nomor invoice baru dibuat singkat sejak transaksi disimpan:
       // INV-YYMMDD-0001. Hitung transaksi pada tanggal yang sama di dalam
       // database transaction agar nomor berurutan dan tidak bentrok.
-      final dateKey =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final invoiceCountRows = await txn.rawQuery(
-        'SELECT COUNT(*) AS total FROM sales WHERE transaction_date LIKE ?',
-        ['$dateKey%'],
+        'SELECT COUNT(*) AS total FROM sales WHERE invoice_number LIKE ?',
+        ['INV-$invoiceDate-%'],
       );
       final dailySequence =
           ((invoiceCountRows.first['total'] as num?)?.toInt() ?? 0) + 1;
