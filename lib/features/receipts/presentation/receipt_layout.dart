@@ -73,15 +73,7 @@ class ReceiptLayout extends StatelessWidget {
           if(settings.showLogo && logo.isNotEmpty && File(logo).existsSync()) SizedBox(width:w*.29,height:80*textScale,child:Image.file(File(logo),fit:BoxFit.contain))
           else SizedBox(width:w*.29,child:Icon(Icons.pedal_bike,size:54*textScale,color:Colors.black)),
           SizedBox(width:8*gap), Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            if(settings.showBusinessName) FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                s(profile['business_name']).isEmpty?'HARMANI BIKE':s(profile['business_name']),
-                maxLines: 1,
-                style: TextStyle(fontWeight:FontWeight.w900,fontSize:24*textScale,height:1.05),
-              ),
-            ),
+            if(settings.showBusinessName) Text(s(profile['business_name']).isEmpty?'HARMANI BIKE':s(profile['business_name']),style:TextStyle(fontWeight:FontWeight.w900,fontSize:27*textScale,height:1.05)),
             if(settings.showBusinessAddress && s(profile['business_address']).isNotEmpty) Text(s(profile['business_address']),style:TextStyle(fontSize:15*textScale)),
             if(settings.showBusinessContact && s(profile['business_phone']).isNotEmpty) Text('Telp. '+s(profile['business_phone']),style:TextStyle(fontSize:14*textScale)),
           ])),
