@@ -71,7 +71,6 @@ class ReceiptDocumentService {
           pw.SizedBox(height: 5 * settings.spacing),
           _line('No. Nota', _text(sale['invoice_number']), settings: settings),
           _line('Tanggal', dateLabel(sale['transaction_date']), settings: settings),
-          if (_text(sale['payment_method']).isNotEmpty) _line('Metode pembayaran', _text(sale['payment_method']), settings: settings),
           if (settings.showCustomerDetails && _text(sale['customer_name']).isNotEmpty) _line('Pelanggan', _text(sale['customer_name']), settings: settings),
           if (settings.showCustomerDetails && _text(sale['customer_phone']).isNotEmpty) _line('Telepon', _text(sale['customer_phone']), settings: settings),
           pw.Divider(),
