@@ -317,12 +317,14 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       ticket.separator();
       ticket.text('Catatan: ${_plain(notes)}', maxCharsPerLine: width);
     }
-    final footer = settings.footerNote.trim();
     ticket.emptyLines();
-    if (footer.isNotEmpty) {
-      ticket.text(_plain(footer), align: PrintAlign.center, maxCharsPerLine: width);
-    } else {
-      ticket.text('Terima kasih atas kunjungan Anda.', align: PrintAlign.center);
+    if (settings.showFooter) {
+      final footer = settings.footerNote.trim();
+      if (footer.isNotEmpty) {
+        ticket.text(_plain(footer), align: PrintAlign.center, maxCharsPerLine: width);
+      } else {
+        ticket.text('Terima kasih atas kunjungan Anda.', align: PrintAlign.center);
+      }
     }
     // Pemotongan kertas sudah dilakukan setelah semua data dikirim.
     // Hindari feed tambahan agar tidak meninggalkan titik/karakter di ujung nota.
