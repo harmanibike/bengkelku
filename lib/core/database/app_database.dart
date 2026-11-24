@@ -975,7 +975,9 @@ class AppDatabase {
             UPDATE cash_transactions
             SET payment_method = COALESCE((
               SELECT sp.payment_method FROM supplier_payments sp
-              WHERE sp.id = cash_transactions.reference_id
+              WHERE sp.purchase_id = cash_transactions.reference_id
+                AND sp.payment_date = cash_transactions.transaction_date
+              ORDER BY sp.id DESC LIMIT 1
             ), payment_method)
             WHERE reference_type = 'purchase_payment'
           ''');
