@@ -15,6 +15,7 @@ class ReceiptPrintSettings {
     this.showCustomerDetails = true,
     this.showTransactionNotes = true,
     this.showFooter = true,
+    this.footerNote = '',
     this.fontScale = 1,
     this.spacing = 1,
   });
@@ -27,6 +28,7 @@ class ReceiptPrintSettings {
   final bool showCustomerDetails;
   final bool showTransactionNotes;
   final bool showFooter;
+  final String footerNote;
   final double fontScale;
   final double spacing;
 
@@ -42,6 +44,7 @@ class ReceiptPrintSettings {
     'showCustomerDetails': showCustomerDetails,
     'showTransactionNotes': showTransactionNotes,
     'showFooter': showFooter,
+    'footerNote': footerNote,
     'fontScale': fontScale,
     'spacing': spacing,
   };
@@ -58,6 +61,7 @@ class ReceiptPrintSettings {
       showCustomerDetails: flag('showCustomerDetails', true),
       showTransactionNotes: flag('showTransactionNotes', true),
       showFooter: flag('showFooter', true),
+      footerNote: json['footerNote']?.toString() ?? '',
       fontScale: number('fontScale', 1).clamp(0.85, 1.25).toDouble(),
       spacing: number('spacing', 1).clamp(0.7, 1.6).toDouble(),
     );
@@ -72,6 +76,7 @@ class ReceiptPrintSettings {
     bool? showCustomerDetails,
     bool? showTransactionNotes,
     bool? showFooter,
+    String? footerNote,
     double? fontScale,
     double? spacing,
   }) => ReceiptPrintSettings(
@@ -83,6 +88,7 @@ class ReceiptPrintSettings {
     showCustomerDetails: showCustomerDetails ?? this.showCustomerDetails,
     showTransactionNotes: showTransactionNotes ?? this.showTransactionNotes,
     showFooter: showFooter ?? this.showFooter,
+    footerNote: footerNote ?? this.footerNote,
     fontScale: fontScale ?? this.fontScale,
     spacing: spacing ?? this.spacing,
   );
@@ -103,14 +109,28 @@ class ReceiptSettingsRepository {
       whereArgs: [_receiptKey],
       limit: 1,
     );
-    if (rows.isEmpty) return const ReceiptPrintSettings();
-    try {
-      final decoded = jsonDecode(rows.first['setting_value']?.toString() ?? '');
-      if (decoded is Map<String, dynamic>) return ReceiptPrintSettings.fromJson(decoded);
-    } catch (_) {
-      // Pengaturan yang rusak diabaikan dan memakai nilai aman bawaan.
+    Map<String, dynamic> decoded = {};
+    if (rows.isNotEmpty) {
+      try {
+        final value = jsonDecode(rows.first['setting_value']?.toString() ?? '');
+        if (value is Map<String, dynamic>) decoded = value;
+      } catch (_) {
+        // Pengaturan yang rusak diabaikan dan memakai nilai aman bawaan.
+      }
     }
-    return const ReceiptPrintSettings();
+    // Migrasi halus: ambil catatan lama dari Profil Usaha jika pengaturan
+    // struk belum memiliki footerNote. Nilai lama tidak langsung dihapus.
+    if (!decoded.containsKey('footerNote')) {
+      final legacy = await db.query(
+        'app_settings',
+        columns: ['setting_value'],
+        where: 'setting_key = ?',
+        whereArgs: ['business_footer_note'],
+        limit: 1,
+      );
+      if (legacy.isNotEmpty) decoded['footerNote'] = legacy.first['setting_value']?.toString() ?? '';
+    }
+    return ReceiptPrintSettings.fromJson(decoded);
   }
 
   Future<void> saveReceiptSettings(ReceiptPrintSettings settings) async {
