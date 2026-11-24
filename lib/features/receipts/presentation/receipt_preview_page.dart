@@ -153,7 +153,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
 
   String _displayInvoiceNumber(Object? value) {
     final invoice = _plain(value);
-    final match = RegExp(r'^INV-(\d{4})(\d{2})(\d{2})-(\d+).firstMatch(invoice);
+    final match = RegExp(r'^INV-(\d{4})(\d{2})(\d{2})-(\d+)$').firstMatch(invoice);
     if (match == null) return invoice;
     final year = match.group(1)!.substring(2);
     final month = match.group(2)!;
