@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 34;
+  static const int currentVersion = 35;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -62,6 +62,16 @@ class AppDatabase {
       )
     ''');
     batch.execute('CREATE INDEX idx_device_pairing_codes_expiry ON device_pairing_codes(expires_at, consumed_at)');
+    // Pembatasan percobaan pairing disimpan agar tidak hilang saat aplikasi dimulai ulang.
+    batch.execute('''
+      CREATE TABLE device_pairing_attempt_limits (
+        client_address TEXT PRIMARY KEY,
+        window_started_at TEXT NOT NULL,
+        failed_attempts INTEGER NOT NULL DEFAULT 0 CHECK(failed_attempts >= 0),
+        blocked_until TEXT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_device_pairing_attempt_limits_blocked ON device_pairing_attempt_limits(blocked_until)');
 
     // Jejak aktivitas akun; user_id tanpa foreign key agar histori tetap utuh.
     batch.execute('''
@@ -907,6 +917,19 @@ class AppDatabase {
         )
       ''');
       await db.execute('CREATE INDEX idx_device_pairing_codes_expiry ON device_pairing_codes(expires_at, consumed_at)');
+    }
+
+    // Rate limit pairing aditif; histori dan transaksi database lama tidak disentuh.
+    if (oldVersion < 35) {
+      await db.execute('''
+        CREATE TABLE device_pairing_attempt_limits (
+          client_address TEXT PRIMARY KEY,
+          window_started_at TEXT NOT NULL,
+          failed_attempts INTEGER NOT NULL DEFAULT 0 CHECK(failed_attempts >= 0),
+          blocked_until TEXT
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_device_pairing_attempt_limits_blocked ON device_pairing_attempt_limits(blocked_until)');
     }
 
     // Pastikan tabel pengaturan tersedia pada semua database lama tanpa menghapus data.
