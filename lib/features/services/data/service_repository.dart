@@ -58,6 +58,7 @@ class ServiceRepository {
     int otherDirectCost = 0,
     int discount = 0,
     int downPayment = 0,
+    String downPaymentMethod = 'cash',
     String? mechanicName,
     int? assignedMechanicId,
     String? notes,
@@ -333,7 +334,7 @@ class ServiceRepository {
           'amount': paid,
           'reference_type': 'service_order',
           'reference_id': serviceOrderId,
-          'payment_method': 'cash',
+          'payment_method': downPaymentMethod,
           'transaction_date': now.toIso8601String(),
         });
       }
@@ -1413,6 +1414,7 @@ class ServiceRepository {
     int tipAmount = 0,
     int walletDepositAmount = 0,
     String? tipRecipientName,
+    String paymentMethod = 'cash',
   }) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat memproses pembayaran servis.');
     if (amount <= 0) {
@@ -1478,7 +1480,7 @@ class ServiceRepository {
           'balance_after': balance + walletDepositAmount,
           'description': 'Kelebihan pembayaran servis $orderNumber disimpan sebagai saldo pelanggan',
           'reference_type': 'customer_deposit',
-          'payment_method': 'cash',
+          'payment_method': paymentMethod,
           'created_by_id': AuthSession.instance.userId,
           'created_by_name': AuthSession.instance.displayName,
           'created_at': now.toIso8601String(),
@@ -1490,6 +1492,7 @@ class ServiceRepository {
           'amount': walletDepositAmount,
           'reference_type': 'customer_deposit',
           'reference_id': ledgerId,
+          'payment_method': paymentMethod,
           'transaction_date': now.toIso8601String(),
         });
       }
@@ -1509,7 +1512,7 @@ class ServiceRepository {
         'amount': amount,
         'reference_type': 'service_order',
         'reference_id': id,
-        'payment_method': 'cash',
+        'payment_method': paymentMethod,
         'transaction_date': now.toIso8601String(),
       });
       if (tipAmount > 0) {
@@ -1522,7 +1525,7 @@ class ServiceRepository {
           'source_id': id,
           'recipient_account_id': result.first['assigned_mechanic_id'],
           'recipient_name': recipient,
-          'payment_method': 'cash',
+          'payment_method': paymentMethod,
           'status': 'held',
           'received_by_id': AuthSession.instance.userId,
           'received_by_name': AuthSession.instance.displayName,
@@ -1535,6 +1538,7 @@ class ServiceRepository {
           'amount': tipAmount,
           'reference_type': 'tip',
           'reference_id': tipId,
+          'payment_method': paymentMethod,
           'transaction_date': now.toIso8601String(),
         });
         await ActivityLogRepository.record(
