@@ -9,6 +9,9 @@ import 'package:cross_file/cross_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:unified_esc_pos_printer/unified_esc_pos_printer.dart';
+
+import '../../settings/data/receipt_settings_repository.dart';
 
 class ReceiptPreviewPage extends StatefulWidget {
   const ReceiptPreviewPage({
@@ -33,6 +36,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
   Uint8List? _imageBytes;
   bool _loadingImage = false;
   bool _sharing = false;
+  bool _printing = false;
 
   Future<void> _selectFormat(String format) async {
     setState(() => _format = format);
@@ -113,16 +117,83 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
   }
 
   Future<void> _print() async {
+    if (_printing) return;
+    setState(() => _printing = true);
+    PrinterManager? manager;
     try {
-      await Printing.layoutPdf(
-        name: widget.fileName,
-        onLayout: (_) async => widget.pdfBytes,
+      final settings = await ReceiptSettingsRepository().getReceiptSettings();
+      final savedPrinter = await ReceiptSettingsRepository().getSavedPrinter();
+
+      // Jika belum ada printer Bluetooth tersimpan, tetap sediakan layanan
+      // cetak Android seperti perilaku sebelumnya.
+      if (savedPrinter == null) {
+        await Printing.layoutPdf(
+          name: widget.fileName,
+          onLayout: (_) async => widget.pdfBytes,
+        );
+        return;
+      }
+
+      manager = PrinterManager();
+      await manager.connect(BluetoothPrinterDevice(
+        name: savedPrinter['name']!,
+        address: savedPrinter['address']!,
+      ));
+
+      final paperSize = settings.paperWidthMm == 80
+          ? PaperSize.mm80
+          : PaperSize.mm58;
+      final maxWidth = settings.paperWidthMm == 80 ? 576 : 384;
+      var printedPages = 0;
+
+      // Render per halaman agar nota panjang tidak perlu digabung menjadi
+      // satu bitmap besar di memori.
+      await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
+        final pageBytes = await page.toPng();
+        final decoded = img.decodeImage(pageBytes);
+        if (decoded == null) {
+          throw StateError('Halaman nota tidak dapat dikonversi menjadi gambar.');
+        }
+        final receiptImage = decoded.width > maxWidth
+            ? img.copyResize(decoded, width: maxWidth)
+            : decoded;
+
+        final ticket = await Ticket.create(paperSize);
+        ticket.imageRaster(
+          receiptImage,
+          align: PrintAlign.center,
+          maxWidth: maxWidth,
+        );
+        ticket.cut();
+        await manager.printTicket(ticket);
+        await manager.waitWriteComplete();
+        printedPages++;
+      }
+
+      if (printedPages == 0) {
+        throw StateError('Dokumen nota tidak memiliki halaman untuk dicetak.');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Nota berhasil dikirim ke printer ${savedPrinter['name']}.'),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membuka layanan cetak: $error')),
+        SnackBar(content: Text('Gagal mencetak nota: $error')),
       );
+    } finally {
+      if (manager != null) {
+        try {
+          await manager.disconnect();
+        } catch (_) {
+          // Abaikan kegagalan pemutusan setelah pekerjaan cetak selesai/gagal.
+        }
+        await manager.dispose();
+      }
+      if (mounted) setState(() => _printing = false);
     }
   }
 
@@ -174,9 +245,11 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: _print,
-                      icon: const Icon(Icons.print_outlined),
-                      label: const Text('Cetak'),
+                      onPressed: _printing ? null : _print,
+                      icon: _printing
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.print_outlined),
+                      label: Text(_printing ? 'Mengirim...' : 'Cetak'),
                     ),
                   ),
                   const SizedBox(width: 8),
