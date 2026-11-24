@@ -60,7 +60,7 @@ class ReceiptLayout extends StatelessWidget {
           maxLines: 1,
           softWrap: false,
           overflow: TextOverflow.clip,
-          style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+          style: TextStyle(fontFamily: 'monospace', fontSize: 14),
         ),
       );
 
@@ -78,7 +78,7 @@ class ReceiptLayout extends StatelessWidget {
 
   Widget amountRow(String label, String value, double width, {bool bold = false}) {
     final style = TextStyle(
-      fontSize: bold ? 14 : 12,
+      fontSize: bold ? 17 : 14,
       fontWeight: bold ? FontWeight.bold : FontWeight.normal,
     );
     return SizedBox(
@@ -123,7 +123,7 @@ class ReceiptLayout extends StatelessWidget {
       color: Colors.white,
       padding: EdgeInsets.symmetric(horizontal: settings.thermalMargin, vertical: 8),
       child: DefaultTextStyle(
-        style: const TextStyle(color: Colors.black, fontFamily: 'monospace', fontSize: 12, height: 1.15),
+        style: const TextStyle(color: Colors.black, fontFamily: 'monospace', fontSize: 14, height: 1.18),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
             if (settings.showLogo && logo.isNotEmpty && File(logo).existsSync())
@@ -136,17 +136,17 @@ class ReceiptLayout extends StatelessWidget {
                 if (settings.showBusinessName)
                   Text(
                     s(profile['business_name']).isEmpty ? 'HARMANI BIKE' : s(profile['business_name']),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, height: 1.05),
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, height: 1.08),
                   ),
                 if (settings.showBusinessAddress && s(profile['business_address']).isNotEmpty)
-                  Text(s(profile['business_address']), style: const TextStyle(fontSize: 10)),
+                  Text(s(profile['business_address']), style: const TextStyle(fontSize: 12)),
                 if (settings.showBusinessContact && s(profile['business_phone']).isNotEmpty)
-                  Text('Telp. ${s(profile['business_phone'])}', style: const TextStyle(fontSize: 10)),
+                  Text('Telp. ${s(profile['business_phone'])}', style: const TextStyle(fontSize: 12)),
               ]),
             ),
           ]),
           const Divider(color: Colors.black, thickness: 1),
-          Center(child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900))),
+          Center(child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
           const SizedBox(height: 3),
           separator(innerWidth),
           labelRow('No. Nota', number, innerWidth),
@@ -209,8 +209,8 @@ class ReceiptLayout extends StatelessWidget {
               String two(int value) => value.toString().padLeft(2, '0');
               final dateText = parsed == null ? '-' : '${two(parsed.day)}/${two(parsed.month)} ${two(parsed.hour)}:${two(parsed.minute)}';
               return Row(children: [
-                Expanded(child: Text('$dateText · ${method(payment['payment_method'] ?? payment['method'] ?? payment['payment_method_name'])}', style: const TextStyle(fontSize: 10))),
-                Text(money(payment['amount']), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10)),
+                Expanded(child: Text('$dateText · ${method(payment['payment_method'] ?? payment['method'] ?? payment['payment_method_name'])}', style: const TextStyle(fontSize: 12))),
+                Text(money(payment['amount']), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
               ]);
             }),
           ],
@@ -221,7 +221,7 @@ class ReceiptLayout extends StatelessWidget {
               child: Text(
                 settings.footerNote.trim().isEmpty ? 'Terima kasih atas kunjungan Anda.' : settings.footerNote.trim(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 10),
+                style: const TextStyle(fontSize: 12),
               ),
             ),
         ]),
