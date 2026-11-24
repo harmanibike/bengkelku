@@ -83,6 +83,7 @@ class _CashbookPageState extends State<CashbookPage> {
     final description=TextEditingController();
     final amount=TextEditingController();
     var type='expense';
+    var paymentMethod='cash';
     const expenseCategories=['Operasional','Gaji Karyawan','Komisi Mekanik','Transportasi','Listrik dan Air','Sewa Tempat','Perawatan Peralatan','Perlengkapan','Biaya Lainnya'];
     const incomeCategories=['Pendapatan Lainnya','Modal Tambahan','Pengembalian Dana','Pemasukan Lainnya'];
     var selectedCategory=expenseCategories.first;
@@ -100,6 +101,17 @@ class _CashbookPageState extends State<CashbookPage> {
                 DropdownMenuItem(value:'expense',child:Text('Kas keluar')),
               ],
               onChanged:(v){if(v!=null)setDialogState((){type=v;selectedCategory=v=='expense'?expenseCategories.first:incomeCategories.first;});},
+            ),
+            DropdownButtonFormField<String>(
+              initialValue:paymentMethod,
+              decoration:const InputDecoration(labelText:'Metode pembayaran'),
+              items:const [
+                DropdownMenuItem(value:'cash',child:Text('Tunai')),
+                DropdownMenuItem(value:'bank_transfer',child:Text('Transfer Bank')),
+                DropdownMenuItem(value:'qris',child:Text('QRIS')),
+                DropdownMenuItem(value:'other_non_cash',child:Text('Nontunai lainnya')),
+              ],
+              onChanged:(value){if(value!=null)setDialogState(()=>paymentMethod=value);},
             ),
             DropdownButtonFormField<String>(
               initialValue:selectedCategory,
@@ -124,7 +136,7 @@ class _CashbookPageState extends State<CashbookPage> {
       try {
         await _repo.addManualTransaction(
           type:type,category:selectedCategory,description:description.text,
-          amount:parseCurrencyInput(amount.text));
+          amount:parseCurrencyInput(amount.text),paymentMethod:paymentMethod);
         _refresh();
         if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Transaksi kas disimpan.')));
       } catch(e) {
@@ -186,6 +198,32 @@ class _CashbookPageState extends State<CashbookPage> {
               const Divider(height:14),
               _balanceLine('Saldo akhir',data['closing_balance'],bold:true),
             ]))),
+            const SizedBox(height:8),
+            Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(
+              crossAxisAlignment:CrossAxisAlignment.start,children:[
+                const Text('Ringkasan Kas Tunai',style:TextStyle(fontWeight:FontWeight.bold)),
+                _balanceLine('Saldo awal',data['cash_opening_balance']),
+                _balanceLine('Penerimaan tunai',data['cash_income'],color:Colors.green),
+                _balanceLine('Pengeluaran tunai',data['cash_expense'],color:Colors.red),
+                const Divider(height:14),
+                _balanceLine('Saldo kas tunai',data['cash_closing_balance'],bold:true),
+              ],
+            ))),
+            Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(
+              crossAxisAlignment:CrossAxisAlignment.start,children:[
+                const Text('Ringkasan Kas Nontunai',style:TextStyle(fontWeight:FontWeight.bold)),
+                _balanceLine('Saldo awal',data['non_cash_opening_balance']),
+                _balanceLine('Penerimaan nontunai',data['non_cash_income'],color:Colors.green),
+                _balanceLine('Pengeluaran nontunai',data['non_cash_expense'],color:Colors.red),
+                const Divider(height:14),
+                _balanceLine('Saldo kas nontunai',data['non_cash_closing_balance'],bold:true),
+                const Divider(height:14),
+                const Text('Rincian metode nontunai',style:TextStyle(fontWeight:FontWeight.w600,fontSize:12)),
+                ...((data['payment_method_totals'] as Map<String,int>? ?? {}).entries
+                  .where((entry)=>!['cash','tunai'].contains(entry.key))
+                  .map((entry)=>_balanceLine(switch(entry.key){'bank_transfer'=>'Transfer Bank','qris'=>'QRIS',_=>entry.key},entry.value))),
+              ],
+            ))),
             const SizedBox(height:8),
             Card(
               child: Padding(
