@@ -333,6 +333,7 @@ class ServiceRepository {
           'amount': paid,
           'reference_type': 'service_order',
           'reference_id': serviceOrderId,
+          'payment_method': 'cash',
           'transaction_date': now.toIso8601String(),
         });
       }
@@ -1508,6 +1509,7 @@ class ServiceRepository {
         'amount': amount,
         'reference_type': 'service_order',
         'reference_id': id,
+        'payment_method': 'cash',
         'transaction_date': now.toIso8601String(),
       });
       if (tipAmount > 0) {
@@ -1552,11 +1554,11 @@ class ServiceRepository {
     AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses riwayat pembayaran.');
     final db = await _db;
     return db.rawQuery('''
-      SELECT id, transaction_type, amount, category, description, reference_type, reference_id, transaction_date, 'cash' AS payment_source
+      SELECT id, transaction_type, amount, category, description, reference_type, reference_id, transaction_date, payment_method, 'cash' AS payment_source
       FROM cash_transactions
       WHERE reference_type = 'service_order' AND reference_id = ? AND transaction_type = 'income'
       UNION ALL
-      SELECT id, 'income' AS transaction_type, amount, 'Saldo Pelanggan' AS category, description, reference_type, reference_id, created_at AS transaction_date, 'wallet' AS payment_source
+      SELECT id, 'income' AS transaction_type, amount, 'Saldo Pelanggan' AS category, description, reference_type, reference_id, created_at AS transaction_date, payment_method, 'wallet' AS payment_source
       FROM customer_wallet_ledger
       WHERE reference_type = 'service_order' AND reference_id = ? AND entry_type = 'service_payment'
       ORDER BY transaction_date ASC, id ASC
