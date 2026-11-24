@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 
 import 'package:material_ui/material_ui.dart';
-import 'package:pdf/pdf.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
@@ -36,7 +35,6 @@ class ReceiptPreviewPage extends StatefulWidget {
 }
 
 class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
-  String _format = 'foto';
   Uint8List? _imageBytes;
   bool _loadingImage = false;
   bool _sharing = false;
@@ -46,17 +44,15 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _selectFormat('foto');
+      if (mounted) _preparePhoto();
     });
   }
 
-  Future<void> _selectFormat(String format) async {
-    setState(() => _format = format);
-    if (format != 'foto' || _imageBytes != null || _loadingImage) return;
+  Future<void> _preparePhoto() async {
+    if (_imageBytes != null || _loadingImage) return;
     setState(() => _loadingImage = true);
     try {
-      // Render every PDF page so the shared photo contains the complete
-      // receipt, including any pages created by long service/payment details.
+      // Render the complete receipt as one image for WhatsApp sharing.
       final pages = <img.Image>[];
       await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
         final pageBytes = await page.toPng();
@@ -107,10 +103,10 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     setState(() => _sharing = true);
     try {
       final directory = await getTemporaryDirectory();
-      final extension = _format == 'foto' ? 'png' : 'pdf';
+      const extension = 'png';
       final baseName = widget.fileName.replaceAll(RegExp(r'\.pdf$', caseSensitive: false), '');
       final file = File('${directory.path}/$baseName.$extension');
-      final bytes = _format == 'foto' ? _imageBytes : widget.pdfBytes;
+      final bytes = _imageBytes;
       if (bytes == null) throw StateError('Pratinjau foto belum siap.');
       await file.writeAsBytes(bytes, flush: true);
       await SharePlus.instance.share(ShareParams(
@@ -136,14 +132,10 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       final settings = await ReceiptSettingsRepository().getReceiptSettings();
       final savedPrinter = await ReceiptSettingsRepository().getSavedPrinter();
 
-      // Jika belum ada printer Bluetooth tersimpan, tetap sediakan layanan
-      // cetak Android seperti perilaku sebelumnya.
+      // Nota hanya dicetak melalui printer thermal yang sudah dikonfigurasi.
+      // Jangan membuka dialog cetak PDF sebagai jalur pengganti.
       if (savedPrinter == null) {
-        await Printing.layoutPdf(
-          name: widget.fileName,
-          onLayout: (_) async => widget.pdfBytes,
-        );
-        return;
+        throw StateError('Printer thermal belum diatur. Hubungkan printer melalui Pengaturan Printer.');
       }
 
       // EPOS RPP02N dan printer SPP sekelasnya dapat kehilangan karakter
@@ -228,37 +220,21 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'foto', label: Text('Foto')),
-                ButtonSegment(value: 'pdf', label: Text('PDF')),
-              ],
-              selected: {_format},
-              onSelectionChanged: (value) => _selectFormat(value.first),
+            child: const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Nota dibagikan sebagai foto dan dicetak menggunakan printer thermal.'),
             ),
           ),
           Expanded(
-            child: _format == 'pdf'
-                ? PdfPreview(
-                    build: (_) async => widget.pdfBytes,
-                    initialPageFormat: const PdfPageFormat(164.4, 900, marginAll: 8),
-                    allowPrinting: false,
-                    allowSharing: false,
-                    canChangePageFormat: false,
-                    canChangeOrientation: false,
-                    canDebug: false,
-                    useActions: false,
-                    padding: const EdgeInsets.all(8),
-                  )
-                : Center(
-                    child: _loadingImage
-                        ? const CircularProgressIndicator()
-                        : _imageBytes == null
-                            ? const Text('Pratinjau foto belum tersedia.')
-                            : InteractiveViewer(
-                                child: Image.memory(_imageBytes!, fit: BoxFit.contain),
-                              ),
-                  ),
+            child: Center(
+              child: _loadingImage
+                  ? const CircularProgressIndicator()
+                  : _imageBytes == null
+                      ? const Text('Pratinjau foto belum tersedia.')
+                      : InteractiveViewer(
+                          child: Image.memory(_imageBytes!, fit: BoxFit.contain),
+                        ),
+            ),
           ),
           SafeArea(
             top: false,
@@ -278,7 +254,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: _sharing || (_format == 'foto' && (_loadingImage || _imageBytes == null)) ? null : _share,
+                      onPressed: _sharing || _loadingImage || _imageBytes == null ? null : _share,
                       icon: _sharing
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.share_outlined),
