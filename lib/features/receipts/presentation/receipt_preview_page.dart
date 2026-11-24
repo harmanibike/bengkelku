@@ -161,7 +161,10 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       // Semua jenis nota dicetak dari dokumen PDF yang sama dengan
       // pratinjau dan file WhatsApp. Dengan demikian logo, ukuran huruf,
       // jarak, garis, dan tata letak konsisten untuk seluruh dokumen.
-      final maxWidth = settings.paperWidthMm == 80 ? 470 : 320;
+      // Gunakan lebar titik cetak standar printer thermal: 384 dot (58 mm)
+      // dan 576 dot (80 mm). Hindari batas 320 px yang mengecilkan nota dan
+      // membuat tata letak tampak terjepit pada beberapa printer.
+      final printableWidthDots = settings.paperWidthMm == 80 ? 576 : 384;
       var printedPages = 0;
       await for (final page in Printing.raster(widget.pdfBytes, dpi: 180)) {
         final pageBytes = await page.toPng();
@@ -169,15 +172,29 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         if (decoded == null) {
           throw StateError('Halaman nota tidak dapat dikonversi menjadi gambar.');
         }
-        final receiptImage = decoded.width > maxWidth
-            ? img.copyResize(decoded, width: maxWidth)
-            : decoded;
+
+        // Samakan lebar gambar dengan area cetak dan bersihkan noise abu-abu
+        // pada latar putih agar kertas tetap putih, bukan membentuk blok gelap.
+        final resized = img.copyResize(
+          decoded,
+          width: printableWidthDots,
+          interpolation: img.Interpolation.linear,
+        );
+        final receiptImage = img.grayscale(resized);
+        for (final pixel in receiptImage) {
+          final luminance = pixel.luminance;
+          final value = luminance >= 225 ? 255 : (luminance <= 90 ? 0 : 0);
+          pixel
+            ..r = value
+            ..g = value
+            ..b = value;
+        }
 
         final pageTicket = await Ticket.create(paperSize);
         pageTicket.imageRaster(
           receiptImage,
           align: PrintAlign.center,
-          maxWidth: maxWidth,
+          maxWidth: printableWidthDots,
         );
         pageTicket.cut();
         await manager.printTicket(pageTicket);
