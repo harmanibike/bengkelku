@@ -15,7 +15,7 @@ class ReceiptDocumentService {
 
   static String rupiah(Object? value) {
     final digits = _int(value).toString();
-    final out = StringBuffer('Rp');
+    final out = StringBuffer('Rp.');
     for (var i = 0; i < digits.length; i++) {
       if (i > 0 && (digits.length - i) % 3 == 0) out.write('.');
       out.write(digits[i]);
