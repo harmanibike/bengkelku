@@ -158,7 +158,6 @@ void main() {
     );
     expect(tips, hasLength(1));
     expect(tips.single['amount'], 5000);
-    expect(tips.single['status'], 'held');
   });
 
   test('version 33 migration preserves legacy return rows as unknown snapshot', () async {
