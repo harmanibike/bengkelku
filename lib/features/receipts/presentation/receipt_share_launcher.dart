@@ -135,25 +135,10 @@ class ReceiptShareLauncher {
       final String shareText;
       final String number = record['document_number']?.toString() ?? 'nota';
       if (type == 'sale') {
-        final sale = Map<String, Object?>.from(payload['sale'] as Map);
-        final payments = List<Map<String, Object?>>.from(
-          (payload['payments'] as List? ?? const []).map(
-            (item) => Map<String, Object?>.from(item as Map),
-          ),
-        );
-        final returns = Map<String, Object?>.from(payload['return_summary'] as Map);
-        final profile = Map<String, String>.from(payload['profile'] as Map);
         pdfBytes = null;
         title = 'Nota Penjualan';
         shareText = 'Berikut nota penjualan $number.';
       } else if (type == 'service') {
-        final service = Map<String, Object?>.from(payload['service'] as Map);
-        final payments = List<Map<String, Object?>>.from(
-          (payload['payments'] as List? ?? const []).map(
-            (item) => Map<String, Object?>.from(item as Map),
-          ),
-        );
-        final profile = Map<String, String>.from(payload['profile'] as Map);
         pdfBytes = null;
         title = 'Nota Servis';
         shareText = 'Berikut nota servis $number.';
@@ -167,13 +152,6 @@ class ReceiptShareLauncher {
         title = 'Bukti Penerimaan Sepeda';
         shareText = 'Berikut bukti penerimaan sepeda untuk servis $number.';
       } else if (type == 'service_final_payment') {
-        final service = Map<String, Object?>.from(payload['service'] as Map);
-        final payments = List<Map<String, Object?>>.from(
-          (payload['payments'] as List? ?? const []).map(
-            (item) => Map<String, Object?>.from(item as Map),
-          ),
-        );
-        final profile = Map<String, String>.from(payload['profile'] as Map);
         pdfBytes = null;
         title = 'Bukti Pelunasan Servis';
         shareText = 'Berikut bukti pelunasan servis $number.';
