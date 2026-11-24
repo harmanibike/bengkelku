@@ -1590,6 +1590,38 @@ class ServiceRepository {
         );
       }
 
+      // Pembayaran saldo pelanggan tidak masuk cash_transactions. Periksa
+      // ledger secara terpisah agar penghapusan nota tidak meninggalkan
+      // referensi pembayaran/refund yang yatim.
+      final walletEntries = await txn.query(
+        'customer_wallet_ledger',
+        columns: ['id'],
+        where: "reference_type IN ('service_order', 'service_order_cancellation') AND reference_id = ?",
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (walletEntries.isNotEmpty) {
+        throw StateError(
+          'Nota servis sudah memiliki riwayat pembayaran atau pengembalian saldo pelanggan. '
+          'Nota tidak dapat dihapus agar riwayat saldo tetap utuh.',
+        );
+      }
+
+      // Tip dicatat dengan referensi tersendiri, bukan service_order pada kas.
+      final tips = await txn.query(
+        'tip_transactions',
+        columns: ['id'],
+        where: "source_type = 'service_order' AND source_id = ?",
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (tips.isNotEmpty) {
+        throw StateError(
+          'Nota servis sudah memiliki catatan uang tip. '
+          'Nota tidak dapat dihapus agar riwayat tip tetap utuh.',
+        );
+      }
+
       return txn.delete(
         'service_orders',
         where: 'id = ?',
