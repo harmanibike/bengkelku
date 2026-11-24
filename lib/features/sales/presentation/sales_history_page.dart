@@ -230,6 +230,8 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
                   _detailRow('Diskon', sale['discount'] as int? ?? 0),
                   _detailRow('Total', sale['total'] as int? ?? 0, bold: true),
                   _detailRow('Dibayar', sale['paid'] as int? ?? 0),
+                  if ((sale['payment_method']?.toString().trim().isNotEmpty ?? false))
+                    Text('Metode pembayaran: ${sale['payment_method']}'),
                   _detailRow('Total retur', returnSummary['returned_amount'] as int? ?? 0),
                   _detailRow('Uang dikembalikan', returnSummary['refunded_amount'] as int? ?? 0),
                   _detailRow('Sisa tagihan', ((sale['total'] as int? ?? 0) - (sale['paid'] as int? ?? 0) - (returnSummary['returned_amount'] as int? ?? 0) + (returnSummary['refunded_amount'] as int? ?? 0)).clamp(0, 1 << 62).toInt()),
