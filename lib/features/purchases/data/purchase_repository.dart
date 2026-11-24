@@ -160,14 +160,19 @@ class PurchaseRepository {
       }
 
       if (initialPayment > 0) {
+        // Satu timestamp dipakai bersama agar rekonsiliasi tidak terpecah
+        // jika dua INSERT melewati pergantian detik.
+        final paymentAt = DateTime.now().toIso8601String();
         await txn.insert('supplier_payments', {
           'supplier_id': supplierId, 'purchase_id': purchaseId, 'amount': initialPayment,
+          'payment_date': paymentAt,
           'payment_method': _nullable(paymentMethod), 'notes': 'Pembayaran awal faktur ${invoice}',
         });
         await txn.insert('cash_transactions', {
           'transaction_type': 'expense', 'category': 'Pembayaran pembelian',
           'description': 'Pembayaran awal faktur ${invoice}', 'amount': initialPayment,
           'reference_type': 'purchase_payment', 'reference_id': purchaseId,
+          'transaction_date': paymentAt,
         });
       }
       await ActivityLogRepository.record(
@@ -201,14 +206,17 @@ class PurchaseRepository {
       await txn.update('purchases', {
         'paid': nextPaid, 'payment_status': nextPaid + returnCredit >= total ? 'paid' : nextPaid == 0 ? 'unpaid' : 'partial',
       }, where: 'id = ?', whereArgs: [purchaseId]);
+      final paymentAt = DateTime.now().toIso8601String();
       await txn.insert('supplier_payments', {
         'supplier_id': row['supplier_id'], 'purchase_id': purchaseId, 'amount': amount,
-        'payment_method': _nullable(paymentMethod), 'notes': _nullable(notes),
+        'payment_method': _nullable(paymentMethod), 'payment_date': paymentAt,
+        'notes': _nullable(notes),
       });
       await txn.insert('cash_transactions', {
         'transaction_type': 'expense', 'category': 'Pembayaran pembelian',
         'description': 'Pembayaran faktur ${row['invoice_number']}', 'amount': amount,
         'reference_type': 'purchase_payment', 'reference_id': purchaseId,
+        'transaction_date': paymentAt,
       });
       await ActivityLogRepository.record(
         txn,
