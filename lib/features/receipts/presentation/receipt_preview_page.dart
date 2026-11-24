@@ -153,7 +153,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
           : PaperSize.mm58;
       // Sisakan margin aman karena area cetak efektif printer 58 mm dapat lebih
       // kecil dari lebar nominal kertas.
-      final maxWidth = settings.paperWidthMm == 80 ? 560 : 360;
+      final maxWidth = settings.paperWidthMm == 80 ? 470 : 320;
       var printedPages = 0;
 
       // Render per halaman agar nota panjang tidak perlu digabung menjadi
