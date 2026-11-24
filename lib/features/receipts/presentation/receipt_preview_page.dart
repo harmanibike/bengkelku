@@ -254,6 +254,10 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     final invoiceLine = 'No. Nota: ${_displayInvoiceNumber(sale['invoice_number'])}';
     ticket.text(invoiceLine, maxCharsPerLine: width);
     ticket.text('Tanggal: $dateText', maxCharsPerLine: width);
+    final paymentMethod = _plain(sale['payment_method']);
+    if (paymentMethod.isNotEmpty) {
+      ticket.text('Metode pembayaran: $paymentMethod', maxCharsPerLine: width);
+    }
     if (settings.showCustomerDetails && (sale['customer_name']?.toString().trim().isNotEmpty ?? false)) {
       ticket.text('Pelanggan: ${_plain(sale['customer_name'])}', maxCharsPerLine: width);
     }
