@@ -143,12 +143,7 @@ class ReceiptShareLauncher {
         title = 'Nota Servis';
         shareText = 'Berikut nota servis $number.';
       } else if (type == 'service_intake') {
-        final service = Map<String, Object?>.from(payload['service'] as Map);
-        final profile = Map<String, String>.from(payload['profile'] as Map);
-        pdfBytes = await ReceiptDocumentService.buildServiceIntakeReceipt(
-          service: service,
-          profile: profile,
-        );
+        pdfBytes = null;
         title = 'Bukti Penerimaan Sepeda';
         shareText = 'Berikut bukti penerimaan sepeda untuk servis $number.';
       } else if (type == 'service_final_payment') {
@@ -166,7 +161,7 @@ class ReceiptShareLauncher {
         MaterialPageRoute(
           builder: (_) => ReceiptPreviewPage(
             pdfBytes: pdfBytes,
-            fileName: '$safeNumber.pdf',
+            fileName: '$safeNumber.png',
             title: title,
             shareText: shareText,
             receiptType: type,
