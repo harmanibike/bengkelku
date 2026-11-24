@@ -169,7 +169,10 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       if (manager != null) {
         try { await manager.dispose(); } catch (_) {}
       }
-      if (mounted) setState(() => _printing = false);
+      if (mounted) setState(() {
+        _printing = false;
+        _printTextScale = false;
+      });
     }
   }
 
