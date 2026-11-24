@@ -31,7 +31,7 @@ class ReceiptPrintSettings {
   final double spacing;
 
   double get paperWidthPoints => paperWidthMm == 80 ? 226.8 : 164.4;
-  double get marginPoints => paperWidthMm == 80 ? 10 : 8;
+  double get marginPoints => paperWidthMm == 80 ? 14 : 12;
 
   Map<String, Object?> toJson() => {
     'paperWidthMm': paperWidthMm,
