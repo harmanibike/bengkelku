@@ -236,7 +236,7 @@ Berlaku untuk printer yang didukung oleh integrasi aplikasi:
 ### Belum tersedia / belum boleh dianggap aktif
 
 - [ ] Layanan Server Android yang berjalan terpisah dari sesi login dan tetap melayani perangkat lain.
-- [ ] Endpoint kesehatan API pada Server; kontraknya sudah ditentukan, tetapi Server belum mengimplementasikannya.
+- [x] Endpoint kesehatan API Server `GET /api/v1/health` tersedia untuk pemeriksaan LAN saja; belum ada endpoint transaksi atau akses database Client.
 - [ ] Transport aman (TLS dan verifikasi identitas/pinning sertifikat) untuk seluruh komunikasi data.
 - [ ] Pairing QR, persetujuan Admin, token perangkat, daftar perangkat tepercaya, dan pencabutan akses.
 - [ ] Mode Client aktif dan pengalihan seluruh repository/transaksi ke database pusat.
