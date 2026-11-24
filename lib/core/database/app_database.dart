@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 36;
+  static const int currentVersion = 37;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -681,6 +681,7 @@ class AppDatabase {
         amount INTEGER NOT NULL DEFAULT 0,
         reference_type TEXT,
         reference_id INTEGER,
+        payment_method TEXT NOT NULL DEFAULT 'cash',
         transaction_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
@@ -949,6 +950,48 @@ class AppDatabase {
         }
         if (!names.contains('profile_photo_path')) {
           await db.execute('ALTER TABLE app_users ADD COLUMN profile_photo_path TEXT');
+        }
+      }
+    }
+
+    // Metode pembayaran kas untuk pemisahan kas tunai dan nontunai.
+    // Cek tabel/kolom agar aman untuk database legacy yang tidak lengkap.
+    if (oldVersion < 37) {
+      final cashTable = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cash_transactions' LIMIT 1",
+      );
+      if (cashTable.isNotEmpty) {
+        final columns = await db.rawQuery('PRAGMA table_info(cash_transactions)');
+        final names = columns.map((column) => column['name']?.toString()).toSet();
+        if (!names.contains('payment_method')) {
+          await db.execute("ALTER TABLE cash_transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'cash'");
+        }
+        // Backfill pembayaran pemasok dari riwayat pembayaran yang sudah tersimpan.
+        final supplierPaymentsTable = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'supplier_payments' LIMIT 1",
+        );
+        if (supplierPaymentsTable.isNotEmpty) {
+          await db.execute('''
+            UPDATE cash_transactions
+            SET payment_method = COALESCE((
+              SELECT sp.payment_method FROM supplier_payments sp
+              WHERE sp.id = cash_transactions.reference_id
+            ), payment_method)
+            WHERE reference_type = 'purchase_payment'
+          ''');
+        }
+        final salesTable = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sales' LIMIT 1",
+        );
+        if (salesTable.isNotEmpty) {
+          await db.execute('''
+            UPDATE cash_transactions
+            SET payment_method = COALESCE((
+              SELECT s.payment_method FROM sales s
+              WHERE s.id = cash_transactions.reference_id
+            ), payment_method)
+            WHERE reference_type = 'sale'
+          ''');
         }
       }
     }
