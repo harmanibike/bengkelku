@@ -95,13 +95,8 @@ class LocalApiServer {
           }
           await request.response.close();
         } catch (_) {
-          // Klien dapat memutus koneksi kapan saja. Abaikan kegagalan respons
-          // tersebut dan lanjutkan menerima permintaan berikutnya.
-          try {
-            request.response.abort();
-          } catch (_) {
-            // Respons mungkin sudah ditutup oleh socket.
-          }
+          // Klien dapat memutus koneksi kapan saja. Kegagalan satu respons
+          // tidak boleh menghentikan listener untuk permintaan berikutnya.
         }
       }
     } on HttpException {
