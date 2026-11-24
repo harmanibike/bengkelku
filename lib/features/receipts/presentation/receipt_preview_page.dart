@@ -45,7 +45,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
   bool _sharing = false;
   bool _printing = false;
 
-  bool get _nativeReceipt => const {'sale', 'service', 'service_final_payment'}.contains(widget.receiptType);
+  bool get _nativeReceipt => const {'sale', 'service', 'service_final_payment', 'service_intake'}.contains(widget.receiptType);
 
   @override
   void initState() {
@@ -166,6 +166,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     final type = widget.receiptType!;
     final isSale = type == 'sale';
     final isFinalPayment = type == 'service_final_payment';
+    final isIntake = type == 'service_intake';
     final source = Map<String, Object?>.from(widget.receiptPayload![isSale ? 'sale' : 'service'] as Map);
     final profile = Map<String, String>.from(widget.receiptPayload!['profile'] as Map);
     final payments = List<Map<String, Object?>>.from((widget.receiptPayload!['payments'] as List? ?? const []).map((item) => Map<String, Object?>.from(item as Map)));
@@ -203,7 +204,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     }
 
     ticket.separator();
-    _ticketText(ticket, isSale ? 'NOTA PENJUALAN' : isFinalPayment ? 'BUKTI PELUNASAN SERVIS' : 'NOTA SERVIS', bold: true, align: PrintAlign.center);
+    _ticketText(ticket, isSale ? 'NOTA PENJUALAN' : isFinalPayment ? 'BUKTI PELUNASAN SERVIS' : isIntake ? 'BUKTI PENERIMAAN SEPEDA' : 'NOTA SERVIS', bold: true, align: PrintAlign.center);
     ticket.separator();
     _ticketLabel(ticket, 'No. Nota', _receiptText(isSale ? source['invoice_number'] : source['order_number']));
     _ticketLabel(ticket, 'Tanggal', _receiptDate(isSale ? source['transaction_date'] : source['received_at']));
@@ -231,6 +232,28 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       _ticketLabel(ticket, 'TOTAL', _receiptMoney(total), bold: true);
       _ticketLabel(ticket, 'Sudah dibayar', _receiptMoney(paid));
       _ticketLabel(ticket, 'Sisa tagihan', _receiptMoney(remaining), bold: true);
+    } else if (isIntake) {
+      final bicycle = [
+        _receiptText(source['bicycle_brand']),
+        _receiptText(source['bicycle_model']),
+        _receiptText(source['bicycle_type']),
+      ].where((part) => part.isNotEmpty).join(' ');
+      if (bicycle.isNotEmpty) _ticketLabel(ticket, 'Sepeda', bicycle);
+      _ticketLabel(ticket, 'Warna', _receiptText(source['bicycle_color']));
+      _ticketLabel(ticket, 'Ukuran frame', _receiptText(source['bicycle_frame_size']));
+      _ticketLabel(ticket, 'No. rangka', _receiptText(source['bicycle_serial_number']));
+      final complaint = _receiptText(source['complaint']);
+      if (complaint.isNotEmpty) {
+        _ticketText(ticket, 'Keluhan:', bold: true);
+        _ticketText(ticket, complaint);
+      }
+      final diagnosis = _receiptText(source['diagnosis']);
+      if (diagnosis.isNotEmpty) {
+        _ticketText(ticket, 'Pemeriksaan awal:', bold: true);
+        _ticketText(ticket, diagnosis);
+      }
+      _ticketLabel(ticket, 'Estimasi biaya', _receiptMoney(source['estimated_cost']), bold: true);
+      _ticketLabel(ticket, 'Status servis', _receiptText(source['service_status']));
     } else {
       final bicycle = [_receiptText(source['bicycle_brand']), _receiptText(source['bicycle_model'])].where((part) => part.isNotEmpty).join(' ');
       if (bicycle.isNotEmpty) _ticketLabel(ticket, 'Sepeda', bicycle);
