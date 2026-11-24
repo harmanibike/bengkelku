@@ -33,10 +33,12 @@ class ReceiptLayout extends StatelessWidget {
       children: List.generate((w / 8).floor(), (_) => Container(width: 4, height: 1, color: Colors.black)),
     ),
   );
-  Widget rowText(String label,String value,double w,{bool bold=false}) => SizedBox(width:w, child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    SizedBox(width:w*.45,child:Text(label,softWrap:false,overflow:TextOverflow.clip,style:TextStyle(fontSize:16*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
+  Widget rowText(String label,String value,double w,{bool bold=false, bool singleLine=false}) => SizedBox(width:w, child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+    SizedBox(width:w*.30,child:Text(label,softWrap:false,overflow:TextOverflow.clip,style:TextStyle(fontSize:16*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
     Text(' : ',style:TextStyle(fontSize:16*settings.fontScale)),
-    Expanded(child:Text(value,softWrap:true,style:TextStyle(fontSize:16*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
+    Expanded(child:singleLine
+        ? FittedBox(fit:BoxFit.scaleDown,alignment:Alignment.centerLeft,child:Text(value,maxLines:1,style:TextStyle(fontSize:16*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal)))
+        : Text(value,softWrap:true,style:TextStyle(fontSize:16*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
   ]));
   Widget summaryRow(String label,String value,double w,{bool bold=false}) => SizedBox(width:w, child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Expanded(child:Text(label,softWrap:false,overflow:TextOverflow.clip,style:TextStyle(fontSize:(bold?21:18)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
@@ -76,11 +78,11 @@ class ReceiptLayout extends StatelessWidget {
         const Divider(color:Colors.black,thickness:1.5),
         Center(child:Text(title,style:TextStyle(fontSize:23*textScale,fontWeight:FontWeight.w900))),
         SizedBox(height:4*gap), dash(inner),
-        rowText('No. Nota',number,inner),
-        rowText('Tanggal',date(when),inner),
+        rowText('No. Nota',number,inner,singleLine:true),
+        rowText('Tanggal',date(when),inner,singleLine:true),
         if(settings.showCustomerDetails)...[
-          rowText('Nama Pelanggan',s(source['customer_name']).isEmpty?'-':s(source['customer_name']),inner),
-          rowText('No. Telp',s(source['customer_phone']).isEmpty?'-':s(source['customer_phone']),inner),
+          rowText('Nama',s(source['customer_name']).isEmpty?'-':s(source['customer_name']),inner,singleLine:true),
+          rowText('No. Telp',s(source['customer_phone']).isEmpty?'-':s(source['customer_phone']),inner,singleLine:true),
         ],
         dash(inner),
         if(sale)...[
@@ -96,7 +98,7 @@ class ReceiptLayout extends StatelessWidget {
           rowText('Sepeda',(s(source['bicycle_brand'])+' '+s(source['bicycle_model'])).trim(),inner),
           rowText('Keluhan',s(source['complaint']),inner), dash(inner),
           if(finalPay)...[
-            summaryRow('Total biaya servis',money(total),inner,bold:true),rowText('Sudah dibayar',money(paid),inner,bold:true),rowText('Sisa tagihan',money(remaining),inner,bold:true),
+            summaryRow('Total servis',money(total),inner,bold:true),rowText('Dibayar',money(paid),inner,bold:true,singleLine:true),rowText('Sisa',money(remaining),inner,bold:true,singleLine:true),
           ] else ...[
             rowText('Jasa servis',money(source['labor_cost']),inner),
             ...items.map((it)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
