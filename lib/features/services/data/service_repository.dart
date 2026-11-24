@@ -22,18 +22,20 @@ class ServiceRepository {
     'cancelled',
   ];
 
-  // Membuat nomor servis unik berdasarkan tanggal dan waktu.
-  String _generateOrderNumber([DateTime? dateTime]) {
-    final date = dateTime ?? DateTime.now();
-
-    String twoDigits(int value) => value.toString().padLeft(2, '0');
-
+  // Nomor nota servis baru mengikuti format singkat nota penjualan:
+  // SRV-YYMMDD-0001. Nomor lama tetap tersimpan tanpa perubahan.
+  Future<String> _generateOrderNumber(Transaction txn, DateTime date) async {
     final datePart =
-        '${date.year}${twoDigits(date.month)}${twoDigits(date.day)}';
-    final timePart =
-        '${twoDigits(date.hour)}${twoDigits(date.minute)}${twoDigits(date.second)}';
-
-    return 'SRV-$datePart-$timePart-${date.millisecond.toString().padLeft(3, '0')}';
+        '${date.year.toString().substring(2)}'
+        '${date.month.toString().padLeft(2, '0')}'
+        '${date.day.toString().padLeft(2, '0')}';
+    final prefix = 'SRV-$datePart-';
+    final rows = await txn.rawQuery(
+      'SELECT COUNT(*) AS total FROM service_orders WHERE order_number LIKE ?',
+      ['$prefix%'],
+    );
+    final sequence = ((rows.first['total'] as num?)?.toInt() ?? 0) + 1;
+    return '$prefix${sequence.toString().padLeft(4, '0')}';
   }
 
   int _safeAmount(int value) => value < 0 ? 0 : value;
@@ -125,7 +127,7 @@ class ServiceRepository {
       }
 
       final now = DateTime.now();
-      final orderNumber = _generateOrderNumber(now);
+      final orderNumber = await _generateOrderNumber(txn, now);
       final queueDate = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final queueRows = await txn.rawQuery(
         'SELECT COALESCE(MAX(queue_number), 0) + 1 AS next_number FROM service_orders WHERE queue_date = ?',
