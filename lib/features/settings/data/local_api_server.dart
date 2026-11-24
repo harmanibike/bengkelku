@@ -15,15 +15,33 @@ class LocalApiServer {
   static final LocalApiServer instance = LocalApiServer();
 
   HttpServer? _server;
+  Future<int>? _startFuture;
+  Future<void>? _stopFuture;
 
   bool get isRunning => _server != null;
   int? get port => _server?.port;
 
+  /// Start idempotent: chiamate simultanee condividono lo stesso bind.
   Future<int> start({
     int port = defaultPort,
     String serverName = 'BengkelKu Server',
+  }) {
+    final runningServer = _server;
+    if (runningServer != null) return Future<int>.value(runningServer.port);
+    final pendingStart = _startFuture;
+    if (pendingStart != null) return pendingStart;
+
+    final future = _startInternal(port: port, serverName: serverName);
+    _startFuture = future;
+    return future.whenComplete(() {
+      if (identical(_startFuture, future)) _startFuture = null;
+    });
+  }
+
+  Future<int> _startInternal({
+    required int port,
+    required String serverName,
   }) async {
-    if (_server != null) return _server!.port;
     if (port < 0 || port > 65535) {
       throw ArgumentError.value(port, 'port', 'Port harus 0 sampai 65535.');
     }
@@ -43,6 +61,7 @@ class LocalApiServer {
       await for (final request in server) {
         request.response.headers.contentType = ContentType.json;
         request.response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
+        request.response.headers.set('X-Content-Type-Options', 'nosniff');
 
         if (request.method == 'GET' && request.uri.path == '/api/v1/health') {
           request.response.statusCode = HttpStatus.ok;
@@ -54,6 +73,14 @@ class LocalApiServer {
             'api_version': apiVersion,
             'min_client_version': minimumClientVersion,
             'max_client_version': maximumClientVersion,
+          }));
+        } else if (request.uri.path == '/api/v1/health') {
+          request.response.statusCode = HttpStatus.methodNotAllowed;
+          request.response.headers.set(HttpHeaders.allowHeader, 'GET');
+          request.response.write(jsonEncode({
+            'app': 'bengkelku_pos',
+            'status': 'method_not_allowed',
+            'message': 'Endpoint pemeriksaan hanya menerima GET.',
           }));
         } else {
           request.response.statusCode = HttpStatus.notFound;
@@ -72,7 +99,28 @@ class LocalApiServer {
     }
   }
 
-  Future<void> stop() async {
+  Future<void> stop() {
+    final pendingStop = _stopFuture;
+    if (pendingStop != null) return pendingStop;
+
+    final future = _stopInternal();
+    _stopFuture = future;
+    return future.whenComplete(() {
+      if (identical(_stopFuture, future)) _stopFuture = null;
+    });
+  }
+
+  Future<void> _stopInternal() async {
+    // Bila Stop ditekan ketika bind masih berlangsung, tunggu hasilnya agar
+    // server tidak tertinggal aktif tanpa kendali UI.
+    final pendingStart = _startFuture;
+    if (pendingStart != null) {
+      try {
+        await pendingStart;
+      } catch (_) {
+        return;
+      }
+    }
     final server = _server;
     _server = null;
     await server?.close(force: true);
