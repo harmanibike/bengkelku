@@ -279,6 +279,55 @@ void main() {
     );
   });
 
+  test('database restore removes stale SQLite sidecars before replacing file', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Produk dari Backup',
+      'selling_price': 20000,
+      'purchase_price': 10000,
+      'stock': 2,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+
+    final backupService = DatabaseBackupService();
+    final backup = await backupService.createBackup();
+
+    final currentDb = await AppDatabase.instance.database;
+    await currentDb.update(
+      'products',
+      {'name': 'Data yang harus tergantikan'},
+      where: 'id = ?',
+      whereArgs: [productId],
+    );
+    await AppDatabase.instance.close();
+
+    final databasePath = p.join(await getDatabasesPath(), 'bengkelku_pos.db');
+    final walFile = File('$databasePath-wal');
+    final shmFile = File('$databasePath-shm');
+    await walFile.writeAsString('stale WAL from previous database');
+    await shmFile.writeAsString('stale shared-memory file');
+
+    final safetyCopyPath = await backupService.restoreBackup(backup.path);
+    expect(await File(safetyCopyPath).exists(), isTrue);
+    expect(await walFile.exists(), isFalse);
+    expect(await shmFile.exists(), isFalse);
+
+    final restoredDb = await AppDatabase.instance.database;
+    final restored = await restoredDb.query(
+      'products',
+      columns: ['name'],
+      where: 'id = ?',
+      whereArgs: [productId],
+      limit: 1,
+    );
+    expect(restored.single['name'], 'Produk dari Backup');
+    expect(
+      (await restoredDb.rawQuery('PRAGMA integrity_check')).single.values.first,
+      'ok',
+    );
+  });
+
   test('invalid database backup is rejected and temporary candidate is removed', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {
