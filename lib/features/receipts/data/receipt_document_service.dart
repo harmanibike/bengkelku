@@ -67,7 +67,7 @@ class ReceiptDocumentService {
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _header(profile, logo, settings),
-          _center('NOTA PENJUALAN', bold: true, size: 14, settings: settings),
+          _center('NOTA PENJUALAN', bold: true, size: 12, settings: settings),
           pw.SizedBox(height: 5 * settings.spacing),
           _line('No. Nota', _text(sale['invoice_number']), settings: settings),
           _line('Tanggal', dateLabel(sale['transaction_date']), settings: settings),
@@ -81,10 +81,10 @@ class ReceiptDocumentService {
             return pw.Padding(
               padding: pw.EdgeInsets.only(bottom: 5 * settings.spacing),
               child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                pw.Text(_text(item['product_name']), style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2))),
+                pw.Text(_text(item['product_name']), style: pw.TextStyle(fontSize: 9 * settings.fontScale)),
                 pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-                  pw.Text('$qty x ${rupiah(price)}', style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2))),
-                  pw.Text(rupiah(subtotal), style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2), fontWeight: pw.FontWeight.bold)),
+                  pw.Text('$qty x ${rupiah(price)}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
+                  pw.Text(rupiah(subtotal), style: pw.TextStyle(fontSize: 9 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
                 ]),
               ]),
             );
@@ -99,15 +99,15 @@ class ReceiptDocumentService {
           _line('Sisa tagihan', rupiah(remaining), bold: true, settings: settings),
           if (payments.isNotEmpty) ...[
             pw.SizedBox(height: 7 * settings.spacing),
-            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2), fontWeight: pw.FontWeight.bold)),
+            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
             ...payments.map((payment) => _paymentRow(payment, settings)),
           ],
           if (settings.showTransactionNotes && _text(sale['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6 * settings.spacing),
-            pw.Text('Catatan: ${_text(sale['notes'])}', style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2))),
+            pw.Text('Catatan: ${_text(sale['notes'])}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
           ],
           pw.SizedBox(height: 12 * settings.spacing),
-          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih atas kunjungan Anda.' : settings.footerNote.trim(), size: 9, settings: settings),
+          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih atas kunjungan Anda.' : settings.footerNote.trim(), size: 8, settings: settings),
         ],
       )),
     ));
@@ -142,7 +142,7 @@ class ReceiptDocumentService {
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _header(profile, logo, settings),
-          _center('NOTA SERVIS', bold: true, size: 14, settings: settings),
+          _center('NOTA SERVIS', bold: true, size: 12, settings: settings),
           pw.SizedBox(height: 5 * settings.spacing),
           _line('No. Nota', _text(service['order_number']), settings: settings),
           _line('Tanggal masuk', dateLabel(service['received_at']), settings: settings),
@@ -158,14 +158,14 @@ class ReceiptDocumentService {
           _line('Rincian biaya', '', bold: true, settings: settings),
           _line('Jasa servis', rupiah(service['labor_cost']), settings: settings),
           if (serviceItems.isNotEmpty) ...[
-            pw.Text('RINCIAN SPAREPART', style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2), fontWeight: pw.FontWeight.bold)),
+            pw.Text('RINCIAN SPAREPART', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
             ...serviceItems.map((item) => pw.Padding(
               padding: pw.EdgeInsets.only(bottom: 5 * settings.spacing),
               child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-                pw.Text(_text(item['item_name']), style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2))),
+                pw.Text(_text(item['item_name']), style: pw.TextStyle(fontSize: 9 * settings.fontScale)),
                 pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-                  pw.Text('${_int(item['quantity'])} x ${rupiah(item['unit_price'])}', style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2))),
-                  pw.Text(rupiah(item['subtotal']), style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2), fontWeight: pw.FontWeight.bold)),
+                  pw.Text('${_int(item['quantity'])} x ${rupiah(item['unit_price'])}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
+                  pw.Text(rupiah(item['subtotal']), style: pw.TextStyle(fontSize: 9 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
                 ]),
               ]),
             )),
@@ -179,15 +179,15 @@ class ReceiptDocumentService {
           _line('Status', _text(service['service_status']), settings: settings),
           if (payments.isNotEmpty) ...[
             pw.SizedBox(height: 7 * settings.spacing),
-            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2), fontWeight: pw.FontWeight.bold)),
+            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
             ...payments.map((payment) => _paymentRow(payment, settings)),
           ],
           if (settings.showTransactionNotes && _text(service['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6 * settings.spacing),
-            pw.Text('Catatan: ${_text(service['notes'])}', style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2))),
+            pw.Text('Catatan: ${_text(service['notes'])}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
           ],
           pw.SizedBox(height: 12 * settings.spacing),
-          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : settings.footerNote.trim(), size: 9, settings: settings),
+          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : settings.footerNote.trim(), size: 8, settings: settings),
         ],
       )),
     ));
@@ -216,8 +216,8 @@ class ReceiptDocumentService {
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _header(profile, logo, settings),
-          _center('BUKTI PENERIMAAN SEPEDA', bold: true, size: 13, settings: settings),
-          _center('DOKUMEN SAAT SEPEDA MASUK BENGKEL', size: 9, settings: settings),
+          _center('BUKTI PENERIMAAN SEPEDA', bold: true, size: 11, settings: settings),
+          _center('DOKUMEN SAAT SEPEDA MASUK BENGKEL', size: 7, settings: settings),
           pw.SizedBox(height: 7 * settings.spacing),
           _line('No. Dokumen', '${_text(service['order_number'])}-TERIMA', settings: settings),
           _line('No. Servis', _text(service['order_number']), settings: settings),
@@ -248,11 +248,11 @@ class ReceiptDocumentService {
           _line('Estimasi biaya', rupiah(service['estimated_cost']), settings: settings),
           _line('Status servis', _text(service['service_status']), settings: settings),
           pw.SizedBox(height: 12 * settings.spacing),
-          _center('Dokumen ini merupakan bukti penerimaan sepeda, bukan bukti pelunasan.', size: 9, settings: settings),
+          _center('Dokumen ini merupakan bukti penerimaan sepeda, bukan bukti pelunasan.', size: 7, settings: settings),
           pw.SizedBox(height: 10),
           if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty
               ? 'Simpan dokumen ini untuk pengambilan sepeda.'
-              : _text(profile['business_footer_note']), size: 9, settings: settings),
+              : _text(profile['business_footer_note']), size: 8, settings: settings),
         ],
       )),
     ));
@@ -283,8 +283,8 @@ class ReceiptDocumentService {
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           _header(profile, logo, settings),
-          _center('BUKTI PELUNASAN SERVIS', bold: true, size: 14, settings: settings),
-          _center('PEMBAYARAN TELAH LUNAS', bold: true, size: 9, settings: settings),
+          _center('BUKTI PELUNASAN SERVIS', bold: true, size: 12, settings: settings),
+          _center('PEMBAYARAN TELAH LUNAS', bold: true, size: 8, settings: settings),
           pw.SizedBox(height: 7 * settings.spacing),
           _line('No. Dokumen', '${_text(service['order_number'])}-LUNAS', settings: settings),
           _line('No. Servis', _text(service['order_number']), settings: settings),
@@ -299,14 +299,14 @@ class ReceiptDocumentService {
           _line('Sisa tagihan', rupiah(remaining), bold: true, settings: settings),
           if (payments.isNotEmpty) ...[
             pw.SizedBox(height: 7 * settings.spacing),
-            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2), fontWeight: pw.FontWeight.bold)),
+            pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
             ...payments.map((payment) => _paymentRow(payment, settings)),
           ],
           pw.Divider(),
           _center('LUNAS - TIDAK ADA SISA TAGIHAN', bold: true, size: 9, settings: settings),
-          _center('Terima kasih atas kepercayaan Anda.', size: 9, settings: settings),
+          _center('Terima kasih atas kepercayaan Anda.', size: 8, settings: settings),
           pw.SizedBox(height: 10),
-          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih atas kepercayaan Anda.' : settings.footerNote.trim(), size: 9, settings: settings),
+          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih atas kepercayaan Anda.' : settings.footerNote.trim(), size: 8, settings: settings),
         ],
       )),
     ));
@@ -347,7 +347,7 @@ class ReceiptDocumentService {
           pw.Expanded(
             child: pw.Text(
               label,
-              style: pw.TextStyle(fontSize: 9 * (settings.fontScale * 1.2)),
+              style: pw.TextStyle(fontSize: 7.5 * settings.fontScale),
             ),
           ),
           pw.SizedBox(width: 4),
@@ -355,7 +355,7 @@ class ReceiptDocumentService {
             rupiah(payment['amount']),
             textAlign: pw.TextAlign.right,
             style: pw.TextStyle(
-              fontSize: 9 * (settings.fontScale * 1.2),
+              fontSize: 8 * settings.fontScale,
               fontWeight: pw.FontWeight.bold,
             ),
           ),
@@ -374,8 +374,8 @@ class ReceiptDocumentService {
     return pw.Column(children: [
       if (settings.showLogo && logo != null) pw.Container(height: 32, alignment: pw.Alignment.center, child: pw.Image(logo, fit: pw.BoxFit.contain)),
       if (settings.showBusinessName && _text(profile['business_name']).isNotEmpty)
-        _center(_text(profile['business_name']), bold: true, size: 13, settings: settings),
-      ...details.map((detail) => _center(detail, size: 9, settings: settings)),
+        _center(_text(profile['business_name']), bold: true, size: 11, settings: settings),
+      ...details.map((detail) => _center(detail, size: 7, settings: settings)),
       pw.SizedBox(height: 5 * settings.spacing),
     ]);
   }
