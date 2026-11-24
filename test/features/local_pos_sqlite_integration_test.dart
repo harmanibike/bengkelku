@@ -374,6 +374,60 @@ void main() {
     expect(product['stock'], 1);
   });
 
+  test('sale return prorates invoice discount across returned quantity', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Gear Uji',
+      'selling_price': 50000,
+      'purchase_price': 20000,
+      'stock': 2,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 2,
+      'quantity_remaining': 2,
+      'unit_cost': 20000,
+    });
+
+    final saleId = await SaleRepository().checkout(
+      items: [
+        {'product_id': productId, 'quantity': 2, 'unit_price': 50000},
+      ],
+      discount: 20000,
+      paid: 80000,
+      paymentMethod: 'cash',
+    );
+    final saleItem = (await db.query(
+      'sale_items',
+      where: 'sale_id = ?',
+      whereArgs: [saleId],
+    )).single;
+
+    final returnId = await SaleReturnRepository().createReturn(
+      saleId: saleId,
+      items: [
+        {'sale_item_id': saleItem['id'], 'quantity': 1},
+      ],
+      refundAmount: 40000,
+    );
+
+    final returned = (await db.query(
+      'sale_returns',
+      where: 'id = ?',
+      whereArgs: [returnId],
+    )).single;
+    expect(returned['total_amount'], 40000);
+    expect(returned['refunded_amount'], 40000);
+    final expense = (await db.query(
+      'cash_transactions',
+      where: "reference_type = 'sale_return' AND reference_id = ?",
+      whereArgs: [returnId],
+    )).single;
+    expect(expense['amount'], 40000);
+  });
+
   test('version 33 migration preserves legacy return rows as unknown snapshot', () async {
     final databasePath = p.join(await getDatabasesPath(), 'bengkelku_pos.db');
     final legacyDb = await openDatabase(
