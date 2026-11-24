@@ -349,7 +349,9 @@ class ReceiptDocumentService {
 
   static pw.Widget _line(String label, String value, {bool bold = false, ReceiptPrintSettings? settings}) {
     final weight = bold ? pw.FontWeight.bold : pw.FontWeight.normal;
-    final isLongValue = value.length > 20;
+    // Label panjang pada kertas 58 mm harus ditumpuk agar tidak
+    // membungkus sempit lalu terpotong di sisi kiri.
+    final isLongValue = label.length > 14 || value.length > 20;
     return pw.Padding(
       padding: pw.EdgeInsets.symmetric(vertical: 1 * (settings?.spacing ?? 1)),
       child: isLongValue
