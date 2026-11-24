@@ -284,6 +284,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
           if (name.isNotEmpty) _ticketText(ticket, name);
           _ticketItemAmount(ticket, _receiptInt(item['quantity']), item['unit_price'], item['subtotal']);
         }
+        ticket.separator();
         _ticketLabel(ticket, 'Total sparepart', _receiptMoney(source['parts_cost']));
         _ticketLabel(ticket, 'Diskon', _receiptMoney(source['discount']));
         _ticketLabel(ticket, 'TOTAL BIAYA', _receiptMoney(total), bold: true);
