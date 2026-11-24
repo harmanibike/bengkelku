@@ -149,9 +149,15 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
 
   void _ticketLabel(Ticket ticket, String label, String value, {bool bold = false}) {
     if (value.trim().isEmpty) return;
+    // Avoid bold PrintColumn rows: some 58 mm clone printers render the
+    // package's CR-overstrike fallback as visibly duplicated text.
+    if (bold) {
+      _ticketText(ticket, '$label: $value', bold: true);
+      return;
+    }
     ticket.row([
-      PrintColumn(text: label, flex: 5, style: PrintTextStyle(bold: bold, fontType: FontType.fontA)),
-      PrintColumn(text: value, flex: 7, align: PrintAlign.right, style: PrintTextStyle(bold: bold, fontType: FontType.fontA)),
+      PrintColumn(text: label, flex: 5, style: const PrintTextStyle(fontType: FontType.fontA)),
+      PrintColumn(text: value, flex: 7, align: PrintAlign.right, style: const PrintTextStyle(fontType: FontType.fontA)),
     ]);
   }
 
@@ -223,7 +229,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         if (name.isNotEmpty) _ticketText(ticket, name);
         ticket.row([
           PrintColumn(text: '${_receiptInt(item['quantity'])} x ${_receiptMoney(item['unit_price'])}', flex: 7),
-          PrintColumn(text: _receiptMoney(item['subtotal']), flex: 5, align: PrintAlign.right, style: const PrintTextStyle(bold: true)),
+          PrintColumn(text: _receiptMoney(item['subtotal']), flex: 5, align: PrintAlign.right),
         ]);
       }
       ticket.separator();
