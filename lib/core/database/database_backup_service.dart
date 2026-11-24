@@ -136,8 +136,11 @@ class DatabaseBackupService {
       }
       if (await safetyCopy.exists()) {
         await safetyCopy.copy(databasePath);
-        await AppDatabase.instance.database;
       }
+      // Jika gagal sebelum salinan pengaman dibuat, file database asli
+      // tetap dipakai. Buka kembali koneksi agar aplikasi tidak tertinggal
+      // dalam keadaan database tertutup.
+      await AppDatabase.instance.database;
       rethrow;
     }
   }
