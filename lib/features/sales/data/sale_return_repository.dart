@@ -111,6 +111,41 @@ class SaleReturnRepository {
       final totalPreviouslyReturned = previousReturns.first['total_returned'] as int? ?? 0;
       final totalPreviouslyRefunded = previousReturns.first['total_refunded'] as int? ?? 0;
 
+      // Alokasikan diskon nota ke setiap barang secara proporsional.
+      // Baris terakhir menerima sisa pembulatan agar total alokasi tepat sama
+      // dengan diskon nota, sehingga retur bertahap tidak melebihi nilai bersih.
+      final saleItemsForDiscount = await txn.query(
+        'sale_items',
+        where: 'sale_id = ?',
+        whereArgs: [saleId],
+        orderBy: 'id ASC',
+      );
+      final grossSubtotal = saleItemsForDiscount.fold<int>(
+        0,
+        (sum, item) => sum + ((item['subtotal'] as int?) ??
+            ((item['unit_price'] as int? ?? 0) * (item['quantity'] as int? ?? 0))),
+      );
+      final saleDiscount = (sale['discount'] as int? ?? 0)
+          .clamp(0, grossSubtotal).toInt();
+      final discountBySaleItem = <int, int>{};
+      final discountableItems = saleItemsForDiscount.where((item) {
+        final lineGross = (item['subtotal'] as int?) ??
+            ((item['unit_price'] as int? ?? 0) * (item['quantity'] as int? ?? 0));
+        return lineGross > 0;
+      }).toList();
+      var allocatedDiscount = 0;
+      for (var i = 0; i < discountableItems.length; i++) {
+        final item = discountableItems[i];
+        final itemId = item['id'] as int;
+        final lineGross = (item['subtotal'] as int?) ??
+            ((item['unit_price'] as int? ?? 0) * (item['quantity'] as int? ?? 0));
+        final allocation = i == discountableItems.length - 1
+            ? saleDiscount - allocatedDiscount
+            : (grossSubtotal > 0 ? saleDiscount * lineGross ~/ grossSubtotal : 0);
+        discountBySaleItem[itemId] = allocation;
+        allocatedDiscount += allocation;
+      }
+
       final checked = <Map<String, Object?>>[];
       var returnTotal = 0;
       for (final entry in requested.entries) {
@@ -135,7 +170,17 @@ class SaleReturnRepository {
           throw StateError('Jumlah retur ${saleItem['product_name']} melebihi sisa yang dapat diretur ($available).');
         }
         final unitPrice = saleItem['unit_price'] as int? ?? 0;
-        final subtotal = unitPrice * entry.value;
+        final lineGross = (saleItem['subtotal'] as int?) ?? (unitPrice * sold);
+        final lineDiscount = discountBySaleItem[entry.key] ?? 0;
+        final lineNet = (lineGross - lineDiscount).clamp(0, 1 << 62).toInt();
+        // Nilai retur kumulatif dihitung dengan pembulatan ke bawah.
+        // Selisihnya memastikan beberapa retur parsial akhirnya tepat
+        // mencapai nilai bersih seluruh baris, tanpa selisih pembulatan.
+        final returnedBeforeValue = sold > 0 ? lineNet * alreadyReturned ~/ sold : 0;
+        final returnedAfterValue = sold > 0
+            ? lineNet * (alreadyReturned + entry.value) ~/ sold
+            : 0;
+        final subtotal = returnedAfterValue - returnedBeforeValue;
         returnTotal += subtotal;
         checked.add({
           'sale_item': saleItem,
@@ -145,7 +190,7 @@ class SaleReturnRepository {
         });
       }
 
-      if (returnTotal <= 0) throw StateError('Nilai retur harus lebih dari nol.');
+      if (returnTotal < 0) throw StateError('Nilai retur tidak valid.');
       final paid = sale['paid'] as int? ?? 0;
       final total = sale['total'] as int? ?? 0;
       final outstandingBefore = total - paid - totalPreviouslyReturned + totalPreviouslyRefunded;
