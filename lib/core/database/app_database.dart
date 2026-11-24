@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 35;
+  static const int currentVersion = 36;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -96,6 +96,8 @@ class AppDatabase {
         display_name TEXT NOT NULL,
         username TEXT NOT NULL COLLATE NOCASE UNIQUE,
         role TEXT NOT NULL CHECK(role IN ('admin', 'cashier', 'mechanic')),
+        phone TEXT,
+        profile_photo_path TEXT,
         pin_hash TEXT NOT NULL,
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -930,6 +932,12 @@ class AppDatabase {
         )
       ''');
       await db.execute('CREATE INDEX idx_device_pairing_attempt_limits_blocked ON device_pairing_attempt_limits(blocked_until)');
+    }
+
+    // Profil akun: nomor HP dan foto disimpan per akun, tanpa mengubah role.
+    if (oldVersion < 36) {
+      await db.execute('ALTER TABLE app_users ADD COLUMN phone TEXT');
+      await db.execute('ALTER TABLE app_users ADD COLUMN profile_photo_path TEXT');
     }
 
     // Pastikan tabel pengaturan tersedia pada semua database lama tanpa menghapus data.
