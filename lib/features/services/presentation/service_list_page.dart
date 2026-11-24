@@ -272,6 +272,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
     final controller = TextEditingController(text: formatCurrencyInput(outstanding));
     String extraChoice = 'change';
+    String paymentMethod = 'cash';
     final result = await showDialog<Map<String, Object?>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -294,6 +295,18 @@ class _ServiceListPageState extends State<ServiceListPage> {
                     helperText: 'Sisa tagihan: ${_rupiah(outstanding)}',
                     border: const OutlineInputBorder(),
                   ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: paymentMethod,
+                  decoration: const InputDecoration(labelText: 'Metode pembayaran', border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'cash', child: Text('Tunai')),
+                    DropdownMenuItem(value: 'bank_transfer', child: Text('Transfer Bank')),
+                    DropdownMenuItem(value: 'qris', child: Text('QRIS')),
+                    DropdownMenuItem(value: 'other_non_cash', child: Text('Nontunai lainnya')),
+                  ],
+                  onChanged: (value) => setDialogState(() => paymentMethod = value ?? 'cash'),
                 ),
                 if (extra > 0) ...[
                   const SizedBox(height: 12),
@@ -331,7 +344,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
               TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
               FilledButton(
                 onPressed: received > 0
-                    ? () => Navigator.pop(dialogContext, {'received': received, 'extra_choice': extraChoice})
+                    ? () => Navigator.pop(dialogContext, {'received': received, 'extra_choice': extraChoice, 'payment_method': paymentMethod})
                     : null,
                 child: const Text('Simpan pembayaran'),
               ),
@@ -350,6 +363,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final tipAmount = extra > 0 && choice == 'tip' ? extra : 0;
     final walletDepositAmount = extra > 0 && choice == 'wallet' ? extra : 0;
     final change = extra > 0 && choice == 'change' ? extra : 0;
+    final paymentMethod = result['payment_method']?.toString() ?? 'cash';
     try {
       await _repository.addPayment(
         id: id,
@@ -357,6 +371,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
         tipAmount: tipAmount,
         walletDepositAmount: walletDepositAmount,
         tipRecipientName: order?['mechanic_name']?.toString(),
+        paymentMethod: paymentMethod,
       );
       if (!mounted) return;
       _refresh();
