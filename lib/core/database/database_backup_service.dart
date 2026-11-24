@@ -31,6 +31,7 @@ class DatabaseBackupService {
   }
 
   Future<File> createBackup() async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat membuat backup database.');
     final db = await AppDatabase.instance.database;
     final integrity = await db.rawQuery('PRAGMA integrity_check');
     if (integrity.isEmpty || integrity.first.values.first?.toString() != 'ok') {
