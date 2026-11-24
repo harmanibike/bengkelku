@@ -112,6 +112,14 @@ void main() {
     expect(clean, isEmpty);
   });
 
+  test('database backup creation is restricted to Admin', () async {
+    AuthSession.instance.signOut();
+    await expectLater(
+      DatabaseBackupService().createBackup(),
+      throwsA(isA<StateError>()),
+    );
+  });
+
   test('database backup restores data and preserves a safety copy', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {
