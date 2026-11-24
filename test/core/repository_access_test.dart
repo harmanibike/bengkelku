@@ -158,6 +158,22 @@ void main() {
       );
     });
 
+    test('mechanic cannot cancel a service order', () async {
+      AuthSession.instance.signIn({
+        'id': 7,
+        'role': 'mechanic',
+        'display_name': 'Mekanik Tes',
+      });
+      await expectLater(
+        ServiceRepository().updateServiceStatus(
+          id: 1,
+          status: 'cancelled',
+          actingMechanicId: 7,
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
     test('cashier cannot make manual stock adjustments', () async {
       AuthSession.instance.signIn({
         'id': 8,
