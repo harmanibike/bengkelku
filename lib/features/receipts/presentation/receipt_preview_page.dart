@@ -137,7 +137,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     final parsed = DateTime.tryParse(_receiptText(value))?.toLocal();
     if (parsed == null) return '-';
     String two(int n) => n.toString().padLeft(2, '0');
-    return '\${two(parsed.day)}/\${two(parsed.month)}/\${parsed.year} \${two(parsed.hour)}:\${two(parsed.minute)}';
+    return '${two(parsed.day)}/${two(parsed.month)}/${parsed.year} ${two(parsed.hour)}:${two(parsed.minute)}';
   }
 
   void _ticketText(Ticket ticket, String value, {bool bold = false, PrintAlign align = PrintAlign.left, int linesAfter = 0}) {
@@ -221,7 +221,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         final name = _receiptText(item['product_name']);
         if (name.isNotEmpty) _ticketText(ticket, name);
         ticket.row([
-          PrintColumn(text: '\${_receiptInt(item['quantity'])} x \${_receiptMoney(item['unit_price'])}', flex: 7),
+          PrintColumn(text: '${_receiptInt(item['quantity'])} x ${_receiptMoney(item['unit_price'])}', flex: 7),
           PrintColumn(text: _receiptMoney(item['subtotal']), flex: 5, align: PrintAlign.right, style: const PrintTextStyle(bold: true)),
         ]);
       }
@@ -247,7 +247,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
           final name = _receiptText(item['item_name']);
           if (name.isNotEmpty) _ticketText(ticket, name);
           ticket.row([
-            PrintColumn(text: '\${_receiptInt(item['quantity'])} x \${_receiptMoney(item['unit_price'])}', flex: 7),
+            PrintColumn(text: '${_receiptInt(item['quantity'])} x ${_receiptMoney(item['unit_price'])}', flex: 7),
             PrintColumn(text: _receiptMoney(item['subtotal']), flex: 5, align: PrintAlign.right, style: const PrintTextStyle(bold: true)),
           ]);
         }
@@ -273,9 +273,9 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       for (final payment in payments) {
         final parsed = DateTime.tryParse(_receiptText(payment['transaction_date']))?.toLocal();
         String two(int n) => n.toString().padLeft(2, '0');
-        final dateText = parsed == null ? '-' : '\${two(parsed.day)}/\${two(parsed.month)} \${two(parsed.hour)}:\${two(parsed.minute)}';
+        final dateText = parsed == null ? '-' : '${two(parsed.day)}/${two(parsed.month)} ${two(parsed.hour)}:${two(parsed.minute)}';
         final method = _paymentMethod(payment);
-        _ticketText(ticket, '$dateText \${method.isEmpty ? '' : '· $method'}');
+        _ticketText(ticket, '$dateText ${method.isEmpty ? '' : '· $method'}');
         _ticketText(ticket, _receiptMoney(payment['amount']), bold: true, align: PrintAlign.right);
       }
     }
@@ -313,7 +313,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       await manager.connect(BluetoothPrinterDevice(name: saved['name']!, address: saved['address']!));
       await manager.printTicket(ticket);
       await manager.waitWriteComplete();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Nota ESC/POS dikirim ke printer \${saved['name']!}.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Nota ESC/POS dikirim ke printer ${saved['name']!}.')));
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mencetak nota: $error')));
     } finally {
