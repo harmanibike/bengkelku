@@ -6,7 +6,6 @@ import '../../business/data/business_profile_repository.dart';
 import '../../sales/data/sale_repository.dart';
 import '../../sales/data/sale_return_repository.dart';
 import '../../services/data/service_repository.dart';
-import '../data/receipt_document_service.dart';
 import '../data/receipt_snapshot_repository.dart';
 import 'receipt_preview_page.dart';
 
