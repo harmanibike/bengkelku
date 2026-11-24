@@ -39,8 +39,9 @@ class ReceiptLayout extends StatelessWidget {
     final items=List<Map<String,Object?>>.from((source['items'] as List? ?? const []).map((e)=>Map<String,Object?>.from(e as Map)));
     final w=settings.paperWidthMm==80?480.0:320.0, inner=w-24;
     final total=n(sale?source['total']:source['total_cost']);
-    final paid=n(sale?source['paid']:source['down_payment']);
-    final remaining=sale?(total-paid).clamp(0,1<<62).toInt():n(source['remaining_payment']);
+    final returnSummary=Map<String,Object?>.from(payload['return_summary'] as Map? ?? const {});
+    final paid=finalPay? (total-n(source['remaining_payment'])).clamp(0,1<<62).toInt() : n(sale?source['paid']:source['down_payment']);
+    final remaining=sale?(total-paid-n(returnSummary['returned_amount'])+n(returnSummary['refunded_amount'])).clamp(0,1<<62).toInt():n(source['remaining_payment']);
     final logo=s(profile['business_logo_path']);
     final number=s(sale?source['invoice_number']:source['order_number']);
     final when=sale?source['transaction_date']:source['received_at'];
