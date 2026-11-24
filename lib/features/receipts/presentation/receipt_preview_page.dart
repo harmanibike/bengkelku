@@ -253,7 +253,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     // Pisahkan label dan nomor agar nomor invoice panjang tidak menyisakan
     // satu digit sendirian di baris berikutnya.
     ticket.text('No. Nota:', maxCharsPerLine: width);
-    ticket.text(_plain(sale['invoice_number']), maxCharsPerLine: width);
+    ticket.text(_displayInvoiceNumber(sale['invoice_number']), maxCharsPerLine: width);
     ticket.text('Tanggal: $dateText', maxCharsPerLine: width);
     if (settings.showCustomerDetails && (sale['customer_name']?.toString().trim().isNotEmpty ?? false)) {
       ticket.text('Pelanggan: ${_plain(sale['customer_name'])}', maxCharsPerLine: width);
