@@ -25,15 +25,23 @@ class ReceiptLayout extends StatelessWidget {
     const m={'cash':'TUNAI','tunai':'TUNAI','bank_transfer':'TRANSFER','transfer':'TRANSFER','transfer bank':'TRANSFER','qris':'QRIS','debit_card':'KARTU DEBIT','credit_card':'KARTU KREDIT','e_wallet':'E-WALLET','customer_wallet':'SALDO PELANGGAN'};
     return m[k] ?? x.toUpperCase();
   }
-  Widget dash(double w) => SizedBox(width:w, child: const Text('----------------------------------------------------------------', maxLines:1, softWrap:false, overflow:TextOverflow.clip, style:TextStyle(fontFamily:'monospace',fontSize:13)));
+  Widget dash(double w) => SizedBox(
+    width: w,
+    height: 8,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: List.generate((w / 8).floor(), (_) => Container(width: 4, height: 1, color: Colors.black)),
+    ),
+  );
   Widget rowText(String label,String value,double w,{bool bold=false}) => SizedBox(width:w, child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    SizedBox(width:w*.37,child:Text(label,softWrap:true,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal))),
-    const Text(' : '), Expanded(child:Text(value,softWrap:true,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal))),
+    SizedBox(width:w*.45,child:Text(label,softWrap:false,overflow:TextOverflow.clip,style:TextStyle(fontSize:16*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
+    Text(' : ',style:TextStyle(fontSize:16*settings.fontScale)),
+    Expanded(child:Text(value,softWrap:true,style:TextStyle(fontSize:16*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
   ]));
   Widget summaryRow(String label,String value,double w,{bool bold=false}) => SizedBox(width:w, child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Expanded(child:Text(label,softWrap:true,style:TextStyle(fontSize:(bold?24:20)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
+    Expanded(child:Text(label,softWrap:false,overflow:TextOverflow.clip,style:TextStyle(fontSize:(bold?21:18)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
     SizedBox(width:4*settings.spacing),
-    Expanded(child:Text(value,textAlign:TextAlign.right,softWrap:true,style:TextStyle(fontSize:(bold?24:20)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
+    Expanded(child:Text(value,textAlign:TextAlign.right,softWrap:false,overflow:TextOverflow.clip,style:TextStyle(fontSize:(bold?21:18)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
   ]));
   @override
   Widget build(BuildContext context) {
@@ -66,7 +74,7 @@ class ReceiptLayout extends StatelessWidget {
           ])),
         ]),
         const Divider(color:Colors.black,thickness:1.5),
-        Center(child:Text(title,style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900))),
+        Center(child:Text(title,style:TextStyle(fontSize:23*textScale,fontWeight:FontWeight.w900))),
         SizedBox(height:4*gap), dash(inner),
         rowText('No. Nota',number,inner),
         rowText('Tanggal',date(when),inner),
@@ -76,14 +84,14 @@ class ReceiptLayout extends StatelessWidget {
         ],
         dash(inner),
         if(sale)...[
-          const Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text('Barang',style:TextStyle(fontWeight:FontWeight.bold)),Text('Harga',style:TextStyle(fontWeight:FontWeight.bold))]),
+          Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text('Barang',style:TextStyle(fontSize:18*textScale,fontWeight:FontWeight.bold)),Text('Harga',style:TextStyle(fontSize:18*textScale,fontWeight:FontWeight.bold))]),
           dash(inner),
           ...items.map((it)=>Padding(padding:EdgeInsets.only(bottom:5*gap),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            Text(s(it['product_name'])),
-            Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Expanded(child:Text(n(it['quantity']).toString()+' x '+money(it['unit_price']),softWrap:true)),SizedBox(width:4*gap),Expanded(child:Text(money(it['subtotal']),textAlign:TextAlign.right,softWrap:true,style:TextStyle(fontWeight:FontWeight.bold)))]),
+            Text(s(it['product_name']),style:TextStyle(fontSize:18*textScale)),
+            Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Expanded(child:Text(n(it['quantity']).toString()+' x '+money(it['unit_price']),softWrap:false,overflow:TextOverflow.clip,style:TextStyle(fontSize:16*textScale))),SizedBox(width:4*gap),Expanded(child:Text(money(it['subtotal']),textAlign:TextAlign.right,softWrap:false,overflow:TextOverflow.clip,style:TextStyle(fontSize:17*textScale,fontWeight:FontWeight.bold)))]),
           ]))),
           dash(inner), summaryRow('Subtotal',money(source['subtotal']),inner), summaryRow('Diskon',money(source['discount']),inner),
-          summaryRow('Total',money(total),inner,bold:true), summaryRow('Sudah dibayar',money(paid),inner), summaryRow('Sisa tagihan',money(remaining),inner,bold:true),
+          summaryRow('Total',money(total),inner,bold:true), summaryRow('Dibayar',money(paid),inner), summaryRow('Sisa',money(remaining),inner,bold:true),
         ] else ...[
           rowText('Sepeda',(s(source['bicycle_brand'])+' '+s(source['bicycle_model'])).trim(),inner),
           rowText('Keluhan',s(source['complaint']),inner), dash(inner),
@@ -92,10 +100,10 @@ class ReceiptLayout extends StatelessWidget {
           ] else ...[
             rowText('Jasa servis',money(source['labor_cost']),inner),
             ...items.map((it)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text(s(it['item_name'])),
-              Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text(n(it['quantity']).toString()+' x '+money(it['unit_price'])),Text(money(it['subtotal']),style:const TextStyle(fontWeight:FontWeight.bold))]),
+              Text(s(it['item_name']),style:TextStyle(fontSize:18*textScale)),
+              Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text(n(it['quantity']).toString()+' x '+money(it['unit_price']),style:TextStyle(fontSize:16*textScale)),Text(money(it['subtotal']),style:TextStyle(fontSize:17*textScale,fontWeight:FontWeight.bold))]),
             ])),
-            summaryRow('Total biaya',money(total),inner,bold:true),rowText('Sudah dibayar',money(paid),inner),rowText('Sisa tagihan',money(remaining),inner,bold:true),
+            summaryRow('Total biaya',money(total),inner,bold:true),rowText('Dibayar',money(paid),inner),rowText('Sisa',money(remaining),inner,bold:true),
           ],
         ],
         dash(inner),
