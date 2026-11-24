@@ -32,11 +32,19 @@ class ReceiptPreviewPage extends StatefulWidget {
 }
 
 class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
-  String _format = 'pdf';
+  String _format = 'foto';
   Uint8List? _imageBytes;
   bool _loadingImage = false;
   bool _sharing = false;
   bool _printing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _selectFormat('foto');
+    });
+  }
 
   Future<void> _selectFormat(String format) async {
     setState(() => _format = format);
