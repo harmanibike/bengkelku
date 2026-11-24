@@ -223,7 +223,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       ticket.text(
         _plain(profile['business_name']),
         align: PrintAlign.center,
-        style: const PrintTextStyle(fontType: FontType.fontA, codeTable: 'CP437'),
+        style: const PrintTextStyle(bold: true, fontType: FontType.fontA, codeTable: 'CP437'),
         maxCharsPerLine: width,
       );
     }
