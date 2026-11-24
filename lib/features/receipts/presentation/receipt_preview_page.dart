@@ -176,6 +176,10 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       payload['return_summary'] as Map? ?? const <String, Object?>{},
     );
     final width = paperWidthMm == 80 ? 48 : 32;
+    // Kunci font dan code page agar printer klon ESC/POS tidak bergantung
+    // pada mode font/code page bawaan yang bisa berbeda antar perangkat.
+    ticket.setGlobalFont(FontType.fontA);
+    ticket.setGlobalCodeTable('CP437');
     final logoPath = profile['business_logo_path']?.trim() ?? '';
     if (logoPath.isNotEmpty) {
       final logoFile = File(logoPath);
@@ -206,7 +210,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       ticket.text(
         _plain(profile['business_name']),
         align: PrintAlign.center,
-        style: const PrintTextStyle(bold: true),
+        style: const PrintTextStyle(fontType: FontType.fontA, codeTable: 'CP437'),
         maxCharsPerLine: width,
       );
     }
@@ -220,7 +224,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     ticket.text(
       'NOTA PENJUALAN',
       align: PrintAlign.center,
-      style: const PrintTextStyle(bold: true, height: TextSize.size2),
+      style: const PrintTextStyle(height: TextSize.size2, fontType: FontType.fontA, codeTable: 'CP437'),
     );
     ticket.emptyLines();
 
@@ -274,8 +278,8 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       ticket.text(
         _fitLine(row[0], row[1], width),
         style: row[0] == 'TOTAL' || row[0] == 'Sisa tagihan'
-            ? const PrintTextStyle(bold: true)
-            : const PrintTextStyle(),
+            ? const PrintTextStyle(fontType: FontType.fontA, codeTable: 'CP437')
+            : const PrintTextStyle(fontType: FontType.fontA, codeTable: 'CP437'),
         maxCharsPerLine: width,
       );
     }
