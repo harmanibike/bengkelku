@@ -204,6 +204,8 @@ class ReceiptShareLauncher {
             fileName: '$safeNumber.pdf',
             title: title,
             shareText: shareText,
+            receiptType: type,
+            receiptPayload: payload,
           ),
         ),
       );
