@@ -96,7 +96,7 @@ class DevicePairingRepository {
         });
         return DevicePairingCode(code: code, expiresAt: expiresAt);
       } on DatabaseException catch (error) {
-        if (!error.isUniqueConstraintError || attempt == 4) rethrow;
+        if (!error.isUniqueConstraintError() || attempt == 4) rethrow;
       }
     }
     throw StateError('Tidak dapat membuat kode pairing unik.');
