@@ -111,7 +111,7 @@ class ReceiptDocumentService {
             pw.Text('Catatan: ${_text(sale['notes'])}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
           ],
           pw.SizedBox(height: 12 * settings.spacing),
-          if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih atas kunjungan Anda.' : _text(profile['business_footer_note']), size: 8, settings: settings),
+          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih atas kunjungan Anda.' : settings.footerNote.trim(), size: 8, settings: settings),
         ],
       )),
     ));
@@ -189,7 +189,7 @@ class ReceiptDocumentService {
             pw.Text('Catatan: ${_text(service['notes'])}', style: pw.TextStyle(fontSize: 8 * settings.fontScale)),
           ],
           pw.SizedBox(height: 12 * settings.spacing),
-          if (settings.showFooter) _center(_text(profile['business_footer_note']).isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : _text(profile['business_footer_note']), size: 8, settings: settings),
+          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : settings.footerNote.trim(), size: 8, settings: settings),
         ],
       )),
     ));
@@ -312,7 +312,7 @@ class ReceiptDocumentService {
           _center('LUNAS - TIDAK ADA SISA TAGIHAN', bold: true, size: 9, settings: settings),
           _center('Terima kasih atas kepercayaan Anda.', size: 8, settings: settings),
           pw.SizedBox(height: 10),
-          if (settings.showFooter) _center(_text(profile['business_footer_note']), size: 8, settings: settings),
+          if (settings.showFooter) _center(settings.footerNote.trim().isEmpty ? 'Terima kasih atas kepercayaan Anda.' : settings.footerNote.trim(), size: 8, settings: settings),
         ],
       )),
     ));
