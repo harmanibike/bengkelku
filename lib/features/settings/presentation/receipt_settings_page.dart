@@ -12,6 +12,7 @@ class ReceiptSettingsPage extends StatefulWidget {
 class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
   final _repository = ReceiptSettingsRepository();
   ReceiptPrintSettings _settings = const ReceiptPrintSettings();
+  final _footerController = TextEditingController();
   bool _loading = true;
   bool _saving = false;
 
@@ -24,6 +25,7 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
   Future<void> _load() async {
     try {
       final settings = await _repository.getReceiptSettings();
+      _footerController.text = settings.footerNote;
       if (mounted) setState(() { _settings = settings; _loading = false; });
     } catch (error) {
       if (mounted) setState(() => _loading = false);
@@ -36,10 +38,16 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  @override
+  void dispose() {
+    _footerController.dispose();
+    super.dispose();
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await _repository.saveReceiptSettings(_settings);
+      await _repository.saveReceiptSettings(_settings.copyWith(footerNote: _footerController.text.trim()));
       _message('Pengaturan tampilan dan format struk berhasil disimpan.');
     } catch (error) {
       _message('Gagal menyimpan pengaturan struk: $error');
@@ -86,7 +94,20 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
                 _option('Kontak usaha', 'Tampilkan telepon dan WhatsApp.', _settings.showBusinessContact, (v) => setState(() => _settings = _settings.copyWith(showBusinessContact: v))),
                 _option('Data pelanggan', 'Tampilkan nama dan nomor telepon pelanggan jika tersedia.', _settings.showCustomerDetails, (v) => setState(() => _settings = _settings.copyWith(showCustomerDetails: v))),
                 _option('Catatan transaksi', 'Tampilkan catatan pada nota jika tersedia.', _settings.showTransactionNotes, (v) => setState(() => _settings = _settings.copyWith(showTransactionNotes: v))),
-                _option('Catatan bawah struk', 'Tampilkan ucapan atau informasi penutup dari Profil Usaha.', _settings.showFooter, (v) => setState(() => _settings = _settings.copyWith(showFooter: v))),
+                _option('Catatan bawah struk', 'Tampilkan pesan penutup pada nota penjualan dan servis.', _settings.showFooter, (v) => setState(() => _settings = _settings.copyWith(showFooter: v))),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _footerController,
+                  enabled: !_saving,
+                  maxLines: 2,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Catatan bawah nota dan struk',
+                    hintText: 'Contoh: Terima kasih telah berbelanja',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                ),
                 const Divider(height: 24),
                 const Text('Ukuran Teks', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                 Slider(
@@ -124,7 +145,7 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
                       const Divider(),
                       const Text('Produk x 1'),
                       const Text('Total                 Rp100.000'),
-                      if (_settings.showFooter) const Center(child: Text('Terima kasih atas kunjungan Anda.')),
+                      if (_settings.showFooter) Center(child: Text(_footerController.text.trim().isEmpty ? 'Terima kasih atas kunjungan Anda.' : _footerController.text.trim(), textAlign: TextAlign.center)),
                       const SizedBox(height: 4),
                       Text('Kertas ${_settings.paperWidthMm} mm • Contoh tampilan, bukan hasil cetak final', style: const TextStyle(fontSize: 10, color: Colors.grey)),
                     ]),
