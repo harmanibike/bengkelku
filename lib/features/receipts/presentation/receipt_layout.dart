@@ -61,12 +61,13 @@ class ReceiptLayout extends StatelessWidget {
         const Divider(color:Colors.black,thickness:1.5),
         Center(child:Text(title,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900))),
         const SizedBox(height:4), dash(inner),
+        rowText('No. Nota',number,inner),
+        rowText('Tanggal',date(when),inner),
         if(settings.showCustomerDetails)...[
           rowText('Nama Pelanggan',s(source['customer_name']).isEmpty?'-':s(source['customer_name']),inner),
           rowText('No. Telp',s(source['customer_phone']).isEmpty?'-':s(source['customer_phone']),inner),
-          dash(inner),
         ],
-        rowText('No. Nota',number,inner), rowText('Tanggal',date(when),inner), dash(inner),
+        dash(inner),
         if(sale)...[
           const Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text('Barang',style:TextStyle(fontWeight:FontWeight.bold)),Text('Harga',style:TextStyle(fontWeight:FontWeight.bold))]),
           dash(inner),
