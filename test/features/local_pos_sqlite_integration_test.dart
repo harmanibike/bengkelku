@@ -13,6 +13,7 @@ import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
 import 'package:bengkelku_pos/features/purchases/data/purchase_return_repository.dart';
+import 'package:bengkelku_pos/features/purchases/data/purchase_repository.dart';
 import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
 
 void main() {
@@ -53,6 +54,56 @@ void main() {
     });
     return (customerId, bicycleId);
   }
+
+  test('supplier payment history and cashbook stay synchronized', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Uji'});
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-UJI-REKON-001',
+      supplierId: supplierId,
+      items: [
+        {
+          'product_id': null,
+          'product_name': 'Barang Uji',
+          'quantity': 1,
+          'unit_cost': 100000,
+          'discount': 0,
+        },
+      ],
+      initialPayment: 30000,
+      paymentMethod: 'cash',
+    );
+
+    // Audit harus mendeteksi nominal kas yang berbeda dari riwayat pembayaran.
+    await db.update(
+      'cash_transactions',
+      {'amount': 29000},
+      where: "reference_type = 'purchase_payment' AND reference_id = ?",
+      whereArgs: [purchaseId],
+    );
+    final detected = await CashbookRepository().getSupplierPaymentMismatches(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(detected, hasLength(1));
+    expect(detected.single['difference'], 1000);
+
+    // Setelah nominal dipulihkan dan pembayaran tambahan dicatat,
+    // kedua sumber harus kembali cocok.
+    await db.update(
+      'cash_transactions',
+      {'amount': 30000},
+      where: "reference_type = 'purchase_payment' AND reference_id = ?",
+      whereArgs: [purchaseId],
+    );
+    await purchases.addPayment(purchaseId: purchaseId, amount: 20000);
+    final clean = await CashbookRepository().getSupplierPaymentMismatches(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(clean, isEmpty);
+  });
 
   test('wallet deposit and withdrawal keep Rupiah ledger consistent', () async {
     final db = await AppDatabase.instance.database;
