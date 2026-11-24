@@ -100,11 +100,7 @@ class ReceiptDocumentService {
           if (payments.isNotEmpty) ...[
             pw.SizedBox(height: 7 * settings.spacing),
             pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
-            ...payments.map((payment) => _line(
-              dateLabel(payment['transaction_date']),
-              rupiah(payment['amount']),
-              settings: settings,
-            )),
+            ...payments.map((payment) => _paymentRow(payment, settings)),
           ],
           if (settings.showTransactionNotes && _text(sale['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6 * settings.spacing),
@@ -184,11 +180,7 @@ class ReceiptDocumentService {
           if (payments.isNotEmpty) ...[
             pw.SizedBox(height: 7 * settings.spacing),
             pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
-            ...payments.map((payment) => _line(
-              dateLabel(payment['transaction_date']),
-              rupiah(payment['amount']),
-              settings: settings,
-            )),
+            ...payments.map((payment) => _paymentRow(payment, settings)),
           ],
           if (settings.showTransactionNotes && _text(service['notes']).isNotEmpty) ...[
             pw.SizedBox(height: 6 * settings.spacing),
@@ -308,11 +300,7 @@ class ReceiptDocumentService {
           if (payments.isNotEmpty) ...[
             pw.SizedBox(height: 7 * settings.spacing),
             pw.Text('RIWAYAT PEMBAYARAN', style: pw.TextStyle(fontSize: 8 * settings.fontScale, fontWeight: pw.FontWeight.bold)),
-            ...payments.map((payment) => _line(
-              dateLabel(payment['transaction_date']),
-              rupiah(payment['amount']),
-              settings: settings,
-            )),
+            ...payments.map((payment) => _paymentRow(payment, settings)),
           ],
           pw.Divider(),
           _center('LUNAS - TIDAK ADA SISA TAGIHAN', bold: true, size: 9, settings: settings),
@@ -323,6 +311,43 @@ class ReceiptDocumentService {
       )),
     ));
     return doc.save();
+  }
+
+  static pw.Widget _paymentRow(Map<String, Object?> payment, ReceiptPrintSettings settings) {
+    final parsed = DateTime.tryParse(_text(payment['transaction_date']))?.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final dateTime = parsed == null
+        ? '-'
+        : '${two(parsed.day)}/${two(parsed.month)} ${two(parsed.hour)}:${two(parsed.minute)}';
+    final method = _text(payment['payment_method']).isNotEmpty
+        ? _text(payment['payment_method'])
+        : (_text(payment['method']).isNotEmpty
+            ? _text(payment['method'])
+            : _text(payment['payment_method_name']));
+    final label = method.isEmpty ? dateTime : '$dateTime · ${method.toUpperCase()}';
+    return pw.Padding(
+      padding: pw.EdgeInsets.symmetric(vertical: 1 * settings.spacing),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(fontSize: 7.5 * settings.fontScale),
+            ),
+          ),
+          pw.SizedBox(width: 4),
+          pw.Text(
+            rupiah(payment['amount']),
+            textAlign: pw.TextAlign.right,
+            style: pw.TextStyle(
+              fontSize: 8 * settings.fontScale,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   static pw.Widget _header(Map<String, String> profile, pw.MemoryImage? logo, ReceiptPrintSettings settings) {
