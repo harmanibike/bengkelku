@@ -10,6 +10,7 @@ import 'package:bengkelku_pos/core/auth/auth_session.dart';
 import 'package:bengkelku_pos/core/database/app_database.dart';
 import 'package:bengkelku_pos/features/customers/data/customer_wallet_repository.dart';
 import 'package:bengkelku_pos/features/services/data/service_repository.dart';
+import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
 
 void main() {
   late Directory testDirectory;
@@ -158,6 +159,82 @@ void main() {
     );
     expect(tips, hasLength(1));
     expect(tips.single['amount'], 5000);
+  });
+
+
+  test('sale checkout deducts stock and records cash and change correctly', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Ban Uji',
+      'selling_price': 50000,
+      'purchase_price': 20000,
+      'stock': 3,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 3,
+      'quantity_remaining': 3,
+      'unit_cost': 20000,
+    });
+
+    final saleId = await SaleRepository().checkout(
+      items: [
+        {'product_id': productId, 'quantity': 2, 'unit_price': 50000},
+      ],
+      paid: 120000,
+      paymentMethod: 'cash',
+    );
+
+    final sale = (await db.query('sales', where: 'id = ?', whereArgs: [saleId])).single;
+    expect(sale['total'], 100000);
+    expect(sale['paid'], 100000);
+    expect(sale['change_amount'], 20000);
+    expect(sale['payment_status'], 'paid');
+
+    final product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    expect(product['stock'], 1);
+    final batch = (await db.query('inventory_cost_batches', where: 'product_id = ?', whereArgs: [productId])).single;
+    expect(batch['quantity_remaining'], 1);
+
+    final allocations = await db.query('sale_batch_allocations', where: 'sale_id = ?', whereArgs: [saleId]);
+    expect(allocations, hasLength(1));
+    expect(allocations.single['quantity'], 2);
+
+    final cash = await db.query(
+      'cash_transactions',
+      where: "reference_type = 'sale' AND reference_id = ?",
+      whereArgs: [saleId],
+    );
+    expect(cash.fold<int>(0, (sum, row) => sum + (row['amount'] as int)), 100000);
+  });
+
+  test('failed sale does not create invoice or deduct stock', () async {
+    final db = await AppDatabase.instance.database;
+    final productId = await db.insert('products', {
+      'name': 'Kampas Uji',
+      'selling_price': 30000,
+      'purchase_price': 10000,
+      'stock': 1,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+
+    await expectLater(
+      SaleRepository().checkout(
+        items: [
+          {'product_id': productId, 'quantity': 2, 'unit_price': 30000},
+        ],
+        paid: 60000,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    expect(await db.query('sales'), isEmpty);
+    final product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    expect(product['stock'], 1);
+    expect(await db.query('cash_transactions'), isEmpty);
   });
 
   test('version 33 migration preserves legacy return rows as unknown snapshot', () async {
