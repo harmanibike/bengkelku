@@ -337,6 +337,149 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
 
   }
 
+
+  Future<void> _printServiceHybrid(
+    Ticket ticket,
+    Map<String, Object?> payload,
+    int paperWidthMm,
+    ReceiptPrintSettings settings,
+  ) async {
+    final service = Map<String, Object?>.from(payload['service'] as Map);
+    final profile = Map<String, String>.from(payload['profile'] as Map);
+    final payments = List<Map<String, Object?>>.from(
+      (payload['payments'] as List? ?? const []).map(
+        (item) => Map<String, Object?>.from(item as Map),
+      ),
+    );
+    final width = paperWidthMm == 80 ? 48 : 32;
+    ticket.setGlobalFont(FontType.fontA);
+    ticket.setGlobalCodeTable('CP437');
+
+    final logoPath = profile['business_logo_path']?.trim() ?? '';
+    if (settings.showLogo && logoPath.isNotEmpty) {
+      final logoFile = File(logoPath);
+      if (await logoFile.exists()) {
+        try {
+          final decoded = img.decodeImage(await logoFile.readAsBytes());
+          if (decoded != null) {
+            final logo = img.copyResize(decoded, width: paperWidthMm == 80 ? 300 : 220);
+            ticket.imageRaster(logo, align: PrintAlign.center, maxWidth: paperWidthMm == 80 ? 300 : 220);
+            ticket.emptyLines();
+          }
+        } catch (_) {
+          // Logo yang tidak terbaca tidak boleh menggagalkan cetak nota.
+        }
+      }
+    }
+    if (settings.showBusinessName && profile['business_name']?.trim().isNotEmpty == true) {
+      ticket.text(
+        _plain(profile['business_name']),
+        align: PrintAlign.center,
+        style: const PrintTextStyle(bold: true, fontType: FontType.fontA, codeTable: 'CP437'),
+        maxCharsPerLine: width,
+      );
+    }
+    for (final key in [
+      if (settings.showBusinessAddress) 'business_address',
+      if (settings.showBusinessContact) 'business_phone',
+      if (settings.showBusinessContact) 'business_whatsapp',
+    ]) {
+      final value = profile[key]?.trim() ?? '';
+      if (value.isNotEmpty) ticket.text(_plain(value), align: PrintAlign.center, maxCharsPerLine: width);
+    }
+    ticket.separator();
+    ticket.text('NOTA SERVIS', align: PrintAlign.center,
+      style: const PrintTextStyle(bold: true, height: TextSize.size1, fontType: FontType.fontA, codeTable: 'CP437'));
+    ticket.emptyLines();
+
+    final received = DateTime.tryParse(_plain(service['received_at']))?.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final dateText = received == null ? _plain(service['received_at'])
+      : '${two(received.day)}/${two(received.month)}/${received.year} ${two(received.hour)}:${two(received.minute)}';
+    ticket.text('No. Nota: ${_plain(service['order_number'])}', maxCharsPerLine: width);
+    ticket.text('Tanggal: $dateText', maxCharsPerLine: width);
+    if (settings.showCustomerDetails && _plain(service['customer_name']) != '-') {
+      ticket.text('Pelanggan: ${_plain(service['customer_name'])}', maxCharsPerLine: width);
+    }
+    if (settings.showCustomerDetails && _plain(service['customer_phone']) != '-') {
+      ticket.text('Telepon: ${_plain(service['customer_phone'])}', maxCharsPerLine: width);
+    }
+    final bicycle = [
+      service['bicycle_brand'], service['bicycle_model'], service['bicycle_type'],
+    ].map((v) => v?.toString().trim() ?? '').where((v) => v.isNotEmpty).join(' ');
+    if (bicycle.isNotEmpty) ticket.text('Sepeda: ${_plain(bicycle)}', maxCharsPerLine: width);
+    final serial = service['bicycle_serial_number']?.toString().trim() ?? '';
+    if (serial.isNotEmpty) ticket.text('No. rangka: ${_plain(serial)}', maxCharsPerLine: width);
+
+    ticket.separator();
+    for (final row in [
+      ['Keluhan', service['complaint']],
+      if ((service['diagnosis']?.toString().trim().isNotEmpty ?? false)) ['Diagnosis', service['diagnosis']],
+      if ((service['mechanic_name']?.toString().trim().isNotEmpty ?? false)) ['Mekanik', service['mechanic_name']],
+    ]) {
+      ticket.text('${row[0]}: ${_plain(row[1])}', maxCharsPerLine: width);
+    }
+    ticket.separator();
+    ticket.text('RINCIAN BIAYA', style: const PrintTextStyle(bold: true));
+    final labor = _amount(service['labor_cost']);
+    ticket.text('Jasa servis');
+    ticket.text(_fitLine('  1 x ${_rupiah(labor)}', _rupiah(labor), width), maxCharsPerLine: width);
+    final items = List<Map<String, Object?>>.from(
+      (service['items'] as List? ?? const []).map((item) => Map<String, Object?>.from(item as Map)),
+    );
+    if (items.isNotEmpty) {
+      for (final item in items) {
+        ticket.text(_plain(item['item_name']), maxCharsPerLine: width);
+        final qty = _amount(item['quantity']);
+        final unit = _rupiah(item['unit_price']);
+        final subtotal = _rupiah(item['subtotal']);
+        ticket.text(_fitLine('  $qty x $unit', subtotal, width), maxCharsPerLine: width);
+      }
+    } else {
+      final parts = _amount(service['parts_cost']);
+      ticket.text('Sparepart');
+      ticket.text(_fitLine('  1 x ${_rupiah(parts)}', _rupiah(parts), width), maxCharsPerLine: width);
+    }
+    ticket.separator();
+    final total = _amount(service['total_cost']);
+    final paid = _amount(service['down_payment']);
+    final remaining = _amount(service['remaining_payment']);
+    for (final row in [
+      ['Total jasa', _rupiah(labor)],
+      ['Total sparepart', _rupiah(service['parts_cost'])],
+      ['Diskon', _rupiah(service['discount'])],
+      ['TOTAL BIAYA', _rupiah(total)],
+      ['Sudah dibayar', _rupiah(paid)],
+      ['Sisa tagihan', _rupiah(remaining)],
+    ]) {
+      ticket.text(_fitLine(row[0], row[1], width), maxCharsPerLine: width);
+    }
+    ticket.text('Status: ${_plain(service['service_status'])}', maxCharsPerLine: width);
+    if (payments.isNotEmpty) {
+      ticket.separator();
+      ticket.text('RIWAYAT PEMBAYARAN', style: const PrintTextStyle(bold: true));
+      for (final payment in payments) {
+        final dateValue = DateTime.tryParse(_plain(payment['transaction_date']))?.toLocal();
+        final date = dateValue == null ? _plain(payment['transaction_date'])
+          : '${two(dateValue.day)}/${two(dateValue.month)}/${dateValue.year} ${two(dateValue.hour)}:${two(dateValue.minute)}';
+        final source = payment['payment_source']?.toString() == 'wallet' ? 'Saldo Pelanggan' : 'Tunai';
+        ticket.text('${date} - $source', maxCharsPerLine: width);
+        ticket.text(_fitLine('', _rupiah(payment['amount']), width), maxCharsPerLine: width);
+      }
+    }
+    final notes = service['notes']?.toString().trim() ?? '';
+    if (settings.showTransactionNotes && notes.isNotEmpty) {
+      ticket.separator();
+      ticket.text('Catatan: ${_plain(notes)}', maxCharsPerLine: width);
+    }
+    ticket.emptyLines();
+    if (settings.showFooter) {
+      final footer = settings.footerNote.trim();
+      ticket.text(_plain(footer.isEmpty ? 'Terima kasih telah mempercayakan sepeda Anda.' : footer),
+        align: PrintAlign.center, maxCharsPerLine: width);
+    }
+  }
+
   Future<void> _print() async {
     if (_printing) return;
     setState(() => _printing = true);
@@ -376,10 +519,13 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
           : PaperSize.mm58;
       final ticket = await Ticket.create(paperSize);
 
-      // Nota penjualan memakai hybrid ESC/POS: logo bitmap kecil, isi teks
-      // native printer agar angka dan kolom tidak terpotong oleh raster PDF.
-      if (widget.receiptType == 'sale' && widget.receiptPayload != null) {
-        await _printSaleHybrid(ticket, widget.receiptPayload!, settings.paperWidthMm, settings);
+      // Nota penjualan dan servis memakai teks ESC/POS native agar kolom rapi.
+      if ((widget.receiptType == 'sale' || widget.receiptType == 'service') && widget.receiptPayload != null) {
+        if (widget.receiptType == 'sale') {
+          await _printSaleHybrid(ticket, widget.receiptPayload!, settings.paperWidthMm, settings);
+        } else {
+          await _printServiceHybrid(ticket, widget.receiptPayload!, settings.paperWidthMm, settings);
+        }
         ticket.cut();
         await manager.printTicket(ticket);
         await manager.waitWriteComplete();
