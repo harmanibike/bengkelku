@@ -130,7 +130,7 @@ class ReceiptShareLauncher {
       if (record == null || !context.mounted) return;
       final payload = Map<String, Object?>.from(record['payload'] as Map);
       final type = record['document_type']?.toString();
-      final Uint8List pdfBytes;
+      final Uint8List? pdfBytes;
       final String title;
       final String shareText;
       final String number = record['document_number']?.toString() ?? 'nota';
@@ -143,12 +143,7 @@ class ReceiptShareLauncher {
         );
         final returns = Map<String, Object?>.from(payload['return_summary'] as Map);
         final profile = Map<String, String>.from(payload['profile'] as Map);
-        pdfBytes = await ReceiptDocumentService.buildSaleReceipt(
-          sale: sale,
-          payments: payments,
-          returnSummary: returns,
-          profile: profile,
-        );
+        pdfBytes = null;
         title = 'Nota Penjualan';
         shareText = 'Berikut nota penjualan $number.';
       } else if (type == 'service') {
@@ -159,11 +154,7 @@ class ReceiptShareLauncher {
           ),
         );
         final profile = Map<String, String>.from(payload['profile'] as Map);
-        pdfBytes = await ReceiptDocumentService.buildServiceReceipt(
-          service: service,
-          payments: payments,
-          profile: profile,
-        );
+        pdfBytes = null;
         title = 'Nota Servis';
         shareText = 'Berikut nota servis $number.';
       } else if (type == 'service_intake') {
@@ -183,11 +174,7 @@ class ReceiptShareLauncher {
           ),
         );
         final profile = Map<String, String>.from(payload['profile'] as Map);
-        pdfBytes = await ReceiptDocumentService.buildServiceFinalPaymentReceipt(
-          service: service,
-          payments: payments,
-          profile: profile,
-        );
+        pdfBytes = null;
         title = 'Bukti Pelunasan Servis';
         shareText = 'Berikut bukti pelunasan servis $number.';
       } else {
