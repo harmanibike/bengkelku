@@ -132,7 +132,7 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     final text = value?.toString().trim() ?? '';
     if (text.isEmpty || text == 'null') return '-';
     return text
-        .replaceAll(RegExp(r'[\\r\\n\\t]+'), ' ')
+        .replaceAll(RegExp(r'[\r\n\t]+'), ' ')
         .replaceAll('—', '-')
         .replaceAll('–', '-')
         .replaceAll('•', '-');
@@ -201,10 +201,13 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     }
 
     if (profile['business_name']?.trim().isNotEmpty == true) {
+      // Nama usaha memakai font normal agar tidak terlalu melebar pada
+      // printer 58 mm dan tidak tampak renggang/terpotong.
       ticket.text(
         _plain(profile['business_name']),
         align: PrintAlign.center,
-        style: const PrintTextStyle(bold: true, height: TextSize.size2),
+        style: const PrintTextStyle(bold: true),
+        maxCharsPerLine: width,
       );
     }
     for (final key in ['business_address', 'business_phone', 'business_whatsapp']) {
@@ -226,7 +229,10 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     final dateText = date == null
         ? _plain(sale['transaction_date'])
         : '${two(date.day)}/${two(date.month)}/${date.year} ${two(date.hour)}:${two(date.minute)}';
-    ticket.text('No: ${_plain(sale['invoice_number'])}', maxCharsPerLine: width);
+    // Pisahkan label dan nomor agar nomor invoice panjang tidak menyisakan
+    // satu digit sendirian di baris berikutnya.
+    ticket.text('No. Nota:', maxCharsPerLine: width);
+    ticket.text(_plain(sale['invoice_number']), maxCharsPerLine: width);
     ticket.text('Tanggal: $dateText', maxCharsPerLine: width);
     if ((sale['customer_name']?.toString().trim().isNotEmpty ?? false)) {
       ticket.text('Pelanggan: ${_plain(sale['customer_name'])}', maxCharsPerLine: width);
@@ -297,7 +303,9 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
     } else {
       ticket.text('Terima kasih atas kunjungan Anda.', align: PrintAlign.center);
     }
-    ticket.feed(2);
+    // Pemotongan kertas sudah dilakukan setelah semua data dikirim.
+    // Hindari feed tambahan agar tidak meninggalkan titik/karakter di ujung nota.
+
   }
 
   Future<void> _print() async {
