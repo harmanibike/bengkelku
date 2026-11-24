@@ -184,12 +184,10 @@ class _SalesHistoryPageState extends State<SalesHistoryPage> {
           ),
           child: AlertDialog(
             backgroundColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
-            constraints: const BoxConstraints(maxWidth: 720),
             surfaceTintColor: Colors.white,
             title: const Text('Detail Penjualan'),
           content: SizedBox(
-            width: double.maxFinite,
+            width: 520,
             child: DefaultTextStyle.merge(
               style: const TextStyle(color: Color(0xFF202833)),
               child: SingleChildScrollView(
