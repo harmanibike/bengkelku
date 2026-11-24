@@ -30,6 +30,18 @@ class DatabaseBackupService {
     return '${now.year}${two(now.month)}${two(now.day)}_${two(now.hour)}${two(now.minute)}${two(now.second)}';
   }
 
+  /// Remove SQLite sidecar files only after the database connection is closed.
+  /// Copying/replacing the main database while a stale WAL exists can cause
+  /// SQLite to replay data belonging to the previous database file.
+  Future<void> _removeSqliteSidecars(String databasePath) async {
+    for (final suffix in ['-wal', '-shm']) {
+      final sidecar = File('$databasePath$suffix');
+      if (await sidecar.exists()) {
+        await sidecar.delete();
+      }
+    }
+  }
+
   Future<File> createBackup() async {
     AuthSession.instance.requireAdmin('Hanya Admin yang dapat membuat backup database.');
     final db = await AppDatabase.instance.database;
@@ -41,7 +53,9 @@ class DatabaseBackupService {
     await AppDatabase.instance.close();
 
     try {
-      final source = File(await _databasePath());
+      final databasePath = await _databasePath();
+      await _removeSqliteSidecars(databasePath);
+      final source = File(databasePath);
       if (!await source.exists() || await source.length() == 0) {
         throw StateError('File database utama tidak ditemukan atau kosong.');
       }
@@ -114,6 +128,8 @@ class DatabaseBackupService {
 
     await AppDatabase.instance.close();
     try {
+      // Remove WAL/SHM from the old database before swapping in another file.
+      await _removeSqliteSidecars(databasePath);
       await currentFile.copy(safetyCopy.path);
       await candidate.copy(databasePath);
       final restoredDb = await AppDatabase.instance.database;
@@ -135,7 +151,11 @@ class DatabaseBackupService {
         await candidate.delete();
       }
       if (await safetyCopy.exists()) {
+        // The failed candidate may have created a WAL for the replacement DB.
+        // Delete it before restoring the safety copy to avoid cross-database replay.
+        await _removeSqliteSidecars(databasePath);
         await safetyCopy.copy(databasePath);
+        await _removeSqliteSidecars(databasePath);
       }
       // Jika gagal sebelum salinan pengaman dibuat, file database asli
       // tetap dipakai. Buka kembali koneksi agar aplikasi tidak tertinggal
