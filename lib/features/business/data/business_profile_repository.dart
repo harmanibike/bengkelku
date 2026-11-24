@@ -14,7 +14,6 @@ class BusinessProfileRepository {
     'business_email': 'Email',
     'business_website': 'Website',
     'business_tax_number': 'Nomor pajak',
-    'business_footer_note': 'Catatan bawah nota',
     'business_logo_path': 'Logo',
   };
 
