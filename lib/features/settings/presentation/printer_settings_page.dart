@@ -105,7 +105,8 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
     if (!_connected || _printingTest) return;
     setState(() => _printingTest = true);
     try {
-      final ticket = await Ticket.create(PaperSize.mm58);
+      final settings = await _repository.getReceiptSettings();
+      final ticket = await Ticket.create(settings.paperWidthMm == 80 ? PaperSize.mm80 : PaperSize.mm58);
       ticket.text(
         'BENGKELKU POS',
         align: PrintAlign.center,
@@ -113,7 +114,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
       );
       ticket.text('TES CETAK PRINTER', align: PrintAlign.center);
       ticket.text('Koneksi Bluetooth berhasil.');
-      ticket.text('Kertas: 58 mm');
+      ticket.text('Kertas: ${settings.paperWidthMm} mm (${settings.thermalDots} dot)');
       ticket.text('--------------------------------');
       ticket.text('Jika tulisan terlihat jelas, printer siap.', linesAfter: 2);
       ticket.cut();
@@ -188,7 +189,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                     icon: _printingTest
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.receipt_long),
-                    label: Text(_printingTest ? 'Mengirim tes cetak...' : 'Tes cetak 58 mm'),
+                    label: Text(_printingTest ? 'Mengirim tes cetak...' : 'Tes cetak sesuai format nota'),
                   ),
                   OutlinedButton.icon(
                     onPressed: _disconnect,
@@ -236,7 +237,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.info_outline),
                   title: Text('Catatan'),
-                  subtitle: Text('Printer harus dinyalakan dan dipasangkan terlebih dahulu melalui Bluetooth Android. Fitur ini menguji koneksi Bluetooth Classic dan tes cetak ESC/POS 58 mm. Cetak nota transaksi dan pembukaan laci otomatis akan dihubungkan pada tahap berikutnya.'),
+                  subtitle: Text('Standar: 58 mm = 384 dot atau 80 mm = 576 dot. Pilih ukuran yang sama dengan gulungan printer di Tampilan & Format Struk; tes ini mengikuti pilihan tersebut.'),
                 ),
               ],
             ),

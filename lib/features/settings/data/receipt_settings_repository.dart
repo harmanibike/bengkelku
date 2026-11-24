@@ -35,6 +35,13 @@ class ReceiptPrintSettings {
   double get paperWidthPoints => paperWidthMm == 80 ? 226.8 : 164.4;
   double get marginPoints => paperWidthMm == 80 ? 14 : 12;
 
+  /// Lebar raster ESC/POS yang umum untuk printer thermal 203 dpi.
+  /// 58 mm biasanya memakai 384 dot dan 80 mm memakai 576 dot.
+  int get thermalDots => paperWidthMm == 80 ? 576 : 384;
+
+  /// Lebar layout Flutter sebelum diraster pada pixelRatio 1.2.
+  double get thermalLayoutWidth => thermalDots / 1.2;
+
   Map<String, Object?> toJson() => {
     'paperWidthMm': paperWidthMm,
     'showLogo': showLogo,

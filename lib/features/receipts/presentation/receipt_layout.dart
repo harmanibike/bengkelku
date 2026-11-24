@@ -31,9 +31,9 @@ class ReceiptLayout extends StatelessWidget {
     const Text(' : '), Expanded(child:Text(value,softWrap:true,style:TextStyle(fontWeight:bold?FontWeight.bold:FontWeight.normal))),
   ]));
   Widget summaryRow(String label,String value,double w,{bool bold=false}) => SizedBox(width:w, child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Expanded(child:Text(label,softWrap:true,style:TextStyle(fontSize:bold?24:20,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
-    const SizedBox(width:4),
-    Expanded(child:Text(value,textAlign:TextAlign.right,softWrap:true,style:TextStyle(fontSize:bold?24:20,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
+    Expanded(child:Text(label,softWrap:true,style:TextStyle(fontSize:(bold?24:20)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
+    SizedBox(width:4*settings.spacing),
+    Expanded(child:Text(value,textAlign:TextAlign.right,softWrap:true,style:TextStyle(fontSize:(bold?24:20)*settings.fontScale,fontWeight:bold?FontWeight.bold:FontWeight.normal))),
   ]));
   @override
   Widget build(BuildContext context) {
@@ -42,7 +42,7 @@ class ReceiptLayout extends StatelessWidget {
     final profile=Map<String,String>.from(payload['profile'] as Map);
     final payments=List<Map<String,Object?>>.from((payload['payments'] as List? ?? const []).map((e)=>Map<String,Object?>.from(e as Map)));
     final items=List<Map<String,Object?>>.from((source['items'] as List? ?? const []).map((e)=>Map<String,Object?>.from(e as Map)));
-    final w=settings.paperWidthMm==80?480.0:320.0, inner=w-12;
+    final w=settings.thermalLayoutWidth, inner=w-12;
     final total=n(sale?source['total']:source['total_cost']);
     final returnSummary=Map<String,Object?>.from(payload['return_summary'] as Map? ?? const {});
     final paid=finalPay? (total-n(source['remaining_payment'])).clamp(0,1<<62).toInt() : n(sale?source['paid']:source['down_payment']);
@@ -51,21 +51,23 @@ class ReceiptLayout extends StatelessWidget {
     final number=s(sale?source['invoice_number']:source['order_number']);
     final when=sale?source['transaction_date']:source['received_at'];
     final title=sale?'NOTA PENJUALAN':finalPay?'BUKTI PELUNASAN SERVIS':'NOTA SERVIS';
-    return Container(width:w,color:Colors.white,padding:const EdgeInsets.symmetric(horizontal:6,vertical:10),
-      child:DefaultTextStyle(style:const TextStyle(color:Colors.black,fontFamily:'monospace',fontSize:20,height:1.15),
+    final textScale = settings.fontScale;
+    final gap = settings.spacing;
+    return Container(width:w,color:Colors.white,padding:EdgeInsets.symmetric(horizontal:6,vertical:10*gap),
+      child:DefaultTextStyle(style:TextStyle(color:Colors.black,fontFamily:'monospace',fontSize:20*textScale,height:1.15),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
         Row(children:[
-          if(settings.showLogo && logo.isNotEmpty && File(logo).existsSync()) SizedBox(width:w*.29,height:80,child:Image.file(File(logo),fit:BoxFit.contain))
-          else SizedBox(width:w*.29,child:const Icon(Icons.pedal_bike,size:54,color:Colors.black)),
-          const SizedBox(width:8), Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            if(settings.showBusinessName) Text(s(profile['business_name']).isEmpty?'HARMANI BIKE':s(profile['business_name']),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:27,height:1.05)),
-            if(settings.showBusinessAddress && s(profile['business_address']).isNotEmpty) Text(s(profile['business_address']),style:const TextStyle(fontSize:15)),
-            if(settings.showBusinessContact && s(profile['business_phone']).isNotEmpty) Text('Telp. '+s(profile['business_phone']),style:const TextStyle(fontSize:14)),
+          if(settings.showLogo && logo.isNotEmpty && File(logo).existsSync()) SizedBox(width:w*.29,height:80*textScale,child:Image.file(File(logo),fit:BoxFit.contain))
+          else SizedBox(width:w*.29,child:Icon(Icons.pedal_bike,size:54*textScale,color:Colors.black)),
+          SizedBox(width:8*gap), Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            if(settings.showBusinessName) Text(s(profile['business_name']).isEmpty?'HARMANI BIKE':s(profile['business_name']),style:TextStyle(fontWeight:FontWeight.w900,fontSize:27*textScale,height:1.05)),
+            if(settings.showBusinessAddress && s(profile['business_address']).isNotEmpty) Text(s(profile['business_address']),style:TextStyle(fontSize:15*textScale)),
+            if(settings.showBusinessContact && s(profile['business_phone']).isNotEmpty) Text('Telp. '+s(profile['business_phone']),style:TextStyle(fontSize:14*textScale)),
           ])),
         ]),
         const Divider(color:Colors.black,thickness:1.5),
         Center(child:Text(title,style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900))),
-        const SizedBox(height:4), dash(inner),
+        SizedBox(height:4*gap), dash(inner),
         rowText('No. Nota',number,inner),
         rowText('Tanggal',date(when),inner),
         if(settings.showCustomerDetails)...[
@@ -76,9 +78,9 @@ class ReceiptLayout extends StatelessWidget {
         if(sale)...[
           const Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[Text('Barang',style:TextStyle(fontWeight:FontWeight.bold)),Text('Harga',style:TextStyle(fontWeight:FontWeight.bold))]),
           dash(inner),
-          ...items.map((it)=>Padding(padding:const EdgeInsets.only(bottom:5),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          ...items.map((it)=>Padding(padding:EdgeInsets.only(bottom:5*gap),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Text(s(it['product_name'])),
-            Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Expanded(child:Text(n(it['quantity']).toString()+' x '+money(it['unit_price']),softWrap:true)),const SizedBox(width:4),Expanded(child:Text(money(it['subtotal']),textAlign:TextAlign.right,softWrap:true,style:const TextStyle(fontWeight:FontWeight.bold)))]),
+            Row(crossAxisAlignment:CrossAxisAlignment.start,children:[Expanded(child:Text(n(it['quantity']).toString()+' x '+money(it['unit_price']),softWrap:true)),SizedBox(width:4*gap),Expanded(child:Text(money(it['subtotal']),textAlign:TextAlign.right,softWrap:true,style:TextStyle(fontWeight:FontWeight.bold)))]),
           ]))),
           dash(inner), summaryRow('Subtotal',money(source['subtotal']),inner), summaryRow('Diskon',money(source['discount']),inner),
           summaryRow('Total',money(total),inner,bold:true), summaryRow('Sudah dibayar',money(paid),inner), summaryRow('Sisa tagihan',money(remaining),inner,bold:true),
@@ -103,12 +105,12 @@ class ReceiptLayout extends StatelessWidget {
             final d=DateTime.tryParse(s(p['transaction_date']))?.toLocal();
             String z(int x)=>x.toString().padLeft(2,'0');
             final dt=d==null?'-':z(d.day)+'/'+z(d.month)+' '+z(d.hour)+':'+z(d.minute);
-            return Row(children:[Expanded(child:Text(dt+' · '+method(p['payment_method']??p['method']??p['payment_method_name']),style:const TextStyle(fontSize:17))),Text(money(p['amount']),style:const TextStyle(fontWeight:FontWeight.bold,fontSize:17))]);
+            return Padding(padding:EdgeInsets.symmetric(vertical:gap),child:Row(children:[Expanded(child:Text(dt+' · '+method(p['payment_method']??p['method']??p['payment_method_name']),style:TextStyle(fontSize:17*textScale))),Text(money(p['amount']),style:TextStyle(fontWeight:FontWeight.bold,fontSize:17*textScale))]));
           }),
         ],
         if(settings.showTransactionNotes && s(source['notes']).isNotEmpty) Text('Catatan: '+s(source['notes'])),
-        const SizedBox(height:12),
-        if(settings.showFooter) Center(child:Text(settings.footerNote.trim().isEmpty?'Terima kasih atas kunjungan Anda.':settings.footerNote.trim(),textAlign:TextAlign.center,style:const TextStyle(fontSize:16))),
+        SizedBox(height:12*gap),
+        if(settings.showFooter) Center(child:Text(settings.footerNote.trim().isEmpty?'Terima kasih atas kunjungan Anda.':settings.footerNote.trim(),textAlign:TextAlign.center,style:TextStyle(fontSize:16*textScale))),
       ])));
   }
 }
