@@ -51,14 +51,14 @@ class ReceiptLayout extends StatelessWidget {
     final when=sale?source['transaction_date']:source['received_at'];
     final title=sale?'NOTA PENJUALAN':finalPay?'BUKTI PELUNASAN SERVIS':'NOTA SERVIS';
     return Container(width:w,color:Colors.white,padding:const EdgeInsets.symmetric(horizontal:12,vertical:14),
-      child:DefaultTextStyle(style:const TextStyle(color:Colors.black,fontFamily:'monospace',fontSize:14,height:1.22),
+      child:DefaultTextStyle(style:const TextStyle(color:Colors.black,fontFamily:'monospace',fontSize:15,height:1.22),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
         Row(children:[
           if(settings.showLogo && logo.isNotEmpty && File(logo).existsSync()) SizedBox(width:w*.29,height:76,child:Image.file(File(logo),fit:BoxFit.contain))
           else SizedBox(width:w*.29,child:const Icon(Icons.pedal_bike,size:54,color:Colors.black)),
           const SizedBox(width:8), Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             if(settings.showBusinessName) Text(s(profile['business_name']).isEmpty?'HARMANI BIKE':s(profile['business_name']),style:const TextStyle(fontWeight:FontWeight.w900,fontSize:21,height:1.05)),
-            if(settings.showBusinessAddress && s(profile['business_address']).isNotEmpty) Text(s(profile['business_address']),style:const TextStyle(fontSize:10)),
+            if(settings.showBusinessAddress && s(profile['business_address']).isNotEmpty) Text(s(profile['business_address']),style:const TextStyle(fontSize:12)),
             if(settings.showBusinessContact && s(profile['business_phone']).isNotEmpty) Text('Telp. '+s(profile['business_phone']),style:const TextStyle(fontSize:10)),
           ])),
         ]),
