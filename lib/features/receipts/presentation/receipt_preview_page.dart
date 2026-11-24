@@ -148,8 +148,8 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
   }
 
   String _fitReceiptLine(String left, String right, {int width = 32}) {
-    final safeLeft = left.replaceAll(RegExp(r'[^\\x20-\\x7E]'), ' ').trim();
-    final safeRight = right.replaceAll(RegExp(r'[^\\x20-\\x7E]'), ' ').trim();
+    final safeLeft = left.replaceAll(RegExp(r'[^\x20-\x7E]'), ' ').trim();
+    final safeRight = right.replaceAll(RegExp(r'[^\x20-\x7E]'), ' ').trim();
     if (safeLeft.isEmpty) return safeRight.length > width ? safeRight.substring(0, width) : safeRight;
     if (safeRight.isEmpty) return safeLeft.length > width ? safeLeft.substring(0, width) : safeLeft;
     final available = width - safeLeft.length - safeRight.length;
