@@ -1807,26 +1807,41 @@ class AppDatabase {
     // customer_id tetap menyimpan relasi pelanggan yang terkait dengan sepeda;
     // owner_name/owner_phone menyimpan identitas pemilik sebenarnya bila berbeda.
     if (oldVersion < 40) {
-      await db.execute("ALTER TABLE bicycles ADD COLUMN ownership_status TEXT NOT NULL DEFAULT 'customer_owned'");
-      await db.execute('ALTER TABLE bicycles ADD COLUMN owner_name TEXT');
-      await db.execute('ALTER TABLE bicycles ADD COLUMN owner_phone TEXT');
-      await db.execute('''
-        CREATE TABLE bicycle_ownership_history (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          bicycle_id INTEGER NOT NULL,
-          previous_customer_id INTEGER,
-          new_customer_id INTEGER,
-          previous_owner_name TEXT,
-          new_owner_name TEXT,
-          change_type TEXT NOT NULL CHECK(change_type IN ('registered', 'owner_changed', 'marked_for_sale', 'sold', 'ownership_unknown')),
-          notes TEXT,
-          changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (bicycle_id) REFERENCES bicycles(id) ON DELETE RESTRICT,
-          FOREIGN KEY (previous_customer_id) REFERENCES customers(id) ON DELETE SET NULL,
-          FOREIGN KEY (new_customer_id) REFERENCES customers(id) ON DELETE SET NULL
-        )
-      ''');
-      await db.execute('CREATE INDEX idx_bicycle_ownership_history_bicycle ON bicycle_ownership_history(bicycle_id, changed_at DESC, id DESC)');
+      // Beberapa database lama/parsial mungkin belum memiliki modul sepeda.
+      // Migrasi modul kepemilikan hanya dijalankan jika tabel induknya tersedia.
+      final bicycleTables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bicycles'",
+      );
+      if (bicycleTables.isNotEmpty) {
+        final bicycleColumns = await db.rawQuery('PRAGMA table_info(bicycles)');
+        final columnNames = bicycleColumns.map((column) => column['name']).toSet();
+        if (!columnNames.contains('ownership_status')) {
+          await db.execute("ALTER TABLE bicycles ADD COLUMN ownership_status TEXT NOT NULL DEFAULT 'customer_owned'");
+        }
+        if (!columnNames.contains('owner_name')) {
+          await db.execute('ALTER TABLE bicycles ADD COLUMN owner_name TEXT');
+        }
+        if (!columnNames.contains('owner_phone')) {
+          await db.execute('ALTER TABLE bicycles ADD COLUMN owner_phone TEXT');
+        }
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS bicycle_ownership_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bicycle_id INTEGER NOT NULL,
+            previous_customer_id INTEGER,
+            new_customer_id INTEGER,
+            previous_owner_name TEXT,
+            new_owner_name TEXT,
+            change_type TEXT NOT NULL CHECK(change_type IN ('registered', 'owner_changed', 'marked_for_sale', 'sold', 'ownership_unknown')),
+            notes TEXT,
+            changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (bicycle_id) REFERENCES bicycles(id) ON DELETE RESTRICT,
+            FOREIGN KEY (previous_customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+            FOREIGN KEY (new_customer_id) REFERENCES customers(id) ON DELETE SET NULL
+          )
+        ''');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_bicycle_ownership_history_bicycle ON bicycle_ownership_history(bicycle_id, changed_at DESC, id DESC)');
+      }
     }
 
 
