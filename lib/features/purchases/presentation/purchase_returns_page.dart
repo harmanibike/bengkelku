@@ -73,7 +73,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
               DropdownButtonFormField<int>(
                 initialValue: purchaseId,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Faktur tujuan', isDense: true),
+                decoration: const InputDecoration(labelText: 'Faktur tujuan', isDense: true, border: OutlineInputBorder()),
                 items: invoices.map((invoice) => DropdownMenuItem<int>(
                   value: invoice['id'] as int,
                   child: Text(
@@ -101,6 +101,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                   labelText: 'Jumlah kredit yang digunakan',
                   prefixText: 'Rp ',
                   isDense: true,
+                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 6),
@@ -333,7 +334,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                   DropdownButtonFormField<int>(
                     initialValue: purchaseId,
                     isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Pilih faktur pembelian'),
+                    decoration: const InputDecoration(labelText: 'Pilih faktur pembelian', border: OutlineInputBorder()),
                     items: purchases.map((p) => DropdownMenuItem<int>(
                       value: p['id'] as int,
                       child: Text('${p['invoice_number']} • ${p['supplier_name'] ?? 'Pemasok'}',
@@ -394,6 +395,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                                       labelText: 'Retur',
                                       hintText: '0',
                                       isDense: true,
+                                      border: OutlineInputBorder(),
                                     ),
                                     onChanged: (value) {
                                       final parsed = int.tryParse(value) ?? 0;
@@ -412,7 +414,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                   TextField(
                     controller: notes,
                     maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Catatan retur (opsional)'),
+                    decoration: const InputDecoration(labelText: 'Catatan retur (opsional)', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 6),
                   const Text(
