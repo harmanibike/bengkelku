@@ -45,3 +45,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/bengkelku_logo.jpg
+    - assets/branding/bike_pos_icon.png
