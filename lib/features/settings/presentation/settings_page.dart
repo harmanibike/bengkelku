@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'about_app_page.dart';
+
 import '../../business/presentation/business_profile_page.dart';
 import 'payment_methods_page.dart';
 import 'account_pages.dart';
@@ -195,4 +197,16 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
-}
+}          const SizedBox(height: 10),
+          const Text('Informasi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.info_outline_rounded,
+            color: const Color(0xFF1565C0),
+            title: 'Tentang',
+            subtitle: 'Info aplikasi, versi, dan changelog perbaikan/update',
+            page: const AboutAppPage(),
+          ),
+          const SizedBox(height: 10),
+
