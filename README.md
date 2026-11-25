@@ -1,4 +1,4 @@
-# BengkelKu POS
+# Bike POS
 
 Aplikasi Android offline untuk mengelola toko spare part dan bengkel servis sepeda. Roadmap ini menjadi acuan resmi pengembangan dan harus mencerminkan kondisi kode yang benar-benar tersedia.
 
@@ -235,10 +235,12 @@ Berlaku untuk printer yang didukung oleh integrasi aplikasi:
 
 ### Belum tersedia / belum boleh dianggap aktif
 
-- [ ] Layanan Server Android yang berjalan terpisah dari sesi login dan tetap melayani perangkat lain.
-- [x] Endpoint kesehatan API Server `GET /api/v1/health` tersedia untuk pemeriksaan LAN saja; belum ada endpoint transaksi atau akses database Client.
+- [x] Layanan Android foreground menjaga endpoint kesehatan Server tetap aktif selama layanan berjalan; saat ini hanya melayani pemeriksaan LAN, bukan transaksi.
+- [x] Fondasi kode pairing numerik sekali pakai dengan masa berlaku terbatas dan pertukaran token perangkat.
+- [x] Token perangkat disimpan sebagai hash; fondasi daftar perangkat tepercaya, pencabutan akses, dan pembatasan percobaan pairing tersedia pada lapisan repository.
+- [x] Metadata versi APK Server dan Client diambil dari versi rilis `pubspec.yaml` melalui `APP_VERSION` saat build.
+- [ ] Integrasi pairing melalui endpoint jaringan, persetujuan/pengikatan perangkat end-to-end, dan pengujian antar-HP.
 - [ ] Transport aman (TLS dan verifikasi identitas/pinning sertifikat) untuk seluruh komunikasi data.
-- [ ] Pairing QR, persetujuan Admin, token perangkat, daftar perangkat tepercaya, dan pencabutan akses.
 - [ ] Mode Client aktif dan pengalihan seluruh repository/transaksi ke database pusat.
 - [ ] API transaksi, produk, stok, pelanggan, pembelian, servis, dan laporan dengan pemeriksaan hak akses di Server.
 - [ ] WebSocket/notifikasi perubahan data dan mekanisme refresh setelah reconnect.
