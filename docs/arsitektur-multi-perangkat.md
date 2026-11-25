@@ -124,3 +124,41 @@ Persyaratan teknis:
 6. Uji Mode Lokal dengan database lama sebelum melanjutkan ke pairing dan API.
 
 Tahap 1 belum dianggap selesai hanya karena pilihan mode tampil. Server baru dinyatakan siap setelah lifecycle layanan Android dan keberlangsungan database lolos pengujian pada perangkat fisik.
+
+## Keputusan keamanan transport LAN (sebelum pairing jaringan)
+
+### Ancaman yang harus ditangani
+- Perangkat lain di Wi-Fi yang sama dapat mencoba menyamar sebagai Server.
+- Penyerang pada jaringan lokal dapat membaca atau mengubah kode pairing, token, dan data transaksi jika dikirim melalui HTTP biasa.
+- IP Server dapat berubah karena DHCP; identitas Server tidak boleh hanya bergantung pada alamat IP.
+- Token perangkat yang sudah dicabut tidak boleh tetap diterima oleh endpoint yang masih aktif.
+
+### Rancangan koneksi aman
+1. Endpoint HTTP saat ini tetap health-check non-sensitif saja. Tidak boleh menerima kode pairing, token, kredensial akun, atau data bisnis.
+2. Pairing dan seluruh API bisnis wajib menggunakan HTTPS melalui `HttpServer.bindSecure` dengan sertifikat dan private key yang dibuat khusus untuk instalasi Server.
+3. Identitas Server diverifikasi Client dengan pin sertifikat SHA-256 yang diperoleh melalui QR pairing yang ditampilkan langsung pada perangkat Server. QR juga memuat alamat/port LAN dan kode pairing sekali pakai yang singkat masa berlakunya.
+4. Client harus memverifikasi pin sebelum mengirim kode pairing. Dilarang memakai callback yang selalu menerima sertifikat tidak valid (`badCertificateCallback => true`).
+5. Pin sertifikat disimpan bersama identitas Server yang dipasangkan. Perubahan sertifikat dianggap perubahan identitas dan memerlukan pairing ulang yang disetujui Admin.
+6. Private key tidak boleh masuk ke QR, log, backup publik, atau respons API. Penyimpanan private key harus terlindungi oleh penyimpanan privat aplikasi dan kunci perlindungan perangkat; jangan menyimpan PEM mentah tanpa perlindungan.
+7. Pairing code hanya boleh ditukar sekali, memiliki batas percobaan, dan token perangkat hanya dikembalikan sekali. Server hanya menyimpan hash token; semua endpoint terautentikasi wajib memeriksa status pencabutan token.
+8. QR pairing tidak boleh menjadi pengganti persetujuan Admin. Admin membuat kode dari sesi Admin aktif dan harus dapat melihat serta mencabut perangkat yang berhasil dipasangkan.
+
+### Kompatibilitas perangkat lama
+- BengkelKu menargetkan perangkat Sunmi V2 yang dapat memakai Android 6/7. Pilihan pustaka TLS/pinning wajib diuji pada API level Android 23 dan 24, bukan hanya Android terbaru.
+- Paket pinning yang hanya mendukung Android API 24+ tidak boleh dijadikan satu-satunya jalur verifikasi karena Android 6 dapat berada pada API 23.
+- Implementasi awal perlu menguji fingerprint sertifikat leaf secara eksplisit di `HttpClient` pada perangkat API 23, termasuk kegagalan saat pin salah, sertifikat berubah, dan masa berlaku sertifikat habis.
+- TLS harus menolak koneksi yang tidak cocok; tidak boleh ada fallback diam-diam ke HTTP untuk pairing atau transaksi.
+
+### Isolasi layanan dan akses database
+- Listener saat ini berjalan di isolate foreground service, sedangkan sesi Admin dan database UI dibuka pada isolate utama.
+- Isolate tidak berbagi memori atau singleton dengan isolate lain. Endpoint pairing tidak boleh langsung mengasumsikan `AppDatabase.instance` pada isolate layanan adalah koneksi database utama.
+- Sebelum endpoint pairing/API bisnis dibuat, tentukan satu jalur akses database yang aman: layanan database khusus dengan koneksi SQLite yang dibuka dan dikelola secara eksplisit, atau jembatan pesan terverifikasi ke isolate utama. Semua operasi tulis tetap harus atomik.
+- Uji lifecycle database saat UI logout, berpindah akun, masuk background, dan saat service dihentikan. Listener jaringan tidak boleh membuat koneksi database ganda yang tidak terkendali.
+
+### Gerbang sebelum fitur diaktifkan
+- Tes TLS dan pinning pada Android 6/API 23 serta Android 7/API 24.
+- Tes sertifikat palsu, pin salah, rotasi sertifikat, dan QR kedaluwarsa.
+- Tes pairing bersamaan dengan kode yang sama: hanya satu Client boleh berhasil.
+- Tes pencabutan token saat Client masih tersambung.
+- Audit log agar kode, token, private key, dan data sensitif tidak tercetak.
+- Sampai seluruh tes tersebut lulus, Mode Server/Client dan transaksi jaringan tetap nonaktif.
