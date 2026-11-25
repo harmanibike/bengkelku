@@ -56,6 +56,37 @@ class CustomerRepository {
     String? bicycleColor,
     String? bicycleFrameSize,
     String? bicycleSerialNumber,
+  }) {
+    return addCustomerWithBicycles(
+      name: name,
+      phone: phone,
+      address: address,
+      email: email,
+      notes: notes,
+      photoBase64: photoBase64,
+      bicycles: [
+        {
+          'brand': bicycleBrand,
+          'model': bicycleModel,
+          'bicycle_type': bicycleType,
+          'color': bicycleColor,
+          'frame_size': bicycleFrameSize,
+          'serial_number': bicycleSerialNumber,
+        },
+      ],
+    );
+  }
+
+  /// Membuat pelanggan dan beberapa sepeda dalam satu transaksi database.
+  /// Baris sepeda yang seluruh datanya kosong dilewati.
+  Future<int> addCustomerWithBicycles({
+    required String name,
+    String? phone,
+    String? address,
+    String? email,
+    String? notes,
+    String? photoBase64,
+    required List<Map<String, Object?>> bicycles,
   }) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola pelanggan.');
     final db = await _db;
@@ -75,22 +106,40 @@ class CustomerRepository {
         entityType: 'customer',
         entityId: customerId,
       );
-      final bikeId = await txn.insert('bicycles', {
-        'customer_id': customerId,
-        'brand': bicycleBrand?.trim(),
-        'model': bicycleModel?.trim(),
-        'bicycle_type': bicycleType?.trim(),
-        'color': bicycleColor?.trim(),
-        'frame_size': bicycleFrameSize?.trim(),
-        'serial_number': _nullableText(bicycleSerialNumber),
-      });
-      await ActivityLogRepository.record(
-        txn,
-        action: 'bicycle_created',
-        description: 'Menambahkan sepeda ${[bicycleBrand, bicycleModel].where((v) => v != null && v.trim().isNotEmpty).join(' ')} untuk pelanggan ${name.trim()}.',
-        entityType: 'bicycle',
-        entityId: bikeId,
-      );
+
+      for (final bicycle in bicycles) {
+        String? clean(String key) {
+          final value = bicycle[key]?.toString().trim();
+          return value == null || value.isEmpty ? null : value;
+        }
+
+        final brand = clean('brand');
+        final model = clean('model');
+        final type = clean('bicycle_type');
+        final color = clean('color');
+        final frameSize = clean('frame_size');
+        final serialNumber = clean('serial_number');
+        if ([brand, model, type, color, frameSize, serialNumber].every((v) => v == null)) {
+          continue;
+        }
+
+        final bikeId = await txn.insert('bicycles', {
+          'customer_id': customerId,
+          'brand': brand,
+          'model': model,
+          'bicycle_type': type,
+          'color': color,
+          'frame_size': frameSize,
+          'serial_number': serialNumber,
+        });
+        await ActivityLogRepository.record(
+          txn,
+          action: 'bicycle_created',
+          description: 'Menambahkan sepeda ${[brand, model].whereType<String>().join(' ')} untuk pelanggan ${name.trim()}.',
+          entityType: 'bicycle',
+          entityId: bikeId,
+        );
+      }
       return customerId;
     });
   }
