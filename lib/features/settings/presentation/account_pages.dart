@@ -61,7 +61,7 @@ class _FirstAdminPageState extends State<FirstAdminPage> {
   );
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Pengaturan Awal BengkelKu')),
+    appBar: AppBar(title: const Text('Pengaturan Awal Bike POS')),
     body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460), child: Card(
       child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const Icon(Icons.admin_panel_settings_rounded, size: 52, color: Color(0xFF1565C0)),
@@ -102,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
     body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(22), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Card(
       child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Image.asset('assets/branding/bengkelku_logo.jpg', height: 90, errorBuilder: (_, __, ___) => const Icon(Icons.pedal_bike, size: 64)),
-        const SizedBox(height: 10), const Text('BengkelKu POS', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10), const Text('Bike POS', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 18), TextField(controller: _username, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person))),
         const SizedBox(height: 12), TextField(controller: _pin, obscureText: true, keyboardType: TextInputType.number, onSubmitted: (_) => _login(), decoration: const InputDecoration(labelText: 'PIN', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock))),
         const SizedBox(height: 16), FilledButton(onPressed: _busy ? null : _login, child: Text(_busy ? 'Memeriksa…' : 'Masuk')),
