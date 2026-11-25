@@ -11,9 +11,9 @@ class _MemoryTlsStore implements SecureValueStore {
   @override
   Future<String?> read(String key) async => values[key];
   @override
-  Future<void> write(String key, String value) async => values[key] = value;
+  Future<void> write(String key, String value) async { values[key] = value; }
   @override
-  Future<void> delete(String key) async => values.remove(key);
+  Future<void> delete(String key) async { values.remove(key); }
 }
 
 void main() {
@@ -50,9 +50,9 @@ void main() {
     );
     try {
       socket.write(
-        'GET /api/v1/health HTTP/1.1\\r\\n'
-        'Host: ${identity.dnsName}\\r\\n'
-        'Connection: close\\r\\n\\r\\n',
+        'GET /api/v1/health HTTP/1.1\r\n'
+        'Host: ${identity.dnsName}\r\n'
+        'Connection: close\r\n\r\n',
       );
       final response = await utf8.decoder
           .bind(socket)
