@@ -51,7 +51,8 @@ class ProductImportService {
         column--;
         maxColumn = column > maxColumn ? column : maxColumn;
         final type = cell.getAttribute('t');
-        final value = cell.findElements('v').firstOrNull?.innerText ?? '';
+        final valueNodes = cell.findElements('v');
+        final value = valueNodes.isEmpty ? '' : valueNodes.first.innerText;
         if (type == 's') {
           final index = int.tryParse(value);
           cells[column] = index != null && index >= 0 && index < shared.length ? shared[index] : '';
@@ -212,6 +213,13 @@ class ProductImportService {
   static int _number(String? value) {
     final raw = (value ?? '').trim();
     if (raw.isEmpty) return 0;
+    if (RegExp(r'^-?\\d+\\.0+
+  }
+  static String? _clean(String? value) {
+    final text = value?.trim(); return text == null || text.isEmpty ? null : text;
+  }
+}
+).hasMatch(raw)) return int.tryParse(raw.split('.').first) ?? -1;
     return int.tryParse(raw.replaceAll(RegExp(r'[^0-9-]'), '')) ?? -1;
   }
   static String? _clean(String? value) {
