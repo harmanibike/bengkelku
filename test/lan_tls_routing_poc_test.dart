@@ -52,12 +52,12 @@ Future<int> _request({
   );
   try {
     socket.write(
-      'GET /health HTTP/1.1\\r\\n'
-      'Host: $urlHost\\r\\n'
-      'Connection: close\\r\\n\\r\\n',
+      'GET /health HTTP/1.1\r\n'
+      'Host: $urlHost\r\n'
+      'Connection: close\r\n\r\n',
     );
     final response = await utf8.decoder.bind(socket).join();
-    final statusLine = response.split('\\r\\n').first;
+    final statusLine = response.split('\r\n').first;
     return int.parse(statusLine.split(' ')[1]);
   } finally {
     await socket.close();
