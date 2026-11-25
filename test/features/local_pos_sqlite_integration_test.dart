@@ -680,6 +680,90 @@ void main() {
   });
 
 
+  test('sale mixed cash and wallet payment cancels with exact refund sources', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, _) = await createRegisteredCustomerAndBicycle(db);
+    final wallet = CustomerWalletRepository();
+    await wallet.addDeposit(
+      customerId: customerId,
+      amount: 70000,
+      paymentMethod: 'cash',
+    );
+
+    final productId = await db.insert('products', {
+      'name': 'Kampas Rem Uji',
+      'selling_price': 100000,
+      'purchase_price': 40000,
+      'stock': 2,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 2,
+      'quantity_remaining': 2,
+      'unit_cost': 40000,
+    });
+
+    final saleId = await SaleRepository().checkout(
+      items: [
+        {'product_id': productId, 'quantity': 1, 'unit_price': 100000},
+      ],
+      paid: 40000,
+      paymentMethod: 'cash',
+      customerId: customerId,
+      walletPayment: 60000,
+    );
+
+    expect(await wallet.getBalance(customerId), 10000);
+    final saleCash = await db.query(
+      'cash_transactions',
+      where: "reference_type = 'sale' AND reference_id = ?",
+      whereArgs: [saleId],
+    );
+    expect(saleCash, hasLength(1));
+    expect(saleCash.single['amount'], 40000);
+
+    await SaleRepository().cancelSale(
+      id: saleId,
+      reason: 'Pengujian pengembalian pembayaran campuran',
+    );
+
+    expect(await wallet.getBalance(customerId), 70000);
+    final cashRefund = await db.query(
+      'cash_transactions',
+      where: "reference_type = 'sale_cancel' AND reference_id = ?",
+      whereArgs: [saleId],
+    );
+    expect(cashRefund, hasLength(1));
+    expect(cashRefund.single['transaction_type'], 'expense');
+    expect(cashRefund.single['amount'], 40000);
+
+    final product = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    expect(product['stock'], 2);
+
+    final walletLedger = await wallet.getLedger(customerId);
+    expect(
+      walletLedger.any((row) =>
+          row['entry_type'] == 'refund' &&
+          row['reference_type'] == 'sale_cancel' &&
+          row['reference_id'] == saleId &&
+          row['amount'] == 60000),
+      isTrue,
+    );
+    expect(
+      await CashbookRepository().getReconciliationIssues(
+        start: DateTime(2000),
+        end: DateTime(2100),
+      ),
+      isEmpty,
+    );
+  });
+
   test('sale checkout deducts stock and records cash and change correctly', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {
