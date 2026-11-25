@@ -148,6 +148,54 @@ void main() {
     expect(clean, isEmpty);
   });
 
+  test('supplier reconciliation compares full payment history when period includes only a later payment', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Uji Periode'});
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-UJI-PERIODE-001',
+      supplierId: supplierId,
+      items: [
+        {
+          'product_id': null,
+          'product_name': 'Barang Uji Periode',
+          'quantity': 1,
+          'unit_cost': 100000,
+          'discount': 0,
+        },
+      ],
+      initialPayment: 30000,
+      paymentMethod: 'cash',
+    );
+
+    // Selisih pembayaran pertama terjadi di luar periode audit.
+    await db.update(
+      'supplier_payments',
+      {'payment_date': '2024-01-10T10:00:00.000'},
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    );
+    await db.update(
+      'cash_transactions',
+      {'amount': 29000, 'transaction_date': '2024-01-10T10:00:00.000'},
+      where: "reference_type = 'purchase_payment' AND reference_id = ?",
+      whereArgs: [purchaseId],
+    );
+
+    // Pembayaran kedua berada di dalam periode dan nilainya cocok.
+    await purchases.addPayment(purchaseId: purchaseId, amount: 20000);
+    final now = DateTime.now();
+    final detected = await CashbookRepository().getSupplierPaymentMismatches(
+      start: now.subtract(const Duration(days: 1)),
+      end: now.add(const Duration(days: 1)),
+    );
+
+    expect(detected, hasLength(1));
+    expect(detected.single['payment_history_total'], 50000);
+    expect(detected.single['cash_out_total'], 49000);
+    expect(detected.single['difference'], 1000);
+  });
+
   test('purchase updates variant stock, batch cost and stock movement atomically', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Pemasok Varian Uji'});
