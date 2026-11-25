@@ -525,8 +525,17 @@ class _DashboardPageState extends State<DashboardPage> {
       const SizedBox(height: 4),
       LayoutBuilder(builder: (context, constraints) {
         final columns = constraints.maxWidth >= 560 ? 4 : 3;
-        final ratio = constraints.maxWidth >= 560 ? 1.45 : 1.18;
-        return GridView.count(crossAxisCount: columns, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisSpacing: 6, mainAxisSpacing: 6, childAspectRatio: ratio, children: tiles);
+        final ratio = constraints.maxWidth >= 560 ? 1.55 : 1.55;
+        return GridView.count(
+          padding: EdgeInsets.zero,
+          crossAxisCount: columns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
+          childAspectRatio: ratio,
+          children: tiles,
+        );
       }),
     ]);
   }
