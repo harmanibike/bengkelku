@@ -131,4 +131,37 @@ void main() {
     expect(await repository.authenticateDevice(credential.token), isNull);
     expect(await repository.getPairedDevices(), isEmpty);
   });
+
+  test('simultaneous pairing attempts can consume a code only once', () async {
+    final repository = DevicePairingRepository();
+    final pairingCode = await repository.createPairingCode();
+    AuthSession.instance.signOut();
+
+    Future<bool> attempt(String deviceName) async {
+      try {
+        await repository.pairDevice(
+          code: pairingCode.code,
+          deviceName: deviceName,
+        );
+        return true;
+      } on StateError {
+        return false;
+      }
+    }
+
+    final outcomes = await Future.wait([
+      attempt('HP Client A'),
+      attempt('HP Client B'),
+    ]);
+
+    expect(outcomes.where((success) => success), hasLength(1));
+    expect(outcomes.where((success) => !success), hasLength(1));
+
+    final db = await AppDatabase.instance.database;
+    final devices = await db.query('paired_devices');
+    final codes = await db.query('device_pairing_codes');
+    expect(devices, hasLength(1));
+    expect(codes.single['consumed_at'], isNotNull);
+  });
+
 }
