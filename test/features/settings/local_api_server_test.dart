@@ -101,4 +101,24 @@ void main() {
     await server.stop();
     expect(server.isRunning, isFalse);
   });
+
+  test('can start again after the previous listener has stopped', () async {
+    final firstPort = await server.start(port: 0);
+    await server.stop();
+    expect(server.isRunning, isFalse);
+
+    final secondPort = await server.start(port: 0);
+    expect(server.isRunning, isTrue);
+    expect(secondPort, isNot(firstPort));
+
+    final client = HttpClient();
+    try {
+      final request = await client.get('127.0.0.1', secondPort, '/api/v1/health');
+      final response = await request.close();
+      expect(response.statusCode, HttpStatus.ok);
+      await response.drain<void>();
+    } finally {
+      client.close(force: true);
+    }
+  });
 }

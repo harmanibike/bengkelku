@@ -28,6 +28,15 @@ class LocalApiServer {
   }) {
     final runningServer = _server;
     if (runningServer != null) return Future<int>.value(runningServer.port);
+    // Jangan bind ulang ketika listener lama masih dalam proses ditutup.
+    // Ini mencegah dua lifecycle start/stop saling mendahului.
+    final pendingStop = _stopFuture;
+    if (pendingStop != null) {
+      return pendingStop.then(
+        (_) => start(port: port, serverName: serverName),
+      );
+    }
+
     final pendingStart = _startFuture;
     if (pendingStart != null) return pendingStart;
 
