@@ -148,6 +148,100 @@ void main() {
     expect(clean, isEmpty);
   });
 
+  test('customer payment reconciliation includes cash and wallet payments for sales and services', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
+    final wallet = CustomerWalletRepository();
+    await wallet.addDeposit(
+      customerId: customerId,
+      amount: 70000,
+      paymentMethod: 'cash',
+    );
+
+    final productId = await db.insert('products', {
+      'name': 'Produk Audit Pembayaran Pelanggan',
+      'selling_price': 100000,
+      'purchase_price': 40000,
+      'stock': 2,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 2,
+      'quantity_remaining': 2,
+      'unit_cost': 40000,
+    });
+
+    final saleId = await SaleRepository().checkout(
+      items: [
+        {'product_id': productId, 'quantity': 1, 'unit_price': 100000},
+      ],
+      paid: 40000,
+      paymentMethod: 'cash',
+      customerId: customerId,
+      walletPayment: 60000,
+    );
+
+    final services = ServiceRepository();
+    final serviceId = await services.createServiceOrder(
+      customerId: customerId,
+      bicycleId: bicycleId,
+      complaint: 'Pemeriksaan rem untuk audit pembayaran',
+      laborCost: 100000,
+      downPayment: 20000,
+      downPaymentMethod: 'cash',
+    );
+    await services.addPayment(id: serviceId, amount: 30000);
+    await services.addWalletPayment(id: serviceId, amount: 10000);
+
+    final audit = CashbookRepository();
+    final now = DateTime.now();
+    final start = now.subtract(const Duration(days: 1));
+    final end = now.add(const Duration(days: 1));
+    expect(
+      await audit.getCustomerPaymentMismatches(start: start, end: end),
+      isEmpty,
+    );
+
+    await db.update(
+      'cash_transactions',
+      {'amount': 39000},
+      where: "reference_type = 'sale' AND reference_id = ?",
+      whereArgs: [saleId],
+    );
+    final saleMismatch = await audit.getCustomerPaymentMismatches(
+      start: start,
+      end: end,
+    );
+    expect(saleMismatch, hasLength(1));
+    expect(saleMismatch.single['document_type'], 'Penjualan');
+    expect(saleMismatch.single['difference'], 1000);
+
+    await db.update(
+      'cash_transactions',
+      {'amount': 19000},
+      where: "reference_type = 'service_order' AND reference_id = ?",
+      whereArgs: [serviceId],
+    );
+    final allMismatches = await audit.getCustomerPaymentMismatches(
+      start: start,
+      end: end,
+    );
+    expect(allMismatches, hasLength(2));
+    expect(
+      allMismatches.map((row) => row['document_type']).toSet(),
+      {'Penjualan', 'Servis'},
+    );
+    expect(
+      allMismatches.fold<int>(
+        0,
+        (sum, row) => sum + (row['difference'] as int),
+      ),
+      2000,
+    );
+  });
+
   test('supplier reconciliation compares full payment history when period includes only a later payment', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Pemasok Uji Periode'});
