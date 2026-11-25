@@ -115,9 +115,9 @@ class ProductImportService {
       final sku = _clean(values['sku']), barcode = _clean(values['barcode']);
       if (sku != null && !skus.add(sku.toLowerCase())) { errors.add('Baris ${i + 1}: SKU duplikat di file.'); continue; }
       if (barcode != null && !barcodes.add(barcode.toLowerCase())) { errors.add('Baris ${i + 1}: barcode duplikat di file.'); continue; }
-      final purchase = _number(values['purchase_price']), selling = _number(values['selling_price']);
-      final wholesale = _number(values['wholesale_price']), stock = _number(values['stock']);
-      final minimum = _number(values['minimum_stock']);
+      final purchase = parseInteger(values['purchase_price']), selling = parseInteger(values['selling_price']);
+      final wholesale = parseInteger(values['wholesale_price']), stock = parseInteger(values['stock']);
+      final minimum = parseInteger(values['minimum_stock']);
       if ([purchase, selling, wholesale, stock, minimum].any((v) => v < 0)) {
         errors.add('Baris ${i + 1}: harga/stok tidak valid.'); continue;
       }
@@ -228,13 +228,76 @@ class ProductImportService {
     return aliases[key] ?? key;
   }
 
-  static int _number(String? value) {
-    final raw = (value ?? '').trim();
+  /// Parses whole-number quantities and Rupiah values from common spreadsheet
+  /// formats without silently changing decimal values into larger integers.
+  /// Examples: 1.500, 1,500 and Rp 1.500,00 all become 1500.
+  /// A non-zero fractional value or ambiguous malformed input returns -1.
+  static int parseInteger(String? value) {
+    var raw = (value ?? '').trim();
     if (raw.isEmpty) return 0;
-    if (RegExp(r'^-?\d+\.0+$').hasMatch(raw)) {
-      return int.tryParse(raw.split('.').first) ?? -1;
+    raw = raw
+        .replaceAll(RegExp(r'(?i)rp'), '')
+        .replaceAll(RegExp(r'[\\s\\u00a0]'), '');
+    if (!RegExp(r'^-?\\d[\\d.,]*
+
+  static String? _clean(String? value) {
+    final text = value?.trim();
+    return text == null || text.isEmpty ? null : text;
+  }
+}
+).hasMatch(raw)) return -1;
+
+    final negative = raw.startsWith('-');
+    if (negative) raw = raw.substring(1);
+    if (raw.isEmpty) return -1;
+
+    String whole;
+    if (raw.contains('.') && raw.contains(',')) {
+      final decimalSeparator =
+          raw.lastIndexOf('.') > raw.lastIndexOf(',') ? '.' : ',';
+      final split = raw.lastIndexOf(decimalSeparator);
+      final fraction = raw.substring(split + 1);
+      if (fraction.isNotEmpty && !RegExp(r'^0+
+
+  static String? _clean(String? value) {
+    final text = value?.trim();
+    return text == null || text.isEmpty ? null : text;
+  }
+}
+).hasMatch(fraction)) {
+        return -1;
+      }
+      whole = raw.substring(0, split).replaceAll(RegExp(r'[.,]'), '');
+    } else if (raw.contains('.') || raw.contains(',')) {
+      final separator = raw.contains('.') ? '.' : ',';
+      final parts = raw.split(separator);
+      if (parts.length > 2) {
+        if (parts.skip(1).any((part) => part.length != 3)) return -1;
+        whole = parts.join();
+      } else {
+        final fraction = parts[1];
+        if (fraction.length == 3) {
+          whole = parts.join();
+        } else if (fraction.isEmpty || RegExp(r'^0+
+
+  static String? _clean(String? value) {
+    final text = value?.trim();
+    return text == null || text.isEmpty ? null : text;
+  }
+}
+).hasMatch(fraction)) {
+          whole = parts.first;
+        } else {
+          return -1;
+        }
+      }
+    } else {
+      whole = raw;
     }
-    return int.tryParse(raw.replaceAll(RegExp(r'[^0-9-]'), '')) ?? -1;
+
+    final parsed = int.tryParse(whole);
+    if (parsed == null) return -1;
+    return negative ? -parsed : parsed;
   }
 
   static String? _clean(String? value) {
