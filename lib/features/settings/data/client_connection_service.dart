@@ -23,8 +23,11 @@ class ClientConnectionService {
   static const int supportedApiVersion = 1;
   static const String expectedApplicationId = 'bengkelku_pos';
 
-  // Keep this value in sync with the version field in pubspec.yaml.
-  static const String clientAppVersion = '1.0.0';
+  // Injected by the release workflow from pubspec.yaml.
+  static const String clientAppVersion = String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: '1.0.0',
+  );
 
   int _compareVersions(String left, String right) {
     final leftParts = left.split('.').map(int.tryParse).toList();
