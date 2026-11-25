@@ -614,13 +614,13 @@ class _CashierPageState extends State<CashierPage> {
                                       : 2;
                           final isCompact = width < 560;
                           return GridView.builder(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
                             itemCount: _products.length,
                             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: columns,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              childAspectRatio: isCompact ? 0.78 : 0.88,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: isCompact ? 0.82 : 0.92,
                             ),
                             itemBuilder: (context, index) {
                               final product = _products[index];
@@ -633,13 +633,13 @@ class _CashierPageState extends State<CashierPage> {
                                 child: InkWell(
                                   onTap: unavailable ? null : () => _addToCart(product),
                                   child: Padding(
-                                    padding: const EdgeInsets.all(9),
+                                    padding: const EdgeInsets.all(8),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
                                         Expanded(
                                           child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(10),
                                             child: product['image_path'] != null && product['image_path'].toString().isNotEmpty
                                                 ? Image.file(
                                                     File(product['image_path'].toString()),
@@ -649,12 +649,12 @@ class _CashierPageState extends State<CashierPage> {
                                                 : const Center(child: Icon(Icons.inventory_2_outlined, size: 34)),
                                           ),
                                         ),
-                                        const SizedBox(height: 7),
+                                        const SizedBox(height: 6),
                                         Text(
                                           product['name']?.toString() ?? '-',
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                                         ),
                                         const SizedBox(height: 3),
                                         Text(
@@ -664,7 +664,7 @@ class _CashierPageState extends State<CashierPage> {
                                           style: TextStyle(
                                             color: Theme.of(context).colorScheme.primary,
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 13,
+                                            fontSize: 12,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
@@ -679,7 +679,7 @@ class _CashierPageState extends State<CashierPage> {
                                         ),
                                         const SizedBox(height: 5),
                                         SizedBox(
-                                          height: 32,
+                                          height: 30,
                                           child: FilledButton.tonalIcon(
                                             onPressed: unavailable ? null : () => _addToCart(product),
                                             icon: const Icon(Icons.add_shopping_cart, size: 16),
