@@ -224,3 +224,50 @@ Referensi: [API SelfSignedCertificate](https://pub.dev/documentation/ftp_server/
 ### Keputusan setelah pemeriksaan API
 
 Belum ada kandidat yang lolos untuk diintegrasikan ke aplikasi utama. Jangan mengubah `pubspec.yaml`, jangan menambahkan endpoint HTTPS/pairing, dan jangan mengaktifkan Mode Client. Langkah teknis berikutnya adalah membuat proof-of-concept sertifikat dengan SAN IP yang benar dan siklus penyimpanan private key yang terlindungi, lalu menjalankannya pada Android API 23/24. Bila tidak ada generator Dart murni yang memenuhi kebutuhan tersebut, evaluasi opsi native Android/Java atau transport TLS yang terintegrasi dengan PKI sebelum memilih dependensi.
+
+## Rancangan PoC TLS berikutnya — identitas DNS stabil dan rute IP LAN
+
+Pemeriksaan source paket dan API Dart menghasilkan jalur PoC yang lebih menjanjikan daripada membuat sertifikat dengan IP SAN dinamis.
+
+### Temuan generator sertifikat
+
+- `basic_utils` 5.8.2 menyediakan `X509Utils.generateSelfSignedCertificate`, parameter SAN, KeyUsage, dan ExtendedKeyUsage; metadata pub.dev mencantumkan Android sebagai platform.
+- Audit source `X509Utils.generateSelfSignedCertificate` menunjukkan setiap nilai `sans` saat ini dienkode dengan tag ASN.1 `0x82` (dNSName). Artinya nilai IP yang diberikan sebagai SAN tidak akan menjadi iPAddress SAN yang benar.
+- Jangan gunakan IP literal pada parameter SAN paket tersebut dan jangan menganggap sertifikatnya memiliki IP SAN.
+- Namun, generator ini dapat menjadi kandidat untuk sertifikat dengan satu nama DNS logis yang stabil, jika uji sertifikat membuktikan ekstensi DNS SAN, EKU serverAuth, masa berlaku, dan signature valid.
+
+### Pola identitas yang akan diuji
+
+1. Saat Server pertama kali disiapkan, buat ID acak permanen untuk instalasi tersebut, misalnya identitas DNS sintetis di bawah domain khusus yang tidak dipakai untuk resolusi Internet.
+2. Sertifikat Server memuat DNS SAN identitas sintetis itu. Identitas tersebut tidak berubah ketika DHCP mengganti alamat IP Server.
+3. QR pairing memuat identitas DNS, IP/port LAN saat itu, fingerprint sertifikat, dan kode pairing sekali pakai. QR tidak pernah memuat private key.
+4. Client membuat URL HTTPS menggunakan nama DNS sintetis sebagai host URL, sehingga nama itu tetap menjadi identitas TLS/hostname yang diverifikasi.
+5. `HttpClient.connectionFactory` diuji untuk membuka plain TCP Socket ke IP LAN yang didapat dari pairing, sementara URL HTTPS tetap menggunakan nama DNS sintetis. Proxy harus dinonaktifkan secara eksplisit untuk jalur lokal ini; factory harus menolak host URL yang tidak cocok dengan identitas Server yang tersimpan.
+6. Client memakai `SecurityContext(withTrustedRoots: false)` dengan sertifikat publik Server yang dipasangkan sebagai trust anchor. TLS harus tetap memeriksa signature, masa berlaku, dan kecocokan DNS SAN. Tidak menggunakan `badCertificateCallback`.
+7. Perubahan sertifikat atau identitas Server mewajibkan pairing ulang Admin.
+
+Dokumentasi Dart menyatakan `connectionFactory` menerima URL yang diminta dan menghasilkan socket koneksi. Dokumentasi mekanisme pinning yang memakai `dart:io` juga menjelaskan factory HTTPS mengembalikan plain Socket untuk diamankan oleh HttpClient, dan TLS tetap memverifikasi hostname serta masa berlaku. Walau demikian, perilaku ini belum diuji pada versi Dart/Flutter dan Android sasaran proyek; karena itu rancangan ini masih hipotesis PoC, bukan implementasi yang sudah disahkan.
+
+### Penyimpanan private key
+
+- Kandidat awal untuk diuji adalah `flutter_secure_storage` versi 10.x, bukan versi 11.x.
+- Dokumentasi versi 10 menyebut dukungan Android mulai API 23; changelog versi 11 menaikkan minimum Android menjadi API 24.
+- Versi 10.3.4 perlu dipatok dan diuji bila Android 6/API 23 harus tetap didukung. Jangan memakai rentang versi yang dapat menarik versi 11 secara otomatis.
+- Private key PEM hanya boleh disimpan melalui penyimpanan terenkripsi yang memakai Android Keystore; jangan tulis PEM mentah ke file biasa, SharedPreferences biasa, log, atau QR. Pengujian juga harus mencakup uninstall/reinstall, pemulihan backup, dan kegagalan Keystore.
+- Ukuran private key/sertifikat dan batas penyimpanan plugin harus diuji. Bila ukuran tidak cocok untuk secure key-value storage, simpan file terenkripsi di direktori privat dan simpan hanya kunci pembungkus di secure storage.
+
+### Batas kompatibilitas Flutter yang ditemukan
+
+- Flutter 3.35 mengubah minimum Android yang didukung template/tooling menjadi API 24 (Android 7).
+- Workflow Bike POS saat ini memakai `channel: stable` tanpa pin versi Flutter, dan menghasilkan folder Android dari template SDK yang sedang terpasang. Akibatnya, build yang dibuat dengan Flutter 3.35 atau lebih baru tidak dapat dijanjikan kompatibel dengan Android 6/API 23.
+- Android 7/API 24 atau lebih baru menjadi baseline yang masuk akal untuk workflow stable saat ini, tetapi harus diverifikasi pada Sunmi V2 fisik.
+- Jika Android 6/API 23 benar-benar wajib, perlu evaluasi pin Flutter ke rilis sebelum 3.35 dan audit seluruh plugin/dependensi agar minSdk, Gradle, dan API Android tidak melampaui 23. Jangan sekadar memaksa `minSdk 23` pada template Flutter 3.35+.
+
+### Gerbang PoC
+
+- Sertifikat DNS SAN sintetis diuji dengan OpenSSL/validator independen: SAN harus bertipe DNS, EKU harus serverAuth, masa berlaku valid, dan private/public key harus cocok.
+- Koneksi HTTPS diuji ketika URL memakai nama DNS sintetis tetapi socket diarahkan ke IP LAN.
+- Uji harus membuktikan hostname salah ditolak, sertifikat berbeda ditolak, sertifikat kedaluwarsa ditolak, dan HTTP/plaintext ditolak.
+- Uji perubahan IP DHCP tanpa mengganti identitas sertifikat.
+- Uji pembuatan, penyimpanan, pemuatan ulang, dan penghapusan private key pada Android API 23/24 sesuai baseline perangkat.
+- Baru setelah PoC lulus, dependensi boleh dipertimbangkan untuk aplikasi utama. Tidak ada perubahan pada `pubspec.yaml` atau listener produksi pada tahap evaluasi ini.
