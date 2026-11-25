@@ -12,6 +12,7 @@ import 'package:bengkelku_pos/core/auth/auth_session.dart';
 import 'package:bengkelku_pos/core/database/app_database.dart';
 import 'package:bengkelku_pos/core/database/database_backup_service.dart';
 import 'package:bengkelku_pos/features/customers/data/customer_wallet_repository.dart';
+import 'package:bengkelku_pos/features/customers/data/customer_repository.dart';
 import 'package:bengkelku_pos/features/services/data/service_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_repository.dart';
 import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
@@ -63,6 +64,62 @@ void main() {
     });
     return (customerId, bicycleId);
   }
+
+  test('customer creation can atomically add multiple bicycles linked to one customer', () async {
+    final repository = CustomerRepository();
+    final customerId = await repository.addCustomerWithBicycles(
+      name: 'Pelanggan Multi Sepeda',
+      phone: '081234567890',
+      bicycles: [
+        {
+          'brand': 'Polygon',
+          'model': 'Xtrada',
+          'bicycle_type': 'MTB',
+          'color': 'Hitam',
+          'frame_size': 'M',
+          'serial_number': 'FRAME-001',
+        },
+        {
+          'brand': 'United',
+          'model': 'Road',
+          'bicycle_type': 'Road Bike',
+          'color': 'Merah',
+          'frame_size': 'L',
+          'serial_number': 'FRAME-002',
+        },
+        {
+          'brand': '',
+          'model': '',
+          'bicycle_type': 'Standar',
+          'color': '',
+          'frame_size': '',
+          'serial_number': '',
+        },
+      ],
+    );
+
+    final db = await AppDatabase.instance.database;
+    final bicycles = await db.query(
+      'bicycles',
+      where: 'customer_id = ?',
+      whereArgs: [customerId],
+      orderBy: 'id ASC',
+    );
+    expect(bicycles, hasLength(2));
+    expect(bicycles.map((row) => row['brand']).toList(), ['Polygon', 'United']);
+    expect(bicycles.map((row) => row['serial_number']).toList(), ['FRAME-001', 'FRAME-002']);
+    final customer = await db.query(
+      'customers',
+      where: 'id = ?',
+      whereArgs: [customerId],
+    );
+    expect(customer, hasLength(1));
+    final logs = await db.query(
+      'activity_logs',
+      where: "entity_type = 'bicycle'",
+    );
+    expect(logs, hasLength(2));
+  });
 
   test('service receivable shows cumulative cash and wallet payments, not only initial deposit', () async {
     final db = await AppDatabase.instance.database;
