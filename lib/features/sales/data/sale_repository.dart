@@ -743,6 +743,42 @@ class SaleRepository {
       final movements = await txn.query('stock_movements',
         where: "reference_type = 'sale' AND reference_id = ? AND movement_type = 'out'",
         whereArgs: [id], orderBy: 'id ASC');
+
+      // Jangan menghapus transaksi bila catatan stok wajib untuk barang
+      // terlacak tidak lengkap; stok tidak boleh dipulihkan dengan perkiraan.
+      final saleItems = await txn.query('sale_items',
+        columns: ['product_id', 'quantity'],
+        where: 'sale_id = ?', whereArgs: [id]);
+      final expectedTracked = <int, int>{};
+      for (final item in saleItems) {
+        final productId = (item['product_id'] as num?)?.toInt();
+        if (productId == null) {
+          throw StateError('Ada barang transaksi yang sudah tidak terhubung ke produk; penghapusan ditolak untuk menjaga audit stok.');
+        }
+        final productRows = await txn.query('products',
+          columns: ['id', 'track_stock'],
+          where: 'id = ?', whereArgs: [productId], limit: 1);
+        if (productRows.isEmpty) {
+          throw StateError('Produk pada transaksi tidak ditemukan; penghapusan ditolak.');
+        }
+        if ((productRows.first['track_stock'] as num?)?.toInt() == 1) {
+          expectedTracked[productId] = (expectedTracked[productId] ?? 0) +
+              ((item['quantity'] as num?)?.toInt() ?? 0);
+        }
+      }
+      final movedByProduct = <int, int>{};
+      for (final movement in movements) {
+        final productId = (movement['product_id'] as num?)?.toInt();
+        if (productId == null) continue;
+        movedByProduct[productId] = (movedByProduct[productId] ?? 0) +
+            ((movement['quantity'] as num?)?.toInt() ?? 0);
+      }
+      for (final entry in expectedTracked.entries) {
+        if ((movedByProduct[entry.key] ?? 0) != entry.value) {
+          throw StateError('Catatan pergerakan stok produk ID ${entry.key} tidak lengkap; transaksi tidak dihapus agar stok tidak salah.');
+        }
+      }
+
       final allocations = await txn.query('sale_batch_allocations',
         where: 'sale_id = ?', whereArgs: [id]);
       for (final allocation in allocations) {
