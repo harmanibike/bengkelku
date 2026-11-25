@@ -237,8 +237,55 @@ class ProductImportService {
     if (raw.isEmpty) return 0;
     raw = raw
         .replaceAll(RegExp(r'rp', caseSensitive: false), '')
-        .replaceAll(RegExp(r'[\s\u00a0]'), '');
-    if (!RegExp(r'^-?\d[\d.,]*
+        .replaceAll(RegExp(r'[\\s\\u00a0]'), '');
+    final negative = raw.startsWith('-');
+    final unsigned = negative ? raw.substring(1) : raw;
+    if (unsigned.isEmpty || unsigned.codeUnitAt(0) < 48 || unsigned.codeUnitAt(0) > 57) {
+      return -1;
+    }
+    if (!unsigned.codeUnits.every((code) =>
+        (code >= 48 && code <= 57) || code == 46 || code == 44)) {
+      return -1;
+    }
+
+    bool isZeroFraction(String fraction) =>
+        fraction.isEmpty || fraction.codeUnits.every((code) => code == 48);
+
+    String whole;
+    if (unsigned.contains('.') && unsigned.contains(',')) {
+      final decimalSeparator =
+          unsigned.lastIndexOf('.') > unsigned.lastIndexOf(',') ? '.' : ',';
+      final split = unsigned.lastIndexOf(decimalSeparator);
+      final fraction = unsigned.substring(split + 1);
+      if (!isZeroFraction(fraction)) return -1;
+      whole = unsigned.substring(0, split).replaceAll(RegExp(r'[.,]'), '');
+    } else if (unsigned.contains('.') || unsigned.contains(',')) {
+      final separator = unsigned.contains('.') ? '.' : ',';
+      final parts = unsigned.split(separator);
+      if (parts.length > 2) {
+        if (parts.skip(1).any((part) => part.length != 3 || !isZeroFraction(part) && part.codeUnits.any((code) => code < 48 || code > 57))) {
+          return -1;
+        }
+        if (parts.skip(1).any((part) => part.length != 3)) return -1;
+        whole = parts.join();
+      } else {
+        final fraction = parts[1];
+        if (fraction.length == 3) {
+          whole = parts.join();
+        } else if (isZeroFraction(fraction)) {
+          whole = parts.first;
+        } else {
+          return -1;
+        }
+      }
+    } else {
+      whole = unsigned;
+    }
+
+    final parsed = int.tryParse(whole);
+    if (parsed == null) return -1;
+    return negative ? -parsed : parsed;
+  }
 
   static String? _clean(String? value) {
     final text = value?.trim();
