@@ -231,27 +231,27 @@ class ProductImportService {
   /// Parses whole-number quantities and Rupiah values from common spreadsheet
   /// formats without silently changing decimal values into larger integers.
   /// Examples: 1.500, 1,500 and Rp 1.500,00 all become 1500.
-  /// A non-zero fractional value or ambiguous malformed input returns -1.
+  /// A non-zero fractional value or malformed input returns -1.
   static int parseInteger(String? value) {
     var raw = (value ?? '').trim();
     if (raw.isEmpty) return 0;
     raw = raw
         .replaceAll(RegExp(r'rp', caseSensitive: false), '')
         .replaceAll(' ', '')
-        .replaceAll('\\u00a0', '')
-        .replaceAll('\\t', '');
+        .replaceAll('\u00a0', '')
+        .replaceAll('\t', '');
     final negative = raw.startsWith('-');
     final unsigned = negative ? raw.substring(1) : raw;
-    if (unsigned.isEmpty || unsigned.codeUnitAt(0) < 48 || unsigned.codeUnitAt(0) > 57) {
-      return -1;
-    }
-    if (!unsigned.codeUnits.every((code) =>
-        (code >= 48 && code <= 57) || code == 46 || code == 44)) {
+    if (unsigned.isEmpty ||
+        !unsigned.codeUnits.every((code) =>
+            (code >= 48 && code <= 57) || code == 46 || code == 44)) {
       return -1;
     }
 
-    bool isZeroFraction(String fraction) =>
-        fraction.isEmpty || fraction.codeUnits.every((code) => code == 48);
+    bool digitsOnly(String part) =>
+        part.isNotEmpty && part.codeUnits.every((code) => code >= 48 && code <= 57);
+    bool zerosOnly(String part) =>
+        part.isEmpty || part.codeUnits.every((code) => code == 48);
 
     String whole;
     if (unsigned.contains('.') && unsigned.contains(',')) {
@@ -259,89 +259,28 @@ class ProductImportService {
           unsigned.lastIndexOf('.') > unsigned.lastIndexOf(',') ? '.' : ',';
       final split = unsigned.lastIndexOf(decimalSeparator);
       final fraction = unsigned.substring(split + 1);
-      if (!isZeroFraction(fraction)) return -1;
-      whole = unsigned.substring(0, split).replaceAll(RegExp(r'[.,]'), '');
+      final integerPart = unsigned.substring(0, split);
+      if (!zerosOnly(fraction) || !digitsOnly(integerPart.replaceAll(RegExp(r'[.,]'), ''))) {
+        return -1;
+      }
+      whole = integerPart.replaceAll(RegExp(r'[.,]'), '');
     } else if (unsigned.contains('.') || unsigned.contains(',')) {
       final separator = unsigned.contains('.') ? '.' : ',';
       final parts = unsigned.split(separator);
+      if (parts.any((part) => !digitsOnly(part))) return -1;
       if (parts.length > 2) {
-        if (parts.skip(1).any((part) => part.length != 3 || !isZeroFraction(part) && part.codeUnits.any((code) => code < 48 || code > 57))) {
-          return -1;
-        }
         if (parts.skip(1).any((part) => part.length != 3)) return -1;
         whole = parts.join();
+      } else if (parts[1].length == 3) {
+        whole = parts.join();
+      } else if (zerosOnly(parts[1])) {
+        whole = parts.first;
       } else {
-        final fraction = parts[1];
-        if (fraction.length == 3) {
-          whole = parts.join();
-        } else if (isZeroFraction(fraction)) {
-          whole = parts.first;
-        } else {
-          return -1;
-        }
-      }
-    } else {
-      whole = unsigned;
-    }
-
-    final parsed = int.tryParse(whole);
-    if (parsed == null) return -1;
-    return negative ? -parsed : parsed;
-  }
-
-  static String? _clean(String? value) {
-    final text = value?.trim();
-    return text == null || text.isEmpty ? null : text;
-  }
-}
-).hasMatch(raw)) return -1;
-
-    final negative = raw.startsWith('-');
-    if (negative) raw = raw.substring(1);
-    if (raw.isEmpty) return -1;
-
-    String whole;
-    if (raw.contains('.') && raw.contains(',')) {
-      final decimalSeparator =
-          raw.lastIndexOf('.') > raw.lastIndexOf(',') ? '.' : ',';
-      final split = raw.lastIndexOf(decimalSeparator);
-      final fraction = raw.substring(split + 1);
-      if (fraction.isNotEmpty && !RegExp(r'^0+
-
-  static String? _clean(String? value) {
-    final text = value?.trim();
-    return text == null || text.isEmpty ? null : text;
-  }
-}
-).hasMatch(fraction)) {
         return -1;
       }
-      whole = raw.substring(0, split).replaceAll(RegExp(r'[.,]'), '');
-    } else if (raw.contains('.') || raw.contains(',')) {
-      final separator = raw.contains('.') ? '.' : ',';
-      final parts = raw.split(separator);
-      if (parts.length > 2) {
-        if (parts.skip(1).any((part) => part.length != 3)) return -1;
-        whole = parts.join();
-      } else {
-        final fraction = parts[1];
-        if (fraction.length == 3) {
-          whole = parts.join();
-        } else if (fraction.isEmpty || RegExp(r'^0+
-
-  static String? _clean(String? value) {
-    final text = value?.trim();
-    return text == null || text.isEmpty ? null : text;
-  }
-}
-).hasMatch(fraction)) {
-          whole = parts.first;
-        } else {
-          return -1;
-        }
-      }
     } else {
-      whole = raw;
+      if (!digitsOnly(unsigned)) return -1;
+      whole = unsigned;
     }
 
     final parsed = int.tryParse(whole);
