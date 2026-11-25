@@ -1,6 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:crypto/crypto.dart';
 
 /// Fingerprint helper for the public X.509 certificate distributed at pairing.
@@ -72,19 +70,4 @@ class ServerCertificatePin {
         !instant.isAfter(endValidity.toUtc());
   }
 
-  static bool acceptsCertificate({
-    required X509Certificate certificate,
-    required String expectedFingerprint,
-    DateTime? now,
-  }) {
-    return certificateIsWithinValidity(
-          startValidity: certificate.startValidity,
-          endValidity: certificate.endValidity,
-          now: now,
-        ) &&
-        matchesDer(
-          certificateDer: certificate.der,
-          expectedFingerprint: expectedFingerprint,
-        );
-  }
 }
