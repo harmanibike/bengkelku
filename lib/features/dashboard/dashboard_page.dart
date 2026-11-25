@@ -500,7 +500,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             child: Icon(icon, color: Colors.white, size: 32),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 9),
           Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, height: 1.15, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
         ],
       ),
@@ -538,7 +538,7 @@ class _DashboardPageState extends State<DashboardPage> {
       const SizedBox(height: 4),
       LayoutBuilder(builder: (context, constraints) {
         final columns = constraints.maxWidth >= 560 ? 4 : 3;
-        final ratio = constraints.maxWidth >= 560 ? 1.45 : 1.30;
+        final ratio = constraints.maxWidth >= 560 ? 1.45 : 1.18;
         return GridView.count(crossAxisCount: columns, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisSpacing: 6, mainAxisSpacing: 6, childAspectRatio: ratio, children: tiles);
       }),
     ]);
