@@ -4,6 +4,7 @@ import '../../../core/auth/auth_session.dart';
 import '../../services/data/service_repository.dart';
 import '../../sales/data/sale_repository.dart';
 import '../../purchases/data/purchase_repository.dart';
+import '../../reports/data/cashbook_repository.dart';
 
 class TransactionCleanupPage extends StatefulWidget {
   const TransactionCleanupPage({super.key});
@@ -16,14 +17,17 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
   final _repository = ServiceRepository();
   final _saleRepository = SaleRepository();
   final _purchaseRepository = PurchaseRepository();
+  final _cashbookRepository = CashbookRepository();
   final Set<int> _selected = {};
   final Set<int> _selectedSales = {};
   final Set<int> _selectedCancelledSales = {};
   final Set<int> _selectedPurchases = {};
+  final Set<int> _selectedCash = {};
   List<Map<String, Object?>> _orders = [];
   List<Map<String, Object?>> _sales = [];
   List<Map<String, Object?>> _cancelledSales = [];
   List<Map<String, Object?>> _purchases = [];
+  List<Map<String, Object?>> _manualCash = [];
   bool _loading = true;
   bool _working = false;
   String? _error;
@@ -49,12 +53,14 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       _selectedSales.clear();
       _selectedCancelledSales.clear();
       _selectedPurchases.clear();
+      _selectedCash.clear();
     });
     try {
       final results = await Future.wait([
         _repository.getServiceOrders(),
         _saleRepository.getSales(),
         _purchaseRepository.getPurchases(),
+        _cashbookRepository.getManualCashCandidates(),
       ]);
       if (!mounted) return;
       setState(() {
@@ -62,6 +68,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
         _sales = results[1].where((row) => row['payment_status']?.toString() == 'unpaid').toList();
         _cancelledSales = results[1].where((row) => row['payment_status']?.toString() == 'cancelled').toList();
         _purchases = results[2].where((row) => row['status']?.toString() != 'cancelled' && (row['paid'] as num? ?? 0) == 0 && (row['return_credit'] as num? ?? 0) == 0).toList();
+        _manualCash = results[3];
         _loading = false;
       });
     } catch (error) {
@@ -236,6 +243,44 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
     }
   }
 
+  Future<void> _deleteSelectedCash() async {
+    if (_selectedCash.isEmpty || _working) return;
+    final ids = _selectedCash.toList(growable: false);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus transaksi kas manual terpilih?'),
+        content: Text('Anda memilih ${ids.length} transaksi kas manual. Pastikan semuanya hanya data percobaan. Hanya kas masuk/keluar manual yang dihapus; transaksi dari penjualan, pembelian, servis, retur, deposit, dan tip tidak ditampilkan atau dihapus di sini. Saldo dan laporan akan dihitung ulang dari transaksi tersisa.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: Colors.red), onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Hapus permanen')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _working = true);
+    var deleted = 0;
+    final failures = <String>[];
+    for (final id in ids) {
+      try { deleted += await _cashbookRepository.deleteDummyManualCash(id); }
+      catch (error) { failures.add('Kas #$id: $error'); }
+    }
+    if (!mounted) return;
+    setState(() => _working = false);
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failures.isEmpty
+      ? '$deleted transaksi kas manual berhasil dihapus.'
+      : '$deleted transaksi dihapus; ${failures.length} ditolak.')));
+    if (failures.isNotEmpty) {
+      await showDialog<void>(context: context, builder: (dialogContext) => AlertDialog(
+        title: const Text('Sebagian transaksi kas tidak dapat dihapus'),
+        content: SizedBox(width: 520, child: SingleChildScrollView(child: Text(failures.join('\\n\\n')))),
+        actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup'))],
+      ));
+    }
+  }
+
   Future<void> _deleteSelectedPurchases() async {
     if (_selectedPurchases.isEmpty || _working) return;
     final ids = _selectedPurchases.toList(growable: false);
@@ -407,6 +452,29 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                               );
                             }),
                           const Divider(height: 22),
+                          const Divider(height: 22),
+                          Row(children: [
+                            const Expanded(child: Text('Kandidat kas manual (masuk/keluar)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                            Text('${_selectedCash.length} dipilih', style: const TextStyle(fontSize: 11)),
+                            IconButton(tooltip: 'Hapus kas manual terpilih', onPressed: _selectedCash.isEmpty || _working ? null : _deleteSelectedCash, icon: const Icon(Icons.delete_outline, color: Colors.red)),
+                          ]),
+                          if (_manualCash.isEmpty)
+                            const Padding(padding: EdgeInsets.only(bottom: 14), child: Text('Tidak ada transaksi kas manual.', style: TextStyle(fontSize: 12, color: Colors.grey)))
+                          else
+                            ..._manualCash.map((row) {
+                              final id = row['id'] as int;
+                              final income = row['transaction_type'] == 'income';
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 4),
+                                child: CheckboxListTile(
+                                  dense: true, controlAffinity: ListTileControlAffinity.leading,
+                                  value: _selectedCash.contains(id),
+                                  onChanged: _working ? null : (checked) => setState(() { if (checked == true) { _selectedCash.add(id); } else { _selectedCash.remove(id); } }),
+                                  title: Text(row['description']?.toString() ?? row['category']?.toString() ?? 'Kas manual #$id', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  subtitle: Text('${income ? 'Kas masuk' : 'Kas keluar'} • ${row['transaction_date'] ?? ''} • ${_money(row['amount'])}', style: const TextStyle(fontSize: 11)),
+                                ),
+                              );
+                            }),
                           Row(children: [
                             const Expanded(child: Text('Kandidat nota servis (menunggu)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selected.length} dipilih', style: const TextStyle(fontSize: 11)),
