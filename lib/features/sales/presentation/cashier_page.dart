@@ -703,7 +703,7 @@ class _CashierPageState extends State<CashierPage> {
           ),
           Container(
             decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black12)]),
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -722,7 +722,7 @@ class _CashierPageState extends State<CashierPage> {
                   ),
                   const SizedBox(height: 6),
                   SizedBox(
-                    height: 116,
+                    height: 96,
                     child: ListView(
                       children: _cart.entries.map((entry) {
                         final item = entry.value;
