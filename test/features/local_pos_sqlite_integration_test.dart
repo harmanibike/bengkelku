@@ -148,6 +148,62 @@ void main() {
     expect(clean, isEmpty);
   });
 
+  test('sale cancellation refuses wallet refund when customer link is missing', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, _) = await createRegisteredCustomerAndBicycle(db);
+    final wallet = CustomerWalletRepository();
+    await wallet.addDeposit(
+      customerId: customerId,
+      amount: 50000,
+      paymentMethod: 'cash',
+    );
+    final productId = await db.insert('products', {
+      'name': 'Rantai Uji Pembatalan',
+      'selling_price': 50000,
+      'purchase_price': 20000,
+      'stock': 2,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 2,
+      'quantity_remaining': 2,
+      'unit_cost': 20000,
+    });
+    final saleId = await SaleRepository().checkout(
+      items: [
+        {'product_id': productId, 'quantity': 1, 'unit_price': 50000},
+      ],
+      paid: 0,
+      paymentMethod: 'customer_wallet',
+      customerId: customerId,
+      walletPayment: 50000,
+    );
+    await db.update(
+      'sales',
+      {'customer_id': null},
+      where: 'id = ?',
+      whereArgs: [saleId],
+    );
+
+    await expectLater(
+      SaleRepository().cancelSale(id: saleId, reason: 'Uji relasi pelanggan hilang'),
+      throwsA(isA<StateError>()),
+    );
+
+    final sale = (await db.query('sales',
+      where: 'id = ?', whereArgs: [saleId])).single;
+    final product = (await db.query('products',
+      where: 'id = ?', whereArgs: [productId])).single;
+    expect(sale['payment_status'], isNot('cancelled'));
+    expect(product['stock'], 1);
+    expect(await wallet.getBalance(customerId), 0);
+    expect(await db.query('cash_transactions',
+      where: "reference_type = 'sale_cancel' AND reference_id = ?",
+      whereArgs: [saleId]), isEmpty);
+  });
+
   test('customer payment reconciliation includes cash and wallet payments for sales and services', () async {
     final db = await AppDatabase.instance.database;
     final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
