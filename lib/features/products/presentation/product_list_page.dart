@@ -646,7 +646,8 @@ class _ProductListPageState extends State<ProductListPage> {
       if (action != null && (action.startsWith('edit:') || action.startsWith('deactivate:'))) {
         final parts = action.split(':');
         final variantId = int.tryParse(parts.last);
-        final selected = variants.where((item) => item['id'] == variantId).firstOrNull;
+        final matches = variants.where((item) => item['id'] == variantId).toList();
+        final selected = matches.isEmpty ? null : matches.first;
         if (selected != null) {
           try {
             if (parts.first == 'edit') {
