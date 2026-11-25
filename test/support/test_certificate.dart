@@ -16,6 +16,10 @@ class TestCertificate {
 
 /// Creates disposable test-only credentials at runtime. No private key is
 /// checked into the repository. CI's Ubuntu image provides OpenSSL.
+///
+/// The self-signed certificate is a CA trust anchor for this isolated PoC.
+/// It also acts as the HTTPS server certificate, allowing the client to pin
+/// this exact certificate without disabling normal TLS verification.
 Future<TestCertificate> createTestCertificate(String dnsName) async {
   final directory = await Directory.systemTemp.createTemp('bikepos-tls-poc-');
   final certificate = File('${directory.path}/certificate.pem');
@@ -39,9 +43,9 @@ Future<TestCertificate> createTestCertificate(String dnsName) async {
     '-addext',
     'subjectAltName=DNS:$dnsName',
     '-addext',
-    'basicConstraints=critical,CA:FALSE',
+    'basicConstraints=critical,CA:TRUE',
     '-addext',
-    'keyUsage=critical,digitalSignature,keyEncipherment',
+    'keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign,cRLSign',
     '-addext',
     'extendedKeyUsage=serverAuth',
   ]);
