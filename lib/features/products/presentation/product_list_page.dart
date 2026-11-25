@@ -751,26 +751,44 @@ class _ProductListPageState extends State<ProductListPage> {
     final low = tracked && stock <= minimum;
     final active = (product['is_active'] as int? ?? 1) == 1;
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 AppPhotoPreview(
                   path: product['image_path']?.toString(),
-                  width: 58,
-                  height: 58,
+                  width: 64,
+                  height: 64,
                   placeholderIcon: Icons.inventory_2_outlined,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(width: 10),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(product['name']?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text([product['sku'], product['category']].where((v) => v != null && v.toString().isNotEmpty).join(' • '), style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                ])),
+                const SizedBox(width: 12),
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      product['name']?.toString() ?? '-',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      [product['sku'], product['category']]
+                          .where((v) => v != null && v.toString().trim().isNotEmpty)
+                          .join(' • '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                  ],
+                )),
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'variants') {
@@ -808,12 +826,33 @@ class _ProductListPageState extends State<ProductListPage> {
               ],
             ),
             const Divider(height: 18),
-            Row(children: [
-              Expanded(child: Text('Harga jual\n' + _rupiah(product['selling_price']), style: const TextStyle(fontSize: 12))),
-              Expanded(child: Text(tracked ? 'Stok\n' + stock.toString() + ' ' + (product['unit']?.toString() ?? 'pcs') : 'Stok tidak dipantau', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: low ? Colors.red : null))),
-              if (low) const Icon(Icons.warning_amber_rounded, color: Colors.red),
-              if (!active) const Chip(label: Text('Nonaktif')),
-            ]),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('HARGA JUAL', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+                      const SizedBox(height: 2),
+                      Text(_rupiah(product['selling_price']), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1558A6))),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('STOK', style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+                      const SizedBox(height: 2),
+                      Text(tracked ? stock.toString() + ' ' + (product['unit']?.toString() ?? 'pcs') : 'Tidak dipantau', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: low ? Colors.red : null)),
+                    ],
+                  ),
+                ),
+                if (low) const Tooltip(message: 'Stok mencapai batas minimum', child: Icon(Icons.warning_amber_rounded, color: Colors.red, size: 20)),
+                if (!active) const Chip(label: Text('Nonaktif')),
+              ],
+            ),
           ],
         ),
       ),
