@@ -102,6 +102,35 @@ void main() {
     expect(server.isRunning, isFalse);
   });
 
+  test('stop during start and a new start are serialized safely', () async {
+    final firstStart = server.start(port: 0);
+    final stopping = server.stop();
+    final secondStart = server.start(port: 0);
+
+    final firstPort = await firstStart;
+    await stopping;
+    final secondPort = await secondStart;
+
+    expect(firstPort, greaterThan(0));
+    expect(secondPort, greaterThan(0));
+    expect(server.isRunning, isTrue);
+    expect(server.port, secondPort);
+
+    final client = HttpClient();
+    try {
+      final request = await client.get(
+        InternetAddress.loopbackIPv4.address,
+        secondPort,
+        '/api/v1/health',
+      );
+      final response = await request.close();
+      expect(response.statusCode, HttpStatus.ok);
+      await response.drain<void>();
+    } finally {
+      client.close(force: true);
+    }
+  });
+
   test('can start again after the previous listener has stopped', () async {
     await server.start(port: 0);
     await server.stop();
