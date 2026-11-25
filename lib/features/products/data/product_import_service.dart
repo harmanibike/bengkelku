@@ -238,7 +238,7 @@ class ProductImportService {
     raw = raw
         .replaceAll(RegExp(r'rp', caseSensitive: false), '')
         .replaceAll(RegExp(r'[\s\u00a0]'), '');
-    if (!RegExp(r'^-?\\d[\\d.,]*
+    if (!RegExp(r'^-?\d[\d.,]*
 
   static String? _clean(String? value) {
     final text = value?.trim();
