@@ -328,3 +328,21 @@ Cetak transaksi langsung Bluetooth/USB/Wi-Fi, integrasi laci uang, papan antrian
 10. Perbarui checklist hanya setelah implementasi dan pemeriksaan yang sesuai.
 
 **Prinsip utama: fitur baru tidak boleh merusak fitur yang sudah berjalan, dan data lama harus tetap aman.**
+
+
+## Fitur pemeliharaan transaksi percobaan (belum diimplementasikan)
+
+Tujuan fitur ini adalah membersihkan transaksi yang dibuat saat pertama kali mencoba/mempelajari aplikasi, bukan menghapus transaksi operasional yang benar-benar terjadi.
+
+Ketentuan yang disepakati:
+- Menu khusus Admin di Pengaturan untuk pemeliharaan data transaksi.
+- Mendukung transaksi lama yang dibuat sebelum fitur tersedia; Admin harus memilih transaksi lama secara manual karena belum memiliki penanda percobaan.
+- Mendukung penjualan, pembelian, dan servis; transaksi terkait pembayaran/piutang/hutang juga harus diperiksa.
+- Pilihan satu transaksi atau beberapa transaksi, dengan filter jenis dan tanggal serta ringkasan dampak sebelum konfirmasi.
+- Transaksi operasional tidak boleh terhapus otomatis. Jangan menganggap transaksi sebagai percobaan hanya berdasarkan tanggal, nominal, pelanggan umum, atau status lunas.
+- Penghapusan hanya boleh dilakukan bila seluruh dampak terkait dapat dibalik secara atomik: stok dan batch biaya, kas, saldo deposit, poin loyalty, retur, pembayaran, piutang/hutang, tip, foto/dokumen, dan referensi laporan.
+- Jika dependensi keuangan/stok tidak dapat dibalik secara aman, transaksi harus ditolak dari penghapusan dan alasan penolakan ditampilkan. Gunakan proses pembatalan/koreksi yang ada bila sesuai; jangan meninggalkan referensi yatim.
+- Sediakan penanda Mode Percobaan untuk transaksi baru pada tahap implementasi berikutnya agar mudah dikenali, tanpa mengubah alur transaksi operasional.
+- Backup sebelum pembersihan massal dan catat aktivitas Admin.
+
+Status: spesifikasi disepakati; UI, repository, migrasi/penanda percobaan, penghapusan aman, dan tes otomatis belum dibuat. Fitur hapus nota servis yang sudah ada bukan pengganti fitur pembersihan lintas-modul ini.
