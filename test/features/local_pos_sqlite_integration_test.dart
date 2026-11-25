@@ -995,6 +995,26 @@ void main() {
       ),
       isEmpty,
     );
+
+    // Pembayaran asal tetap harus diaudit setelah penjualan dibatalkan.
+    // Refund sale_cancel adalah arus keluar, bukan pembayaran penjualan.
+    await db.update(
+      'cash_transactions',
+      {'amount': 39000},
+      where: "reference_type = 'sale' AND reference_id = ?",
+      whereArgs: [saleId],
+    );
+    final cancelledSaleMismatch = await CashbookRepository().getCustomerPaymentMismatches(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(
+      cancelledSaleMismatch.any((row) =>
+          row['document_type'] == 'Penjualan' &&
+          row['record_id'] == saleId &&
+          row['difference'] == 1000),
+      isTrue,
+    );
   });
 
   test('sale checkout deducts stock and records cash and change correctly', () async {
