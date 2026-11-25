@@ -113,6 +113,80 @@ void main() {
     expect(clean, isEmpty);
   });
 
+  test('purchase updates variant stock, batch cost and stock movement atomically', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Varian Uji'});
+    final productId = await db.insert('products', {
+      'name': 'Ban Sepeda Uji',
+      'purchase_price': 10000,
+      'selling_price': 20000,
+      'stock': 0,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final variantId = await db.insert('product_variants', {
+      'product_id': productId,
+      'name': '26 x 1.75',
+      'purchase_price': 12000,
+      'selling_price': 25000,
+      'stock': 0,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-UJI-VARIAN-001',
+      supplierId: supplierId,
+      items: [
+        {
+          'product_id': productId,
+          'variant_id': variantId,
+          'product_name': 'Ban Sepeda Uji - 26 x 1.75',
+          'quantity': 4,
+          'unit_cost': 15000,
+          'discount': 0,
+        },
+      ],
+    );
+
+    final parent = (await db.query('products',
+      columns: ['stock'], where: 'id = ?', whereArgs: [productId])).single;
+    final variant = (await db.query('product_variants',
+      columns: ['stock', 'purchase_price'], where: 'id = ?', whereArgs: [variantId])).single;
+    expect(parent['stock'], 0);
+    expect(variant['stock'], 4);
+    expect(variant['purchase_price'], 15000);
+
+    final purchaseItem = (await db.query('purchase_items',
+      where: 'purchase_id = ?', whereArgs: [purchaseId])).single;
+    expect(purchaseItem['variant_id'], variantId);
+    final batch = (await db.query('inventory_cost_batches',
+      where: 'purchase_id = ?', whereArgs: [purchaseId])).single;
+    expect(batch['variant_id'], variantId);
+    expect(batch['quantity_remaining'], 4);
+    final movement = (await db.query('stock_movements',
+      where: "reference_type = 'purchase' AND reference_id = ?",
+      whereArgs: [purchaseId])).single;
+    expect(movement['variant_id'], variantId);
+    expect(movement['stock_before'], 0);
+    expect(movement['stock_after'], 4);
+
+    await purchases.cancelPurchase(
+      purchaseId: purchaseId,
+      reason: 'Pengujian pembatalan pembelian varian',
+    );
+    final afterCancel = (await db.query('product_variants',
+      columns: ['stock'], where: 'id = ?', whereArgs: [variantId])).single;
+    expect(afterCancel['stock'], 0);
+    final cancelMovement = (await db.query('stock_movements',
+      where: "reference_type = 'purchase_cancel' AND reference_id = ?",
+      whereArgs: [purchaseId])).single;
+    expect(cancelMovement['variant_id'], variantId);
+    expect(cancelMovement['stock_before'], 4);
+    expect(cancelMovement['stock_after'], 0);
+  });
+
   test('stock opname applies surplus with average remaining batch cost', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {

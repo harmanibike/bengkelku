@@ -60,7 +60,7 @@ class PurchaseRepository {
       final quantity = item['quantity'] as int? ?? 0;
       final unitCost = item['unit_cost'] as int? ?? 0;
       final lineDiscount = item['discount'] as int? ?? 0;
-      if (productId == null || name.isEmpty || quantity <= 0 || unitCost < 0 || lineDiscount < 0) {
+      if (name.isEmpty || quantity <= 0 || unitCost < 0 || lineDiscount < 0) {
         throw ArgumentError('Rincian barang pembelian tidak valid.');
       }
       final lineTotal = quantity * unitCost - lineDiscount;
@@ -88,9 +88,10 @@ class PurchaseRepository {
         'purchase_date': (purchaseDate ?? DateTime.now()).toIso8601String(), 'notes': _nullable(notes),
       });
       for (final item in normalized) {
-        final productId = item['product_id'] as int;
+        final productId = item['product_id'] as int?;
         final variantId = item['variant_id'] as int?;
         final purchaseItemId = await txn.insert('purchase_items', {...item, 'purchase_id': purchaseId});
+        if (productId == null) continue;
         final products = await txn.query('products',
           columns: ['stock', 'track_stock', 'is_active', 'purchase_price', 'name'],
           where: 'id = ?', whereArgs: [productId], limit: 1);
