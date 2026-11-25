@@ -237,7 +237,9 @@ class ProductImportService {
     if (raw.isEmpty) return 0;
     raw = raw
         .replaceAll(RegExp(r'rp', caseSensitive: false), '')
-        .replaceAll(RegExp(r'[\\s\\u00a0]'), '');
+        .replaceAll(' ', '')
+        .replaceAll('\\u00a0', '')
+        .replaceAll('\\t', '');
     final negative = raw.startsWith('-');
     final unsigned = negative ? raw.substring(1) : raw;
     if (unsigned.isEmpty || unsigned.codeUnitAt(0) < 48 || unsigned.codeUnitAt(0) > 57) {
