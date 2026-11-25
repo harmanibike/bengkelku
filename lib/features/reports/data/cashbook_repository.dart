@@ -24,11 +24,11 @@ class CashbookRepository {
           THEN CASE WHEN transaction_type='income' THEN amount ELSE -amount END ELSE 0 END),0) AS cash_balance,
         COALESCE(SUM(CASE WHEN LOWER(COALESCE(payment_method,'cash')) NOT IN ('cash','tunai')
           THEN CASE WHEN transaction_type='income' THEN amount ELSE -amount END ELSE 0 END),0) AS non_cash_balance
-      FROM cash_transactions WHERE reference_type NOT IN ('tip', 'tip_handover') AND datetime(transaction_date) < datetime(?)
+      FROM cash_transactions WHERE COALESCE(reference_type, '') NOT IN ('tip', 'tip_handover') AND datetime(transaction_date) < datetime(?)
     ''', [from]);
     final rows = await db.rawQuery('''
       SELECT * FROM cash_transactions
-      WHERE reference_type NOT IN ('tip', 'tip_handover')
+      WHERE COALESCE(reference_type, '') NOT IN ('tip', 'tip_handover')
         AND datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
       ORDER BY datetime(transaction_date) ASC, id ASC
     ''', [from, until]);
