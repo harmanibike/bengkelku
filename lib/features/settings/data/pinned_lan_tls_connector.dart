@@ -34,8 +34,8 @@ class PinnedLanTlsConnector {
       ..setTrustedCertificatesBytes(utf8.encode(certificatePem));
 
     final socket = await Socket.connect(
-      address: normalizedAddress,
-      port: port,
+      normalizedAddress,
+      port,
       timeout: timeout,
     );
     try {
