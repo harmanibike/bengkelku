@@ -274,11 +274,19 @@ void main() {
     expect(saleMismatch.single['document_type'], 'Penjualan');
     expect(saleMismatch.single['difference'], 1000);
 
+    final serviceCashRows = await db.query(
+      'cash_transactions',
+      columns: ['id'],
+      where: "reference_type = 'service_order' AND reference_id = ?",
+      whereArgs: [serviceId],
+      orderBy: 'id ASC',
+    );
+    expect(serviceCashRows, hasLength(2));
     await db.update(
       'cash_transactions',
       {'amount': 19000},
-      where: "reference_type = 'service_order' AND reference_id = ?",
-      whereArgs: [serviceId],
+      where: 'id = ?',
+      whereArgs: [serviceCashRows.first['id']],
     );
     final allMismatches = await audit.getCustomerPaymentMismatches(
       start: start,
