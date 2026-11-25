@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../../core/formatters/currency_input_formatter.dart';
+import '../../../core/widgets/app_photo_preview.dart';
 import '../data/product_repository.dart';
 import '../../purchases/presentation/purchase_cost_settings_page.dart';
 import 'product_category_page.dart';
@@ -148,16 +149,13 @@ class _ProductListPageState extends State<ProductListPage> {
                         ),
                         child: Column(
                           children: [
-                            ClipRRect(
+                            AppPhotoPreview(
+                              path: removeImage ? null : imagePath,
+                              width: 116,
+                              height: 96,
+                              placeholderIcon: Icons.add_a_photo_outlined,
+                              placeholderLabel: 'Foto produk',
                               borderRadius: BorderRadius.circular(10),
-                              child: SizedBox(
-                                width: 116,
-                                height: 96,
-                                child: imagePath != null && !removeImage
-                                    ? Image.file(File(imagePath!), fit: BoxFit.cover, cacheWidth: 348, cacheHeight: 288,
-                                        errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined, size: 38))
-                                    : const Icon(Icons.add_a_photo_outlined, size: 38),
-                              ),
                             ),
                             const SizedBox(height: 8),
                             Wrap(
@@ -761,16 +759,12 @@ class _ProductListPageState extends State<ProductListPage> {
           children: [
             Row(
               children: [
-                ClipRRect(
+                AppPhotoPreview(
+                  path: product['image_path']?.toString(),
+                  width: 58,
+                  height: 58,
+                  placeholderIcon: Icons.inventory_2_outlined,
                   borderRadius: BorderRadius.circular(10),
-                  child: SizedBox(
-                    width: 58,
-                    height: 58,
-                    child: product['image_path'] != null && product['image_path'].toString().isNotEmpty
-                        ? Image.file(File(product['image_path'].toString()), fit: BoxFit.cover, cacheWidth: 174, cacheHeight: 174,
-                            errorBuilder: (_, __, ___) => Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary))
-                        : Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary),
-                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

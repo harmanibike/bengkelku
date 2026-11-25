@@ -4,6 +4,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/widgets/app_photo_preview.dart';
+
 class ServicePhotoHelper {
   ServicePhotoHelper._();
 
@@ -70,41 +72,13 @@ class ServicePhotoHelper {
   }
 
   static Widget preview(String? path, {double height = 150}) {
-    if (path == null || path.isEmpty || !File(path).existsSync()) {
-      return Container(
-        height: height,
-        width: double.infinity,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.grey.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.35)),
-        ),
-        child: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add_a_photo_outlined, size: 32),
-            SizedBox(height: 6),
-            Text('Belum ada foto'),
-          ],
-        ),
-      );
-    }
-
-    return ClipRRect(
+    return AppPhotoPreview(
+      path: path,
+      height: height,
+      width: double.infinity,
+      placeholderIcon: Icons.add_a_photo_outlined,
+      placeholderLabel: 'Belum ada foto',
       borderRadius: BorderRadius.circular(12),
-      child: Image.file(
-        File(path),
-        height: height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          height: height,
-          alignment: Alignment.center,
-          color: Colors.grey.withValues(alpha: 0.10),
-          child: const Text('Foto tidak dapat ditampilkan'),
-        ),
-      ),
     );
   }
 }
