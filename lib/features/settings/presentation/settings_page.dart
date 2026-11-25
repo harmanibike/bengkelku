@@ -13,6 +13,7 @@ import 'loyalty_settings_page.dart';
 import '../../customers/presentation/loyalty_rewards_page.dart';
 import 'stock_reminder_settings_page.dart';
 import 'test_transaction_mode_page.dart';
+import 'test_transaction_cleanup_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -92,6 +93,15 @@ class SettingsPage extends StatelessWidget {
             title: 'Mode Transaksi Percobaan',
             subtitle: 'Tandai transaksi baru sebagai data uji coba',
             page: const TestTransactionModePage(),
+          ),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.cleaning_services_outlined,
+            color: const Color(0xFFAD1457),
+            title: 'Pilih Transaksi Percobaan',
+            subtitle: 'Tinjau transaksi uji dan pilih transaksi lama secara manual',
+            page: const TestTransactionCleanupPage(),
           ),
           const SizedBox(height: 8),
           _item(
