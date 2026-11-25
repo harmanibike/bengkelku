@@ -74,8 +74,10 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final notes = TextEditingController();
     int? supplierId = suppliers.first['id'] as int;
     int? productId = products.first['id'] as int;
+    var variants = (await _products.getProductVariants(productId!)).where((item) => (item['is_active'] as int? ?? 1) == 1).toList();
+    int? variantId = variants.isEmpty ? null : variants.first['id'] as int;
     final qty = TextEditingController(text: '1');
-    final cost = TextEditingController(text: formatCurrencyInput(products.first['purchase_price'] ?? 0));
+    final cost = TextEditingController(text: formatCurrencyInput(variants.isEmpty ? products.first['purchase_price'] ?? 0 : variants.first['purchase_price'] ?? 0));
     final items = <Map<String, Object?>>[];
     String? errorText;
 
@@ -117,14 +119,39 @@ class _PurchasesPageState extends State<PurchasesPage> {
                         value: p['id'] as int,
                         child: Text(p['name'] as String? ?? '-', overflow: TextOverflow.ellipsis),
                       )).toList(),
-                      onChanged: (v) {
+                      onChanged: (v) async {
+                        if (v == null) return;
+                        final nextVariants = await _products.getProductVariants(v);
+                        if (!context.mounted) return;
                         setDialogState(() {
                           productId = v;
+                          variants = nextVariants.where((item) => (item['is_active'] as int? ?? 1) == 1).toList();
+                          variantId = variants.isEmpty ? null : variants.first['id'] as int;
                           final selected = products.firstWhere((p) => p['id'] == v);
-                          cost.text = formatCurrencyInput(selected['purchase_price'] ?? 0);
+                          final selectedVariant = variants.isEmpty ? null : variants.first;
+                          cost.text = formatCurrencyInput(selectedVariant?['purchase_price'] ?? selected['purchase_price'] ?? 0);
                         });
                       },
                     ),
+                    if (variants.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        initialValue: variantId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(labelText: 'Varian produk'),
+                        items: variants.map((v) => DropdownMenuItem<int>(
+                          value: v['id'] as int,
+                          child: Text(v['name']?.toString() ?? '-', overflow: TextOverflow.ellipsis),
+                        )).toList(),
+                        onChanged: (v) {
+                          setDialogState(() {
+                            variantId = v;
+                            final selected = variants.firstWhere((item) => item['id'] == v);
+                            cost.text = formatCurrencyInput(selected['purchase_price'] ?? 0);
+                          });
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -137,13 +164,19 @@ class _PurchasesPageState extends State<PurchasesPage> {
                           tooltip: 'Tambahkan barang',
                           onPressed: () {
                             final product = products.firstWhere((p) => p['id'] == productId);
+                            final matches = variants.where((v) => v['id'] == variantId).toList();
+                            final selectedVariant = matches.isEmpty ? null : matches.first;
                             final q = int.tryParse(qty.text) ?? 0;
                             final price = cost.text.trim().isEmpty ? -1 : parseCurrencyInput(cost.text);
-                            if (q <= 0 || price < 0) {
-                              setDialogState(() => errorText = 'Jumlah dan harga beli harus valid.');
+                            if (q <= 0 || price < 0 || (variants.isNotEmpty && selectedVariant == null)) {
+                              setDialogState(() => errorText = 'Pilih varian, jumlah, dan harga beli yang valid.');
                               return;
                             }
-                            final existing = items.indexWhere((i) => i['product_id'] == productId);
+                            final displayName = selectedVariant == null
+                                ? product['name'] as String
+                                : '${product['name']} - ${selectedVariant['name']}';
+                            final existing = items.indexWhere((i) =>
+                                i['product_id'] == productId && i['variant_id'] == variantId);
                             if (existing >= 0) {
                               final old = items[existing];
                               final nextQty = (old['quantity'] as int) + q;
@@ -153,7 +186,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
                             } else {
                               items.add({
                                 'product_id': productId,
-                                'product_name': product['name'] as String,
+                                'variant_id': variantId,
+                                'product_name': displayName,
                                 'quantity': q,
                                 'unit_cost': price,
                                 'discount': 0,

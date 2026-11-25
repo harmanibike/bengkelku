@@ -70,7 +70,7 @@ class _StockMovementPageState extends State<StockMovementPage> {
               controller: _search,
               onChanged: (_) => _refresh(),
               decoration: InputDecoration(
-                hintText: 'Cari produk, SKU, atau keterangan',
+                hintText: 'Cari produk, varian, SKU, atau keterangan',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: IconButton(
                   tooltip: 'Bersihkan pencarian',
@@ -128,7 +128,7 @@ class _StockMovementPageState extends State<StockMovementPage> {
                           backgroundColor: incoming ? Colors.green.withValues(alpha: .12) : Colors.red.withValues(alpha: .10),
                           child: Icon(incoming ? Icons.south_west : Icons.north_east, color: incoming ? Colors.green : Colors.red, size: 18),
                         ),
-                        title: Text(row['product_name']?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        title: Text([row['product_name'], row['variant_name']].where((value) => value != null && value.toString().isNotEmpty).join(' - '), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                         subtitle: Text(
                           '${_reference(row['reference_type'])} • ${_date(row['created_at'])}\nStok: $before → $after $unit${notes == null || notes.isEmpty ? '' : '\n$notes'}',
                           style: const TextStyle(fontSize: 11, height: 1.35),

@@ -263,6 +263,9 @@ class PurchaseReturnRepository {
           where: 'id = ? AND purchase_id = ?', whereArgs: [entry.key, purchaseId], limit: 1);
         if (itemRows.isEmpty) throw StateError('Barang tidak sesuai dengan faktur pembelian.');
         final item = itemRows.first;
+        if (item['variant_id'] != null) {
+          throw StateError('Retur pembelian untuk varian belum tersedia. Stok varian tidak diubah agar pencatatan tetap akurat.');
+        }
         final purchased = item['quantity'] as int? ?? 0;
         final returnedRows = await txn.rawQuery('''
           SELECT COALESCE(SUM(pri.quantity), 0) AS total

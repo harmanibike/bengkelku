@@ -505,18 +505,20 @@ class ProductRepository {
     final where = <String>[];
     final args = <Object?>[];
     if (term.isNotEmpty) {
-      where.add('(p.name LIKE ? OR p.sku LIKE ? OR sm.notes LIKE ? OR sm.reference_type LIKE ?)');
+      where.add('(p.name LIKE ? OR p.sku LIKE ? OR v.name LIKE ? OR v.sku LIKE ? OR v.barcode LIKE ? OR sm.notes LIKE ? OR sm.reference_type LIKE ?)');
       final pattern = '%$term%';
-      args.addAll([pattern, pattern, pattern, pattern]);
+      args.addAll([pattern, pattern, pattern, pattern, pattern, pattern, pattern]);
     }
     if (movementType != 'all') {
       where.add('sm.movement_type = ?');
       args.add(movementType);
     }
     return db.rawQuery('''
-      SELECT sm.*, p.name AS product_name, p.sku AS product_sku, p.unit AS product_unit
+      SELECT sm.*, p.name AS product_name, p.sku AS product_sku, p.unit AS product_unit,
+        v.name AS variant_name, v.sku AS variant_sku, v.barcode AS variant_barcode
       FROM stock_movements sm
       JOIN products p ON p.id = sm.product_id
+      LEFT JOIN product_variants v ON v.id = sm.variant_id
       ${where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}'}
       ORDER BY sm.created_at DESC, sm.id DESC
       LIMIT 300

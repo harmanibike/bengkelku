@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 38;
+  static const int currentVersion = 39;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -247,6 +247,7 @@ class AppDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         purchase_id INTEGER NOT NULL,
         product_id INTEGER,
+        variant_id INTEGER,
         product_name TEXT NOT NULL,
         quantity INTEGER NOT NULL DEFAULT 1,
         unit_cost INTEGER NOT NULL DEFAULT 0,
@@ -569,6 +570,7 @@ class AppDatabase {
       CREATE TABLE stock_movements (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
+        variant_id INTEGER,
         movement_type TEXT NOT NULL,
         quantity INTEGER NOT NULL,
         stock_before INTEGER NOT NULL DEFAULT 0,
@@ -587,6 +589,7 @@ class AppDatabase {
       CREATE TABLE inventory_cost_batches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER NOT NULL,
+        variant_id INTEGER,
         purchase_id INTEGER,
         purchase_item_id INTEGER,
         batch_code TEXT,
@@ -935,6 +938,16 @@ class AppDatabase {
       ''');
       await db.execute('CREATE INDEX idx_product_variants_product ON product_variants(product_id, is_active, name)');
       await db.execute('CREATE INDEX idx_product_variants_barcode ON product_variants(barcode)');
+    }
+
+    // Hubungkan transaksi pembelian, batch biaya, dan pergerakan stok ke varian.
+    if (oldVersion < 39) {
+      await db.execute('ALTER TABLE purchase_items ADD COLUMN variant_id INTEGER');
+      await db.execute('ALTER TABLE stock_movements ADD COLUMN variant_id INTEGER');
+      await db.execute('ALTER TABLE inventory_cost_batches ADD COLUMN variant_id INTEGER');
+      await db.execute('CREATE INDEX idx_purchase_items_variant ON purchase_items(variant_id)');
+      await db.execute('CREATE INDEX idx_stock_movements_variant ON stock_movements(variant_id, created_at DESC)');
+      await db.execute('CREATE INDEX idx_inventory_cost_batches_variant ON inventory_cost_batches(variant_id, received_at, id)');
     }
 
     // Simpan apakah stok benar-benar dikurangi saat retur dibuat.
