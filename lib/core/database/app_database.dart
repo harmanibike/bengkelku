@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 39;
+  static const int currentVersion = 40;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -918,6 +918,20 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    // Penanda transaksi percobaan. Data lama default 0 (belum diklasifikasikan);
+    // tidak ada transaksi lama yang otomatis dianggap sebagai percobaan.
+    if (oldVersion < 40) {
+      final existingTables = (await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table'",
+      )).map((row) => row['name']?.toString()).toSet();
+      for (final table in ['sales', 'purchases', 'service_orders']) {
+        if (existingTables.contains(table)) {
+          await db.execute('ALTER TABLE $table ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0');
+          await db.execute('CREATE INDEX idx_${table}_is_test ON $table(is_test)');
+        }
+      }
+    }
+
     // Varian produk ditambahkan secara aditif; data produk dan transaksi lama tidak diubah.
     if (oldVersion < 38) {
       await db.execute('''
