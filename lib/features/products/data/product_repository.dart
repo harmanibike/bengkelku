@@ -331,6 +331,7 @@ class ProductRepository {
     return db.transaction((txn) async {
       final parent = await txn.query('products', columns: ['name'], where: 'id = ? AND is_active = 1', whereArgs: [productId], limit: 1);
       if (parent.isEmpty) throw StateError('Produk induk tidak ditemukan atau nonaktif.');
+      await _ensureVariantIdentifiersAvailable(txn, sku: _nullable(sku), barcode: _nullable(barcode));
       final id = await txn.insert('product_variants', {
         'product_id': productId,
         'name': value,
@@ -374,6 +375,12 @@ class ProductRepository {
     return db.transaction((txn) async {
       final rows = await txn.query('product_variants', where: 'id = ? AND is_active = 1', whereArgs: [id], limit: 1);
       if (rows.isEmpty) throw StateError('Varian tidak ditemukan atau sudah nonaktif.');
+      await _ensureVariantIdentifiersAvailable(
+        txn,
+        sku: _nullable(sku),
+        barcode: _nullable(barcode),
+        exceptVariantId: id,
+      );
       final updated = await txn.update('product_variants', {
         'name': value,
         'sku': _nullable(sku),
@@ -546,6 +553,32 @@ class ProductRepository {
       'SELECT COUNT(*) AS total FROM products WHERE is_active = 1 AND track_stock = 1 AND stock <= minimum_stock',
     );
     return Sqflite.firstIntValue(rows) ?? 0;
+  }
+
+  Future<void> _ensureVariantIdentifiersAvailable(
+    DatabaseExecutor txn, {
+    String? sku,
+    String? barcode,
+    int? exceptVariantId,
+  }) async {
+    if (sku != null) {
+      final productMatches = await txn.query('products', columns: ['id'], where: 'sku = ?', whereArgs: [sku], limit: 1);
+      final variantWhere = exceptVariantId == null ? 'sku = ?' : 'sku = ? AND id != ?';
+      final variantArgs = exceptVariantId == null ? <Object?>[sku] : <Object?>[sku, exceptVariantId];
+      final variantMatches = await txn.query('product_variants', columns: ['id'], where: variantWhere, whereArgs: variantArgs, limit: 1);
+      if (productMatches.isNotEmpty || variantMatches.isNotEmpty) {
+        throw StateError('SKU sudah digunakan produk atau varian lain.');
+      }
+    }
+    if (barcode != null) {
+      final productMatches = await txn.query('products', columns: ['id'], where: 'barcode = ?', whereArgs: [barcode], limit: 1);
+      final variantWhere = exceptVariantId == null ? 'barcode = ?' : 'barcode = ? AND id != ?';
+      final variantArgs = exceptVariantId == null ? <Object?>[barcode] : <Object?>[barcode, exceptVariantId];
+      final variantMatches = await txn.query('product_variants', columns: ['id'], where: variantWhere, whereArgs: variantArgs, limit: 1);
+      if (productMatches.isNotEmpty || variantMatches.isNotEmpty) {
+        throw StateError('Barcode sudah digunakan produk atau varian lain.');
+      }
+    }
   }
 
   String? _nullable(String? value) {
