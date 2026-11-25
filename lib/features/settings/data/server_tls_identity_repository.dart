@@ -75,7 +75,13 @@ class SelfSignedServerTlsIdentityGenerator
   final Random _random;
 
   String _serialNumber() {
+    // ASN.1 INTEGER is signed. Keep the high bit clear so the X.509 serial
+    // is always positive and can be parsed by Android/OpenSSL TLS providers.
     final bytes = List<int>.generate(16, (_) => _random.nextInt(256));
+    bytes[0] = bytes[0] & 0x7f;
+    if (bytes.every((value) => value == 0)) {
+      bytes[bytes.length - 1] = 1;
+    }
     return BigInt.parse(
       bytes.map((value) => value.toRadixString(16).padLeft(2, '0')).join(),
       radix: 16,
