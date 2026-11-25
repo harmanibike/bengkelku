@@ -237,6 +237,7 @@ class AppDatabase {
         cancel_reason TEXT,
         purchase_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         notes TEXT,
+        is_test INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
       )
@@ -381,6 +382,7 @@ class AppDatabase {
         notes TEXT,
         before_photo_path TEXT,
         after_photo_path TEXT,
+        is_test INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (customer_id)
           REFERENCES customers(id)
           ON DELETE SET NULL,
@@ -529,6 +531,7 @@ class AppDatabase {
         payment_status TEXT NOT NULL DEFAULT 'paid',
         transaction_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         notes TEXT,
+        is_test INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (customer_id)
           REFERENCES customers(id)
           ON DELETE SET NULL
