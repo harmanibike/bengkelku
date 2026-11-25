@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:bengkelku_pos/features/settings/data/local_api_server.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bengkelku_pos/features/settings/data/server_tls_identity_repository.dart';
-import '../../support/lan_tls_test_client.dart';
+import 'package:bengkelku_pos/features/settings/data/pinned_lan_tls_connector.dart';
 
 class _MemoryTlsStore implements SecureValueStore {
   final Map<String, String> values = {};
@@ -41,12 +41,11 @@ void main() {
       serverName: 'HP Server TLS',
     );
 
-    final socket = await connectLanTlsTestSocket(
-      urlHost: identity.dnsName,
-      expectedDnsName: identity.dnsName,
-      routeAddress: InternetAddress.loopbackIPv4,
-      routePort: port,
-      trustedCertificatePem: identity.certificatePem,
+    final socket = await const PinnedLanTlsConnector().connect(
+      address: InternetAddress.loopbackIPv4.address,
+      port: port,
+      serverDnsName: identity.dnsName,
+      certificatePem: identity.certificatePem,
     );
     try {
       socket.write(
