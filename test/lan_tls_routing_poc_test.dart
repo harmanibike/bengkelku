@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -36,17 +37,31 @@ Future<HttpServer> _startPlainServer() async {
   return server;
 }
 
-Future<int> _request(HttpClient client, String host, int port) async {
-  final uri = Uri(
-    scheme: 'https',
-    host: host,
-    port: port,
-    path: '/health',
+Future<int> _request({
+  required String urlHost,
+  required String expectedDnsName,
+  required int port,
+  required String trustedCertificatePem,
+}) async {
+  final socket = await connectLanTlsTestSocket(
+    urlHost: urlHost,
+    expectedDnsName: expectedDnsName,
+    routeAddress: InternetAddress.loopbackIPv4,
+    routePort: port,
+    trustedCertificatePem: trustedCertificatePem,
   );
-  final request = await client.getUrl(uri);
-  final response = await request.close();
-  await response.drain<void>();
-  return response.statusCode;
+  try {
+    socket.write(
+      'GET /health HTTP/1.1\\r\\n'
+      'Host: $urlHost\\r\\n'
+      'Connection: close\\r\\n\\r\\n',
+    );
+    final response = await utf8.decoder.bind(socket).join();
+    final statusLine = response.split('\\r\\n').first;
+    return int.parse(statusLine.split(' ')[1]);
+  } finally {
+    await socket.close();
+  }
 }
 
 void main() {
@@ -54,17 +69,19 @@ void main() {
     test('routes TCP to LAN IP while TLS verifies stable DNS identity', () async {
       final certificate = await createTestCertificate(_expectedHost);
       final server = await _startSecureServer(certificate);
-      final client = createLanTlsTestClient(
-        expectedDnsName: _expectedHost,
-        routeAddress: InternetAddress.loopbackIPv4,
-        routePort: server.port,
-        trustedCertificatePem: await certificate.certificate.readAsString(),
-      );
 
       try {
-        expect(await _request(client, _expectedHost, server.port), HttpStatus.ok);
+        expect(
+          await _request(
+            urlHost: _expectedHost,
+            expectedDnsName: _expectedHost,
+            port: server.port,
+            trustedCertificatePem:
+                await certificate.certificate.readAsString(),
+          ),
+          HttpStatus.ok,
+        );
       } finally {
-        client.close(force: true);
         await server.close(force: true);
         await certificate.dispose();
       }
@@ -73,46 +90,43 @@ void main() {
     test('rejects a trusted certificate with the wrong DNS identity', () async {
       final certificate = await createTestCertificate(_wrongHost);
       final server = await _startSecureServer(certificate);
-      final client = createLanTlsTestClient(
-        expectedDnsName: _expectedHost,
-        routeAddress: InternetAddress.loopbackIPv4,
-        routePort: server.port,
-        // Trust the presented certificate so this isolates hostname checking.
-        trustedCertificatePem: await certificate.certificate.readAsString(),
-      );
 
       try {
         await expectLater(
-          _request(client, _expectedHost, server.port),
+          _request(
+            urlHost: _expectedHost,
+            expectedDnsName: _expectedHost,
+            port: server.port,
+            trustedCertificatePem:
+                await certificate.certificate.readAsString(),
+          ),
           throwsA(isA<HandshakeException>()),
         );
       } finally {
-        client.close(force: true);
         await server.close(force: true);
         await certificate.dispose();
       }
     });
 
-    test('rejects a server certificate that differs from the pinned cert', () async {
+    test('rejects a server certificate that differs from the pinned cert',
+        () async {
       final serverCertificate = await createTestCertificate(_expectedHost);
       final differentTrustedCertificate =
           await createTestCertificate(_expectedHost);
       final server = await _startSecureServer(serverCertificate);
-      final client = createLanTlsTestClient(
-        expectedDnsName: _expectedHost,
-        routeAddress: InternetAddress.loopbackIPv4,
-        routePort: server.port,
-        trustedCertificatePem:
-            await differentTrustedCertificate.certificate.readAsString(),
-      );
 
       try {
         await expectLater(
-          _request(client, _expectedHost, server.port),
+          _request(
+            urlHost: _expectedHost,
+            expectedDnsName: _expectedHost,
+            port: server.port,
+            trustedCertificatePem:
+                await differentTrustedCertificate.certificate.readAsString(),
+          ),
           throwsA(isA<HandshakeException>()),
         );
       } finally {
-        client.close(force: true);
         await server.close(force: true);
         await serverCertificate.dispose();
         await differentTrustedCertificate.dispose();
@@ -122,20 +136,19 @@ void main() {
     test('rejects plaintext HTTP on the HTTPS route', () async {
       final certificate = await createTestCertificate(_expectedHost);
       final server = await _startPlainServer();
-      final client = createLanTlsTestClient(
-        expectedDnsName: _expectedHost,
-        routeAddress: InternetAddress.loopbackIPv4,
-        routePort: server.port,
-        trustedCertificatePem: await certificate.certificate.readAsString(),
-      );
 
       try {
         await expectLater(
-          _request(client, _expectedHost, server.port),
+          _request(
+            urlHost: _expectedHost,
+            expectedDnsName: _expectedHost,
+            port: server.port,
+            trustedCertificatePem:
+                await certificate.certificate.readAsString(),
+          ),
           throwsA(anything),
         );
       } finally {
-        client.close(force: true);
         await server.close(force: true);
         await certificate.dispose();
       }
@@ -143,20 +156,19 @@ void main() {
 
     test('refuses a URL host that differs from the paired identity', () async {
       final certificate = await createTestCertificate(_expectedHost);
-      final client = createLanTlsTestClient(
-        expectedDnsName: _expectedHost,
-        routeAddress: InternetAddress.loopbackIPv4,
-        routePort: 443,
-        trustedCertificatePem: await certificate.certificate.readAsString(),
-      );
 
       try {
         await expectLater(
-          _request(client, _wrongHost, 443),
+          _request(
+            urlHost: _wrongHost,
+            expectedDnsName: _expectedHost,
+            port: 443,
+            trustedCertificatePem:
+                await certificate.certificate.readAsString(),
+          ),
           throwsA(isA<StateError>()),
         );
       } finally {
-        client.close(force: true);
         await certificate.dispose();
       }
     });
