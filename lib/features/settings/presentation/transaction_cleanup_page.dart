@@ -452,7 +452,6 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                               );
                             }),
                           const Divider(height: 22),
-                          const Divider(height: 22),
                           Row(children: [
                             const Expanded(child: Text('Kandidat kas manual (masuk/keluar)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selectedCash.length} dipilih', style: const TextStyle(fontSize: 11)),
