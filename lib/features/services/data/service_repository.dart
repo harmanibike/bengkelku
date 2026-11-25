@@ -1536,16 +1536,6 @@ class ServiceRepository {
           'received_by_name': AuthSession.instance.displayName,
           'received_at': now.toIso8601String(),
         });
-        await txn.insert('cash_transactions', {
-          'transaction_type': 'income',
-          'category': 'Uang Tip',
-          'description': recipient == null || recipient.isEmpty ? 'Tip servis $orderNumber' : 'Tip servis $orderNumber untuk $recipient',
-          'amount': tipAmount,
-          'reference_type': 'tip',
-          'reference_id': tipId,
-          'payment_method': paymentMethod,
-          'transaction_date': now.toIso8601String(),
-        });
         await ActivityLogRepository.record(
           txn,
           action: 'tip_received',
