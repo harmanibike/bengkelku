@@ -149,6 +149,7 @@ jobs:
           source = manifest.read_text()
           permissions = [
               '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
+              '    <uses-permission android:name="android.permission.WAKE_LOCK" />',
               '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />',
               '    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />',
           ]
