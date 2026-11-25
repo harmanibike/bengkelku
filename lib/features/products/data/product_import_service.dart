@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:excel/excel.dart';
+import 'package:archive/archive.dart';
+import 'package:xml/xml.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../../core/auth/activity_log_repository.dart';
 import '../../../core/auth/auth_session.dart';
@@ -23,10 +24,49 @@ class ProductImportService {
   static List<List<String>> decode(Uint8List bytes, String extension) {
     if (extension.toLowerCase() == 'csv') return _csv(utf8.decode(bytes, allowMalformed: true).replaceFirst('\uFEFF', ''));
     if (extension.toLowerCase() != 'xlsx') throw const FormatException('Gunakan file .xlsx atau .csv.');
-    final book = Excel.decodeBytes(bytes);
-    if (book.tables.isEmpty) throw const FormatException('Lembar Excel tidak ditemukan.');
-    final sheet = book.tables.values.first;
-    return sheet.rows.map((row) => row.map((cell) => cell?.value?.toString() ?? '').toList()).toList();
+    final zip = ZipDecoder().decodeBytes(bytes);
+    final sheetFile = zip.findFile('xl/worksheets/sheet1.xml');
+    if (sheetFile == null) throw const FormatException('Lembar pertama Excel tidak ditemukan.');
+    final sharedFile = zip.findFile('xl/sharedStrings.xml');
+    final shared = <String>[];
+    if (sharedFile != null) {
+      final sharedDoc = XmlDocument.parse(utf8.decode(sharedFile.content as List<int>));
+      for (final item in sharedDoc.findAllElements('si')) {
+        shared.add(item.findAllElements('t').map((node) => node.innerText).join());
+      }
+    }
+    final document = XmlDocument.parse(utf8.decode(sheetFile.content as List<int>));
+    final output = <List<String>>[];
+    for (final rowNode in document.findAllElements('row')) {
+      final cells = <int, String>{};
+      var maxColumn = -1;
+      for (final cell in rowNode.findAllElements('c')) {
+        final reference = cell.getAttribute('r') ?? '';
+        final match = RegExp(r'^([A-Z]+)').firstMatch(reference);
+        if (match == null) continue;
+        var column = 0;
+        for (final code in match.group(1)!.codeUnits) {
+          column = column * 26 + code - 64;
+        }
+        column--;
+        maxColumn = column > maxColumn ? column : maxColumn;
+        final type = cell.getAttribute('t');
+        final value = cell.findElements('v').firstOrNull?.innerText ?? '';
+        if (type == 's') {
+          final index = int.tryParse(value);
+          cells[column] = index != null && index >= 0 && index < shared.length ? shared[index] : '';
+        } else if (type == 'inlineStr') {
+          cells[column] = cell.findAllElements('t').map((node) => node.innerText).join();
+        } else {
+          cells[column] = value;
+        }
+      }
+      if (maxColumn >= 0) {
+        output.add(List<String>.generate(maxColumn + 1, (index) => cells[index] ?? ''));
+      }
+    }
+    if (output.isEmpty) throw const FormatException('Lembar Excel kosong atau formatnya tidak dikenali.');
+    return output;
   }
 
   static List<List<String>> _csv(String source) {
