@@ -55,7 +55,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       ]);
       if (!mounted) return;
       setState(() {
-        _orders = results[0];
+        _orders = results[0].where((row) => row['service_status']?.toString() == 'waiting').toList();
         _sales = results[1].where((row) => row['payment_status']?.toString() == 'unpaid').toList();
         _purchases = results[2].where((row) => row['status']?.toString() != 'cancelled' && (row['paid'] as num? ?? 0) == 0 && (row['return_credit'] as num? ?? 0) == 0).toList();
         _loading = false;
@@ -88,7 +88,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus nota servis terpilih?'),
         content: Text(
-          'Anda memilih ${ids.length} nota. Penghapusan hanya berhasil untuk nota tanpa pembayaran, saldo pelanggan, tip, pergerakan stok, batch biaya, riwayat audit, atau arsip nota. Nota yang memiliki keterkaitan akan ditolak otomatis.',
+          'Anda memilih ${ids.length} nota yang masih menunggu. Pastikan ini nota percobaan, bukan sepeda pelanggan yang benar-benar sudah diterima. Penghapusan hanya berhasil untuk nota tanpa pembayaran, saldo pelanggan, tip, pergerakan stok, batch biaya, riwayat audit, atau arsip nota.',
         ),
         actions: [
           TextButton(
@@ -152,7 +152,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus penjualan dummy terpilih?'),
-        content: Text('Anda memilih ${ids.length} transaksi belum dibayar. Transaksi dengan pembayaran, retur, catatan saldo/poin, atau arsip nota akan ditolak.'),
+        content: Text('Anda memilih ${ids.length} transaksi belum dibayar. Pastikan semuanya benar-benar transaksi percobaan, bukan penjualan asli yang belum dibayar. Transaksi dengan pembayaran, retur, catatan saldo/poin, atau arsip nota akan ditolak.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
           FilledButton(
@@ -187,7 +187,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus pembelian dummy terpilih?'),
-        content: Text('Anda memilih ${ids.length} faktur tanpa pembayaran dan kredit retur. Sistem akan memeriksa retur, batch biaya, stok, dan arsip nota sebelum penghapusan.'),
+        content: Text('Anda memilih ${ids.length} faktur tanpa pembayaran dan kredit retur. Pastikan faktur ini benar-benar percobaan, bukan pembelian asli yang belum dibayar. Sistem akan memeriksa retur, batch biaya, stok, dan arsip nota sebelum penghapusan.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
           FilledButton(
@@ -260,37 +260,6 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
               style: TextStyle(fontSize: 12),
             ),
           ),
-          if (_orders.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Row(
-                children: [
-                  Text('${_selected.length} dipilih', style: const TextStyle(fontSize: 12)),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: _working
-                        ? null
-                        : () => setState(() {
-                              if (_selected.length == _orders.length) {
-                                _selected.clear();
-                              } else {
-                                _selected
-                                  ..clear()
-                                  ..addAll(_orders.map((row) => row['id'] as int));
-                              }
-                            }),
-                    child: Text(_selected.length == _orders.length ? 'Batal pilih' : 'Pilih semua'),
-                  ),
-                  const SizedBox(width: 6),
-                  FilledButton.icon(
-                    onPressed: _selected.isEmpty || _working ? null : _deleteSelected,
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    label: const Text('Hapus'),
-                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                  ),
-                ],
-              ),
-            ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -300,7 +269,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                         padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
                         children: [
                           Row(children: [
-                            const Expanded(child: Text('Penjualan dummy (belum dibayar)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                            const Expanded(child: Text('Kandidat penjualan belum dibayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selectedSales.length} dipilih', style: const TextStyle(fontSize: 11)),
                             TextButton(
                               onPressed: _working ? null : () => setState(() {
@@ -329,7 +298,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                             }),
                           const Divider(height: 22),
                           Row(children: [
-                            const Expanded(child: Text('Pembelian dummy (belum dibayar)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                            const Expanded(child: Text('Kandidat pembelian belum dibayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selectedPurchases.length} dipilih', style: const TextStyle(fontSize: 11)),
                             TextButton(
                               onPressed: _working ? null : () => setState(() {
@@ -358,7 +327,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                             }),
                           const Divider(height: 22),
                           Row(children: [
-                            const Expanded(child: Text('Nota servis', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                            const Expanded(child: Text('Kandidat nota servis (menunggu)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selected.length} dipilih', style: const TextStyle(fontSize: 11)),
                             TextButton(
                               onPressed: _working ? null : () => setState(() {
