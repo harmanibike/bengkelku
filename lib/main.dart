@@ -19,7 +19,7 @@ Future<void> main() async {
     systemNavigationBarContrastEnforced: false,
   ));
 
-  // Membuka atau membuat database lokal BengkelKu POS.
+  // Membuka atau membuat database lokal Bike POS.
   await AppDatabase.instance.database;
 
   runApp(const BengkelKuApp());
@@ -31,7 +31,7 @@ class BengkelKuApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BengkelKu POS',
+      title: 'Bike POS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       // Sisakan area aman di atas tombol navigasi Android untuk semua halaman,
