@@ -67,13 +67,13 @@ class _ReportsPageState extends State<ReportsPage> {
   Widget _metric(String title, String value, IconData icon, Color color) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: color),
-          const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 6),
+          Text(value, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Colors.grey)),
         ]),
       ),
     );
@@ -133,7 +133,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: _period,
-                    decoration: const InputDecoration(labelText: 'Periode laporan', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Periode laporan', border: OutlineInputBorder(), isDense: true),
                     items: const [
                       DropdownMenuItem(value: 'today', child: Text('Hari ini')),
                       DropdownMenuItem(value: 'month', child: Text('Bulan ini')),
@@ -150,7 +150,7 @@ class _ReportsPageState extends State<ReportsPage> {
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: 1.45,
+                    childAspectRatio: 1.25,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     children: [
