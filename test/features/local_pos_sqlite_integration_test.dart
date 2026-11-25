@@ -1376,6 +1376,60 @@ void main() {
     expect(expense['amount'], 40000);
   });
 
+  test('purchase return cannot record supplier cash refund above actual payments', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Belum Bayar'});
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-RETUR-BELUM-BAYAR',
+      supplierId: supplierId,
+      items: [
+        {
+          'product_id': null,
+          'product_name': 'Barang Retur Belum Bayar',
+          'quantity': 1,
+          'unit_cost': 80000,
+          'discount': 0,
+        },
+      ],
+      initialPayment: 0,
+      paymentMethod: 'cash',
+    );
+    final purchaseItem = (await db.query(
+      'purchase_items',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+      limit: 1,
+    )).single;
+    final returns = PurchaseReturnRepository();
+    final returnId = await returns.createReturn(
+      purchaseId: purchaseId,
+      returnNumber: 'PR-RETUR-BELUM-BAYAR',
+      quantities: {purchaseItem['id'] as int: 1},
+    );
+
+    await expectLater(
+      returns.settleReturn(
+        returnId: returnId,
+        creditApplied: 0,
+        refundReceived: 80000,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    final returnRow = (await db.query(
+      'purchase_returns',
+      where: 'id = ?',
+      whereArgs: [returnId],
+    )).single;
+    expect(returnRow['refund_received'], 0);
+    expect(await db.query(
+      'cash_transactions',
+      where: "reference_type = 'purchase_return_refund' AND reference_id = ?",
+      whereArgs: [returnId],
+    ), isEmpty);
+  });
+
   test('purchase return cancellation restores stock and original cost batch', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {
