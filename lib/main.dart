@@ -3,11 +3,13 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import 'core/database/app_database.dart';
+import 'features/settings/data/bengkelku_server_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/presentation/account_pages.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  BengkelKuServerService.initialize();
 
   // Area navigasi Android dibuat solid agar tombol Home/gesture tidak transparan.
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

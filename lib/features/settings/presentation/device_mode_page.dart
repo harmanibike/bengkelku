@@ -3,7 +3,7 @@ import 'dart:io';
 import '../data/client_connection_service.dart';
 import '../data/device_pairing_repository.dart';
 import '../../../core/auth/auth_session.dart';
-import '../data/local_api_server.dart';
+import '../data/bengkelku_server_service.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../data/device_mode_repository.dart';
@@ -19,9 +19,6 @@ class _DeviceModePageState extends State<DeviceModePage> {
   final DeviceModeRepository _repository = DeviceModeRepository();
   final ClientConnectionService _clientConnectionService =
       ClientConnectionService();
-  // Il servizio è condiviso a livello applicazione e non viene chiuso
-  // quando la pagina viene rimossa o l'utente esegue il logout.
-  final LocalApiServer _localApiServer = LocalApiServer.instance;
   final DevicePairingRepository _pairingRepository = DevicePairingRepository();
   late Future<List<PairedDeviceInfo>> _pairedDevicesFuture;
   DevicePairingCode? _activePairingCode;
@@ -73,7 +70,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
       _serverMessage = 'Menyalakan layanan pemeriksaan Server...';
     });
     try {
-      final port = await _localApiServer.start();
+      final port = await BengkelKuServerService.instance.startServer();
       final interfaces = await NetworkInterface.list(
         type: InternetAddressType.IPv4,
         includeLoopback: false,
@@ -99,7 +96,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
   }
 
   Future<void> _stopLocalApiServer() async {
-    await _localApiServer.stop();
+    await BengkelKuServerService.instance.stopServer();
     if (!mounted) return;
     setState(() => _serverMessage = 'API pemeriksaan Server dihentikan.');
   }

@@ -111,6 +111,37 @@ jobs:
           print("Izin kamera disiapkan untuk pemindai barcode.")
           PY
 
+      - name: Declare Android foreground service for the LAN Server
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          source = manifest.read_text()
+          permissions = [
+              '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
+              '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />',
+              '    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />',
+          ]
+          missing = [item for item in permissions if item.split('"')[1] not in source]
+          if missing:
+              block = "\\n".join(missing) + "\\n"
+              source, count = re.subn(r'(<application\\b)', lambda match: block + match.group(1), source, count=1)
+              if count != 1:
+                  raise SystemExit("Tag application AndroidManifest.xml tidak ditemukan.")
+          service = """
+              <service
+                  android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+                  android:foregroundServiceType="connectedDevice"
+                  android:exported="false" />
+          """
+          if "com.pravera.flutter_foreground_task.service.ForegroundService" not in source:
+              source = source.replace("</application>", service + "\\n</application>", 1)
+          manifest.write_text(source)
+          print("Foreground service connectedDevice disiapkan; tidak auto-start saat boot.")
+          PY
+
       - name: Declare local network permissions for Server and Client API
         run: |
           python3 - <<'PY'

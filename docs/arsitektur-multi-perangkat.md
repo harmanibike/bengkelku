@@ -62,7 +62,8 @@ Semua mode memakai kode aplikasi, layar, modul, dan sistem akun yang sama.
 ### Tahap 1 — Fondasi Server Android
 - Mode Lokal/Server/Client dan penyimpanan pilihan mode.
 - Pengelola lifecycle server yang terpisah dari AuthSession.
-- Layanan server Android dengan notifikasi foreground yang jelas.
+- Layanan server Android dengan notifikasi foreground yang jelas. Implementasi awal memakai layanan foreground bertipe connectedDevice; layanan hanya dimulai atas tindakan Admin dan tidak auto-start saat boot.
+- Listener health-check berjalan pada isolate layanan. Isolate ini belum membuka SQLite dan belum menerima transaksi bisnis.
 - Status server, alamat LAN, dan kontrol mulai/berhenti.
 - Mode Lokal dan database lama tetap tidak berubah.
 

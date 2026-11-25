@@ -29,6 +29,7 @@ dependencies:
   flutter_contacts: ^1.1.9+2
   unified_esc_pos_printer: ^3.4.0
   flutter_local_notifications: ^22.3.3
+  flutter_foreground_task: 9.2.2
 
 dev_dependencies:
   flutter_test:
