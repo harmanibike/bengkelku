@@ -3,6 +3,18 @@ import 'dart:io';
 
 import 'package:bengkelku_pos/features/settings/data/local_api_server.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:bengkelku_pos/features/settings/data/server_tls_identity_repository.dart';
+import '../../support/lan_tls_test_client.dart';
+
+class _MemoryTlsStore implements SecureValueStore {
+  final Map<String, String> values = {};
+  @override
+  Future<String?> read(String key) async => values[key];
+  @override
+  Future<void> write(String key, String value) async => values[key] = value;
+  @override
+  Future<void> delete(String key) async => values.remove(key);
+}
 
 void main() {
   late LocalApiServer server;
@@ -13,6 +25,45 @@ void main() {
 
   tearDown(() async {
     await server.stop();
+  });
+
+
+  test('serves health API over TLS with the paired certificate identity', () async {
+    final identity = await ServerTlsIdentityRepository(
+      store: _MemoryTlsStore(),
+    ).loadOrCreate();
+    final context = SecurityContext(withTrustedRoots: false)
+      ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
+      ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
+    final port = await server.startSecure(
+      securityContext: context,
+      port: 0,
+      serverName: 'HP Server TLS',
+    );
+
+    final socket = await connectLanTlsTestSocket(
+      urlHost: identity.dnsName,
+      expectedDnsName: identity.dnsName,
+      routeAddress: InternetAddress.loopbackIPv4,
+      routePort: port,
+      trustedCertificatePem: identity.certificatePem,
+    );
+    try {
+      socket.write(
+        'GET /api/v1/health HTTP/1.1\\r\\n'
+        'Host: ${identity.dnsName}\\r\\n'
+        'Connection: close\\r\\n\\r\\n',
+      );
+      final response = await utf8.decoder
+          .bind(socket)
+          .join()
+          .timeout(const Duration(seconds: 5));
+      expect(response, contains('200 OK'));
+      expect(response, contains('HP Server TLS'));
+      expect(response, contains('"status":"ok"'));
+    } finally {
+      await socket.close();
+    }
   });
 
   test('starts health endpoint and reports server/client compatibility', () async {
