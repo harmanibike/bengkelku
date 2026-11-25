@@ -119,7 +119,9 @@ class CustomerRepository {
         final color = clean('color');
         final frameSize = clean('frame_size');
         final serialNumber = clean('serial_number');
-        if ([brand, model, type, color, frameSize, serialNumber].every((v) => v == null)) {
+        // Jenis sepeda memiliki nilai default di formulir ("Standar").
+        // Nilai default itu saja tidak berarti pengguna benar-benar mengisi sepeda.
+        if ([brand, model, color, frameSize, serialNumber].every((v) => v == null)) {
           continue;
         }
 
