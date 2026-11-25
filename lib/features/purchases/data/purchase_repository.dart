@@ -373,6 +373,81 @@ class PurchaseRepository {
     });
   }
 
+  /// Permanently removes a purchase test record only after the existing
+  /// cancellation workflow has safely reversed its stock and cost batches.
+  Future<int> deleteDummyPurchase({required int purchaseId}) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat menghapus transaksi.');
+    final db = await _db;
+    final rows = await db.query('purchases',
+      where: 'id = ?', whereArgs: [purchaseId], limit: 1);
+    if (rows.isEmpty) throw StateError('Faktur pembelian tidak ditemukan.');
+    final purchase = rows.first;
+    if ((purchase['paid'] as num? ?? 0) != 0 ||
+        (purchase['return_credit'] as num? ?? 0) != 0) {
+      throw StateError('Faktur memiliki pembayaran atau kredit retur dan tidak dapat dihapus sebagai dummy.');
+    }
+
+    final returns = await db.query('purchase_returns',
+      columns: ['id'], where: 'purchase_id = ?', whereArgs: [purchaseId], limit: 1);
+    if (returns.isNotEmpty) {
+      throw StateError('Faktur memiliki riwayat retur. Data tersebut harus tetap dipertahankan.');
+    }
+    final snapshots = await db.query('receipt_snapshots',
+      columns: ['id'], where: "source_type = 'purchase' AND source_id = ?",
+      whereArgs: [purchaseId], limit: 1);
+    if (snapshots.isNotEmpty) {
+      throw StateError('Faktur memiliki arsip nota dan tidak dapat dihapus.');
+    }
+
+    // Reuse the audited stock reversal: it rejects used batches, payments,
+    // incomplete stock movement records and any stock inconsistency.
+    if (purchase['status']?.toString() != 'cancelled') {
+      await cancelPurchase(
+        purchaseId: purchaseId,
+        reason: 'Pembersihan transaksi dummy oleh Admin',
+      );
+    }
+
+    return db.transaction((txn) async {
+      final current = await txn.query('purchases',
+        where: 'id = ? AND status = ?', whereArgs: [purchaseId, 'cancelled'], limit: 1);
+      if (current.isEmpty) throw StateError('Faktur belum berhasil dibatalkan; penghapusan dihentikan.');
+      final payments = await txn.query('supplier_payments',
+        columns: ['id'], where: 'purchase_id = ?', whereArgs: [purchaseId], limit: 1);
+      if (payments.isNotEmpty) throw StateError('Riwayat pembayaran pemasok ditemukan; faktur tidak dihapus.');
+      final cash = await txn.query('cash_transactions',
+        columns: ['id'],
+        where: "reference_id = ? AND reference_type IN ('purchase', 'purchase_payment')",
+        whereArgs: [purchaseId], limit: 1);
+      if (cash.isNotEmpty) throw StateError('Catatan kas terkait ditemukan; faktur tidak dihapus.');
+
+      final batches = await txn.query('inventory_cost_batches',
+        columns: ['id'], where: 'purchase_id = ?', whereArgs: [purchaseId]);
+      for (final batch in batches) {
+        final allocations = await txn.query('sale_batch_allocations',
+          columns: ['id'], where: 'batch_id = ?', whereArgs: [batch['id']], limit: 1);
+        if (allocations.isNotEmpty) {
+          throw StateError('Batch pembelian sudah dipakai penjualan; faktur tidak dihapus.');
+        }
+      }
+      await txn.delete('stock_movements',
+        where: "reference_id = ? AND reference_type IN ('purchase', 'purchase_cancel')",
+        whereArgs: [purchaseId]);
+      await txn.delete('inventory_cost_batches',
+        where: 'purchase_id = ?', whereArgs: [purchaseId]);
+      final invoice = current.first['invoice_number']?.toString() ?? 'ID-$purchaseId';
+      final count = await txn.delete('purchases', where: 'id = ?', whereArgs: [purchaseId]);
+      await ActivityLogRepository.record(
+        txn,
+        action: 'purchase_dummy_deleted',
+        description: 'Menghapus faktur pembelian dummy $invoice.',
+        entityType: 'purchase',
+        entityId: purchaseId,
+      );
+      return count;
+    });
+  }
+
   String? _nullable(String? value) {
     final text = value?.trim();
     return text == null || text.isEmpty ? null : text;
