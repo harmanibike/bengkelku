@@ -101,7 +101,7 @@ class ReceivableRepository {
         FROM customer_wallet_ledger
         WHERE reference_type = 'service_order'
           AND reference_id = ? AND entry_type = 'service_payment'
-        ORDER BY datetime(transaction_date) ASC
+        ORDER BY transaction_date ASC
       ''', [recordId, recordId]);
       return {'record': rows.first, 'payments': payments, 'returns': <Map<String, Object?>>[]};
     }
@@ -131,7 +131,7 @@ class ReceivableRepository {
         FROM customer_wallet_ledger
         WHERE reference_type = 'sale'
           AND reference_id = ? AND entry_type = 'sale_payment'
-        ORDER BY datetime(transaction_date) ASC
+        ORDER BY transaction_date ASC
       ''', [recordId, recordId]);
       final returns = await db.query(
         'sale_returns',
