@@ -997,7 +997,7 @@ class _ProductListPageState extends State<ProductListPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
             child: TextField(
               controller: _searchController,
               onChanged: (_) => _refresh(),
@@ -1011,6 +1011,8 @@ class _ProductListPageState extends State<ProductListPage> {
           ),
           SwitchListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            dense: true,
+            visualDensity: VisualDensity.compact,
             title: const Text('Tampilkan produk nonaktif'),
             value: _showInactive,
             onChanged: (value) => setState(() { _showInactive = value; _page = 0; _loadProducts(); }),
@@ -1033,7 +1035,7 @@ class _ProductListPageState extends State<ProductListPage> {
                   children: [
                     Expanded(
                       child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                         itemCount: products.length,
                         itemBuilder: (context, index) => _productCard(products[index]),
                       ),
