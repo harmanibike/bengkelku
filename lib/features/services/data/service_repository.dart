@@ -154,7 +154,13 @@ class ServiceRepository {
         }
       }
 
+      final testModeRows = await txn.query('app_settings',
+        columns: ['setting_value'], where: 'setting_key = ?',
+        whereArgs: ['transaction_test_mode'], limit: 1);
+      final isTest = testModeRows.isNotEmpty &&
+          testModeRows.first['setting_value']?.toString() == '1';
       final serviceOrderId = await txn.insert('service_orders', {
+        'is_test': isTest ? 1 : 0,
         'order_number': orderNumber,
         'customer_id': customerId,
         'bicycle_id': bicycleId,
