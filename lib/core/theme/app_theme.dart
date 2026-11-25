@@ -167,7 +167,6 @@ class AppTheme {
         ),
         side: const BorderSide(color: Color(0xFF9AA8B7)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        visualDensity: VisualDensity.compact,
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(
@@ -220,14 +219,6 @@ class AppTheme {
         fillColor: _surface,
         border: _inputBorder(_border),
         enabledBorder: _inputBorder(_border),
-      ),
-      dropdownButtonTheme: DropdownButtonThemeData(
-        style: const TextStyle(fontSize: 13, color: _text),
-        dropdownColor: _surface,
-        iconEnabledColor: _muted,
-        borderRadius: BorderRadius.circular(10),
-        elevation: 4,
-        menuMaxHeight: 360,
       ),
       dropdownMenuTheme: DropdownMenuThemeData(
         textStyle: const TextStyle(fontSize: 13, color: _text),
