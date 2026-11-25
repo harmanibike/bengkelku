@@ -15,7 +15,7 @@ HttpClient createLanTlsTestClient({
     ..setTrustedCertificatesBytes(utf8.encode(trustedCertificatePem));
 
   return HttpClient(context: context)
-    ..findProxy = (_) => 'DIRECT'
+    ..findProxy = ((_) => 'DIRECT')
     ..connectionFactory = (uri, proxyHost, proxyPort) {
       if (proxyHost != null || proxyPort != null) {
         throw StateError('Proxy tidak diizinkan untuk rute LAN PoC.');
