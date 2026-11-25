@@ -87,7 +87,11 @@ class SelfSignedServerTlsIdentityGenerator
     required String dnsName,
   }) async {
     if (!RegExp(r'^bikepos-[a-f0-9]{32}\.invalid$').hasMatch(dnsName)) {
-      throw ArgumentError.value(dnsName, 'dnsName', 'Identitas DNS Bike POS tidak valid.');
+      throw ArgumentError.value(
+        dnsName,
+        'dnsName',
+        'Identitas DNS Bike POS tidak valid.',
+      );
     }
 
     // RSA 2048 and SHA-256 are broadly supported by Android TLS providers.
@@ -114,11 +118,9 @@ class SelfSignedServerTlsIdentityGenerator
     final privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKey);
 
     // Fail closed if the generated material cannot be loaded by dart:io TLS.
-    final context = SecurityContext(withTrustedRoots: false)
+    SecurityContext(withTrustedRoots: false)
       ..useCertificateChainBytes(utf8.encode(certificatePem))
       ..usePrivateKeyBytes(utf8.encode(privateKeyPem));
-    // Retain no context: the service creates its own context when binding.
-    context;
 
     return ServerTlsIdentityMaterial(
       certificatePem: certificatePem,
@@ -203,8 +205,11 @@ class ServerTlsIdentityRepository {
     final dnsName = 'bikepos-$serverId.invalid';
     final fingerprint = ServerCertificatePin.fingerprintOfPem(certificatePem);
     if (!ServerCertificatePin.isValidFingerprint(savedFingerprint) ||
-        fingerprint != ServerCertificatePin.normalizeFingerprint(savedFingerprint)) {
-      throw StateError('Fingerprint sertifikat Server tidak cocok dengan data tersimpan.');
+        fingerprint !=
+            ServerCertificatePin.normalizeFingerprint(savedFingerprint)) {
+      throw StateError(
+        'Fingerprint sertifikat Server tidak cocok dengan data tersimpan.',
+      );
     }
 
     _validateKeyPair(certificatePem, privateKeyPem);
@@ -222,7 +227,8 @@ class ServerTlsIdentityRepository {
     final dnsName = 'bikepos-$serverId.invalid';
     final material = await _generator.generate(dnsName: dnsName);
     _validateKeyPair(material.certificatePem, material.privateKeyPem);
-    final fingerprint = ServerCertificatePin.fingerprintOfPem(material.certificatePem);
+    final fingerprint =
+        ServerCertificatePin.fingerprintOfPem(material.certificatePem);
 
     try {
       await _store.write(_serverIdKey, serverId);
