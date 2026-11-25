@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bengkelku_pos/features/settings/data/server_tls_identity_repository.dart';
 
-import 'support/lan_tls_test_client.dart';
+import '../../support/lan_tls_test_client.dart';
 
 class _MemorySecureValueStore implements SecureValueStore {
   final Map<String, String> values = {};
