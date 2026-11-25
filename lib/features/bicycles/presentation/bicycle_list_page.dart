@@ -363,6 +363,65 @@ class _BicycleListPageState extends State<BicycleListPage> {
     ownerPhone.dispose();
   }
 
+  Future<void> _showOwnershipHistory(Map<String, Object?> bicycle) async {
+    final id = int.parse(bicycle['id'].toString());
+    try {
+      final history = await _repository.getBicycleOwnershipHistory(id);
+      if (!mounted) return;
+      const labels = {
+        'registered': 'Sepeda didaftarkan',
+        'owner_changed': 'Pemilik berubah',
+        'marked_for_sale': 'Ditandai untuk dijual',
+        'sold': 'Sepeda terjual',
+        'ownership_unknown': 'Kepemilikan tidak diketahui',
+      };
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Riwayat Kepemilikan Sepeda'),
+          content: SizedBox(
+            width: 440,
+            child: history.isEmpty
+                ? const Text('Belum ada riwayat kepemilikan.')
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: history.length,
+                    separatorBuilder: (_, __) => const Divider(),
+                    itemBuilder: (context, index) {
+                      final item = history[index];
+                      final type = item['change_type']?.toString() ?? '';
+                      final previous = item['previous_owner_name']?.toString();
+                      final next = item['new_owner_name']?.toString();
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.history),
+                        title: Text(labels[type] ?? 'Perubahan kepemilikan'),
+                        subtitle: Text([
+                          if (previous != null && previous.isNotEmpty) 'Sebelumnya: $previous',
+                          if (next != null && next.isNotEmpty) 'Berikutnya: $next',
+                          if (item['notes'] != null) item['notes'].toString(),
+                          item['changed_at']?.toString() ?? '',
+                        ].where((line) => line.isNotEmpty).join('\n')),
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat riwayat kepemilikan: $e')),
+      );
+    }
+  }
+
   Future<void> _deleteBicycle(
     Map<String, Object?> bicycle,
   ) async {
@@ -488,6 +547,8 @@ class _BicycleListPageState extends State<BicycleListPage> {
                                 onSelected: (value) {
                                   if (value == 'edit') {
                                     _showBicycleForm(bicycle: bike);
+                                  } else if (value == 'history') {
+                                    _showOwnershipHistory(bike);
                                   } else if (value == 'delete') {
                                     _deleteBicycle(bike);
                                   }
@@ -496,6 +557,10 @@ class _BicycleListPageState extends State<BicycleListPage> {
                                   PopupMenuItem(
                                     value: 'edit',
                                     child: Text('Ubah'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'history',
+                                    child: Text('Riwayat kepemilikan'),
                                   ),
                                   PopupMenuItem(
                                     value: 'delete',
