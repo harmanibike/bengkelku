@@ -107,7 +107,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
     try {
       final ticket = await Ticket.create(PaperSize.mm58);
       ticket.text(
-        'BENGKELKU POS',
+        'BIKE POS',
         align: PrintAlign.center,
         style: const PrintTextStyle(bold: true),
       );
@@ -160,10 +160,12 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
       body: !canManage
           ? const Center(child: Text('Hanya Admin dan Kasir yang dapat mengatur printer.'))
           : ListView(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
               children: [
                 Card(
+                  margin: EdgeInsets.zero,
                   child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     leading: Icon(
                       _connected ? Icons.print_rounded : Icons.print_disabled_rounded,
                       color: _connected ? Colors.green : Colors.grey,
@@ -175,7 +177,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                     isThreeLine: _savedPrinter != null,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 if (_savedPrinter != null && !_connected)
                   OutlinedButton.icon(
                     onPressed: _connecting ? null : _connectSaved,
@@ -196,7 +198,7 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                     label: const Text('Putuskan koneksi'),
                   ),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 FilledButton.icon(
                   onPressed: _scanning || _connecting ? null : _scan,
                   icon: _scanning
@@ -210,7 +212,9 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
                   const Text('Printer ditemukan', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   ..._printers.map((device) => Card(
+                    margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       leading: const Icon(Icons.print_outlined),
                       title: Text(device.name.isEmpty ? 'Printer tanpa nama' : device.name),
                       subtitle: Text(device.address),
