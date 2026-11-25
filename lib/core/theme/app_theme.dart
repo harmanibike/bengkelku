@@ -4,7 +4,6 @@ class AppTheme {
   AppTheme._();
 
   static const Color _primary = Color(0xFF1558A6);
-  static const Color _primaryDark = Color(0xFF10477F);
   static const Color _accent = Color(0xFF16866A);
   static const Color _canvas = Color(0xFFF4F6F9);
   static const Color _surface = Colors.white;

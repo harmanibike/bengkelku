@@ -44,6 +44,8 @@ class AppPhotoPreview extends StatelessWidget {
               width: width,
               height: height,
               fit: fit,
+              cacheWidth: width.isFinite ? (width * 3).round() : null,
+              cacheHeight: height.isFinite ? (height * 3).round() : null,
               errorBuilder: (_, __, ___) => _placeholder(context),
             )
           : _placeholder(context),
