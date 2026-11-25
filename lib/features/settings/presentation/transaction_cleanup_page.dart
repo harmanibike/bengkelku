@@ -55,9 +55,9 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       ]);
       if (!mounted) return;
       setState(() {
-        _orders = results[0] as List<Map<String, Object?>>;
-        _sales = (results[1] as List<Map<String, Object?>>).where((row) => row['payment_status']?.toString() == 'unpaid').toList();
-        _purchases = (results[2] as List<Map<String, Object?>>).where((row) => row['status']?.toString() != 'cancelled' && (row['paid'] as num? ?? 0) == 0 && (row['return_credit'] as num? ?? 0) == 0).toList();
+        _orders = results[0];
+        _sales = results[1].where((row) => row['payment_status']?.toString() == 'unpaid').toList();
+        _purchases = results[2].where((row) => row['status']?.toString() != 'cancelled' && (row['paid'] as num? ?? 0) == 0 && (row['return_credit'] as num? ?? 0) == 0).toList();
         _loading = false;
       });
     } catch (error) {
@@ -256,7 +256,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
-              'Pembersihan nota servis dummy. Nota yang sudah memiliki pembayaran, penggunaan stok, retur/saldo, tip, riwayat, atau arsip akan dilindungi. Penghapusan tidak mengubah format nota maupun transaksi lain.',
+              'Pilih transaksi dummy penjualan, pembelian, atau servis yang ingin dibersihkan. Transaksi yang memiliki pembayaran, retur, pergerakan stok, saldo, tip, riwayat, atau arsip akan dilindungi.',
               style: TextStyle(fontSize: 12),
             ),
           ),
