@@ -11,6 +11,13 @@ class BicycleListPage extends StatefulWidget {
 }
 
 class _BicycleListPageState extends State<BicycleListPage> {
+  static const Map<String, String> __ownershipStatuses = {
+    'customer_owned': 'Milik pelanggan',
+    'third_party': 'Milik orang lain',
+    'for_sale': 'Untuk dijual',
+    'sold': 'Sudah dijual',
+    'unknown': 'Tidak diketahui',
+  };
   final CustomerRepository _repository = CustomerRepository();
   final TextEditingController _searchController = TextEditingController();
 
@@ -104,15 +111,8 @@ class _BicycleListPageState extends State<BicycleListPage> {
 
     String selectedType =
         bicycle?['bicycle_type']?.toString() ?? 'Standar';
-    const ownershipStatuses = <String, String>{
-      'customer_owned': 'Milik pelanggan',
-      'third_party': 'Milik orang lain',
-      'for_sale': 'Untuk dijual',
-      'sold': 'Sudah dijual',
-      'unknown': 'Tidak diketahui',
-    };
     String selectedOwnershipStatus =
-        ownershipStatuses.containsKey(bicycle?['ownership_status']?.toString())
+        _ownershipStatuses.containsKey(bicycle?['ownership_status']?.toString())
             ? bicycle!['ownership_status'].toString()
             : 'customer_owned';
 
@@ -178,7 +178,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           labelText: 'Status kepemilikan',
                           border: OutlineInputBorder(),
                         ),
-                        items: ownershipStatuses.entries.map((entry) =>
+                        items: _ownershipStatuses.entries.map((entry) =>
                           DropdownMenuItem<String>(
                             value: entry.key,
                             child: Text(entry.value),
@@ -538,7 +538,7 @@ class _BicycleListPageState extends State<BicycleListPage> {
                               subtitle: Text(
                                 'Pelanggan terkait: ${bike['customer_name'] ?? '-'}\n'
                                 'Pemilik sebenarnya: ${bike['owner_name'] ?? bike['customer_name'] ?? '-'}\n'
-                                'Status: ${ownershipStatuses[bike['ownership_status']?.toString()] ?? 'Milik pelanggan'}\n'
+                                'Status: ${_ownershipStatuses[bike['ownership_status']?.toString()] ?? 'Milik pelanggan'}\n'
                                 'Jenis: ${bike['bicycle_type'] ?? '-'}\n'
                                 'Serial: ${bike['serial_number'] ?? '-'}',
                               ),
