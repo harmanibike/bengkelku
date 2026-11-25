@@ -937,10 +937,6 @@ class AppDatabase {
       await db.execute('CREATE INDEX idx_product_variants_barcode ON product_variants(barcode)');
     }
 
-    Database db,
-    int oldVersion,
-    int newVersion,
-  ) async {
     // Simpan apakah stok benar-benar dikurangi saat retur dibuat.
     // NULL pada database lama berarti histori harus diverifikasi dari stock_movements.
     if (oldVersion < 34) {

@@ -299,6 +299,118 @@ class ProductRepository {
     });
   }
 
+  Future<List<Map<String, Object?>>> getProductVariants(int productId) async {
+    AuthSession.instance.requireCashierOrAdmin('Akses varian tidak tersedia untuk akun Mekanik.');
+    final db = await _db;
+    return db.query(
+      'product_variants',
+      where: 'product_id = ?',
+      whereArgs: [productId],
+      orderBy: 'is_active DESC, name COLLATE NOCASE ASC, id ASC',
+    );
+  }
+
+  Future<int> addProductVariant({
+    required int productId,
+    required String name,
+    String? sku,
+    String? barcode,
+    int purchasePrice = 0,
+    int sellingPrice = 0,
+    int wholesalePrice = 0,
+    int minimumStock = 0,
+    bool trackStock = true,
+  }) async {
+    AuthSession.instance.requireAdmin('Pengelolaan varian hanya dapat diakses Admin.');
+    final value = name.trim();
+    if (value.isEmpty) throw ArgumentError('Nama varian wajib diisi.');
+    if (purchasePrice < 0 || sellingPrice < 0 || wholesalePrice < 0 || minimumStock < 0) {
+      throw ArgumentError('Harga dan batas stok tidak boleh negatif.');
+    }
+    final db = await _db;
+    return db.transaction((txn) async {
+      final parent = await txn.query('products', columns: ['name'], where: 'id = ? AND is_active = 1', whereArgs: [productId], limit: 1);
+      if (parent.isEmpty) throw StateError('Produk induk tidak ditemukan atau nonaktif.');
+      final id = await txn.insert('product_variants', {
+        'product_id': productId,
+        'name': value,
+        'sku': _nullable(sku),
+        'barcode': _nullable(barcode),
+        'purchase_price': purchasePrice,
+        'selling_price': sellingPrice,
+        'wholesale_price': wholesalePrice,
+        'stock': 0,
+        'minimum_stock': minimumStock,
+        'track_stock': trackStock ? 1 : 0,
+        'is_active': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      await ActivityLogRepository.record(txn,
+        action: 'product_variant_created',
+        description: 'Menambahkan varian $value pada produk ${parent.first['name']}. Stok awal 0.',
+        entityType: 'product_variant', entityId: id);
+      return id;
+    });
+  }
+
+  Future<int> updateProductVariant({
+    required int id,
+    required String name,
+    String? sku,
+    String? barcode,
+    int purchasePrice = 0,
+    int sellingPrice = 0,
+    int wholesalePrice = 0,
+    int minimumStock = 0,
+    bool trackStock = true,
+  }) async {
+    AuthSession.instance.requireAdmin('Pengelolaan varian hanya dapat diakses Admin.');
+    final value = name.trim();
+    if (value.isEmpty) throw ArgumentError('Nama varian wajib diisi.');
+    if (purchasePrice < 0 || sellingPrice < 0 || wholesalePrice < 0 || minimumStock < 0) {
+      throw ArgumentError('Harga dan batas stok tidak boleh negatif.');
+    }
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('product_variants', where: 'id = ? AND is_active = 1', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) throw StateError('Varian tidak ditemukan atau sudah nonaktif.');
+      final updated = await txn.update('product_variants', {
+        'name': value,
+        'sku': _nullable(sku),
+        'barcode': _nullable(barcode),
+        'purchase_price': purchasePrice,
+        'selling_price': sellingPrice,
+        'wholesale_price': wholesalePrice,
+        'minimum_stock': minimumStock,
+        'track_stock': trackStock ? 1 : 0,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, where: 'id = ?', whereArgs: [id]);
+      await ActivityLogRepository.record(txn,
+        action: 'product_variant_updated',
+        description: 'Memperbarui varian $value.',
+        entityType: 'product_variant', entityId: id);
+      return updated;
+    });
+  }
+
+  Future<int> deactivateProductVariant(int id) async {
+    AuthSession.instance.requireAdmin('Pengelolaan varian hanya dapat diakses Admin.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('product_variants', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) return 0;
+      final updated = await txn.update('product_variants', {
+        'is_active': 0,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, where: 'id = ?', whereArgs: [id]);
+      await ActivityLogRepository.record(txn,
+        action: 'product_variant_deactivated',
+        description: 'Menonaktifkan varian ${rows.first['name']}.',
+        entityType: 'product_variant', entityId: id);
+      return updated;
+    });
+  }
+
   /// Salin data master produk dan seluruh variannya tanpa menyalin stok,
   /// SKU, barcode, batch biaya, histori, atau transaksi produk asal.
   Future<int> copyProduct(int productId) async {

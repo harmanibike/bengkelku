@@ -461,6 +461,207 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
+  Future<void> _editVariant({
+    required int productId,
+    Map<String, Object?>? variant,
+  }) async {
+    final editing = variant != null;
+    final name = TextEditingController(text: variant?['name']?.toString() ?? '');
+    final sku = TextEditingController(text: variant?['sku']?.toString() ?? '');
+    final barcode = TextEditingController(text: variant?['barcode']?.toString() ?? '');
+    final purchase = TextEditingController(text: formatCurrencyInput(variant?['purchase_price'] ?? 0));
+    final selling = TextEditingController(text: formatCurrencyInput(variant?['selling_price'] ?? 0));
+    final wholesale = TextEditingController(text: formatCurrencyInput(variant?['wholesale_price'] ?? 0));
+    final minimum = TextEditingController(text: variant?['minimum_stock']?.toString() ?? '0');
+    final formKey = GlobalKey<FormState>();
+    bool trackStock = (variant?['track_stock'] as int? ?? 1) == 1;
+    try {
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(editing ? 'Edit Varian' : 'Tambah Varian'),
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: name,
+                        decoration: const InputDecoration(labelText: 'Nama varian', border: OutlineInputBorder()),
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Nama varian wajib diisi.' : null,
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: sku, decoration: const InputDecoration(labelText: 'SKU varian (opsional)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: barcode, decoration: const InputDecoration(labelText: 'Barcode varian (opsional)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: purchase, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga beli (Rp)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: selling, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga jual (Rp)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: wholesale, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga grosir (Rp)', border: OutlineInputBorder())),
+                      const SizedBox(height: 10),
+                      TextFormField(controller: minimum, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], decoration: const InputDecoration(labelText: 'Batas minimum stok', border: OutlineInputBorder())),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Pantau stok varian'),
+                        value: trackStock,
+                        onChanged: (value) => setDialogState(() => trackStock = value),
+                      ),
+                      const Text('Stok awal varian saat ini 0. Pengisian dan pergerakan stok akan dihubungkan pada tahap integrasi transaksi.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+              FilledButton.icon(
+                onPressed: () {
+                  if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true);
+                },
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Simpan'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (saved != true || !mounted) return;
+      final values = {
+        'name': name.text,
+        'sku': sku.text,
+        'barcode': barcode.text,
+        'purchase': _number(purchase),
+        'selling': _number(selling),
+        'wholesale': _number(wholesale),
+        'minimum': int.tryParse(minimum.text) ?? 0,
+        'track': trackStock,
+      };
+      if (editing) {
+        await _repository.updateProductVariant(
+          id: variant['id'] as int,
+          name: values['name'] as String,
+          sku: values['sku'] as String,
+          barcode: values['barcode'] as String,
+          purchasePrice: values['purchase'] as int,
+          sellingPrice: values['selling'] as int,
+          wholesalePrice: values['wholesale'] as int,
+          minimumStock: values['minimum'] as int,
+          trackStock: values['track'] as bool,
+        );
+      } else {
+        await _repository.addProductVariant(
+          productId: productId,
+          name: values['name'] as String,
+          sku: values['sku'] as String,
+          barcode: values['barcode'] as String,
+          purchasePrice: values['purchase'] as int,
+          sellingPrice: values['selling'] as int,
+          wholesalePrice: values['wholesale'] as int,
+          minimumStock: values['minimum'] as int,
+          trackStock: values['track'] as bool,
+        );
+      }
+    } finally {
+      for (final controller in [name, sku, barcode, purchase, selling, wholesale, minimum]) {
+        controller.dispose();
+      }
+    }
+  }
+
+  Future<void> _manageVariants(Map<String, Object?> product) async {
+    final productId = product['id'] as int;
+    while (mounted) {
+      final variants = await _repository.getProductVariants(productId);
+      if (!mounted) return;
+      final action = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Varian • ${product['name']}'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (variants.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Belum ada varian. Tambahkan ukuran, warna, tipe, atau pilihan lainnya.'),
+                  )
+                else
+                  SizedBox(
+                    height: 320,
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: variants.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final item = variants[index];
+                        final active = (item['is_active'] as int? ?? 1) == 1;
+                        return ListTile(
+                          dense: true,
+                          title: Text(item['name']?.toString() ?? '-'),
+                          subtitle: Text('SKU: ${item['sku'] ?? '-'} • Barcode: ${item['barcode'] ?? '-'}\nJual: ${_rupiah(item['selling_price'])} • Stok: ${item['stock'] ?? 0}'),
+                          isThreeLine: true,
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) async {
+                              if (value == 'edit') {
+                                try {
+                                  await _editVariant(productId: productId, variant: item);
+                                  if (mounted) setState(() {});
+                                } catch (error) {
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan varian: $error')));
+                                }
+                              } else if (value == 'deactivate') {
+                                try {
+                                  await _repository.deactivateProductVariant(item['id'] as int);
+                                  if (mounted) setState(() {});
+                                } catch (error) {
+                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menonaktifkan varian: $error')));
+                                }
+                              }
+                            },
+                            itemBuilder: (_) => [
+                              if (active) const PopupMenuItem(value: 'edit', child: Text('Edit varian')),
+                              if (active) const PopupMenuItem(value: 'deactivate', child: Text('Nonaktifkan')),
+                            ],
+                          ),
+                          leading: Icon(active ? Icons.tune : Icons.block, color: active ? null : Colors.grey),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, 'close'), child: const Text('Tutup')),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, 'add'),
+              icon: const Icon(Icons.add),
+              label: const Text('Tambah Varian'),
+            ),
+          ],
+        ),
+      );
+      if (action == 'add') {
+        try {
+          await _editVariant(productId: productId);
+        } catch (error) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menambah varian: $error')));
+        }
+        continue;
+      }
+      break;
+    }
+    if (mounted) _refresh();
+  }
+
   Future<void> _copyProduct(Map<String, Object?> product) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -551,6 +752,9 @@ class _ProductListPageState extends State<ProductListPage> {
                 ])),
                 PopupMenuButton<String>(
                   onSelected: (value) {
+                    if (value == 'variants') {
+                      _manageVariants(product);
+                    }
                     if (value == 'copy') {
                       _copyProduct(product);
                     }
@@ -571,6 +775,7 @@ class _ProductListPageState extends State<ProductListPage> {
                     }
                   },
                   itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'variants', child: Text('Kelola varian')),
                     const PopupMenuItem(value: 'copy', child: Text('Salin produk + varian')),
                     const PopupMenuItem(value: 'edit', child: Text('Edit produk')),
                     if (tracked && active) const PopupMenuItem(value: 'stock', child: Text('Stok masuk/keluar')),
