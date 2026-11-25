@@ -120,7 +120,7 @@ void main() {
         try {
           socket.write(
             'GET /health HTTP/1.1\r\n'
-            'Host: ' + identity.dnsName + '\r\n'
+            'Host: ' + identity.dnsName + '\r\n' +
             'Connection: close\r\n\r\n',
           );
           final response = await utf8.decoder
