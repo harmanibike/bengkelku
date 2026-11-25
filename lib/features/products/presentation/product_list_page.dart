@@ -461,6 +461,40 @@ class _ProductListPageState extends State<ProductListPage> {
     );
   }
 
+  Future<void> _copyProduct(Map<String, Object?> product) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Salin Produk?'),
+        content: Text(
+          'Produk "${product['name']}" akan disalin beserta seluruh variannya. '
+          'Stok setiap salinan dibuat 0, sedangkan SKU dan barcode dikosongkan. '
+          'Produk asli dan riwayat transaksinya tidak berubah.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.copy_outlined),
+            label: const Text('Salin'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      final newId = await _repository.copyProduct(product['id'] as int);
+      if (!mounted) return;
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Produk berhasil disalin. ID produk baru: $newId')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyalin produk: $error')));
+    }
+  }
+
   Future<void> _deactivate(Map<String, Object?> product) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -517,6 +551,9 @@ class _ProductListPageState extends State<ProductListPage> {
                 ])),
                 PopupMenuButton<String>(
                   onSelected: (value) {
+                    if (value == 'copy') {
+                      _copyProduct(product);
+                    }
                     if (value == 'edit') {
                       _showProductForm(product: product);
                     }
@@ -534,6 +571,7 @@ class _ProductListPageState extends State<ProductListPage> {
                     }
                   },
                   itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'copy', child: Text('Salin produk + varian')),
                     const PopupMenuItem(value: 'edit', child: Text('Edit produk')),
                     if (tracked && active) const PopupMenuItem(value: 'stock', child: Text('Stok masuk/keluar')),
                     const PopupMenuItem(value: 'history', child: Text('Riwayat stok')),

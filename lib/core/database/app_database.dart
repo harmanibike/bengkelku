@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 37;
+  static const int currentVersion = 38;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -186,6 +186,29 @@ class AppDatabase {
         updated_at TEXT
       )
     ''');
+
+    // Varian produk. Stok dan identitas barcode/SKU dikelola terpisah dari produk induk.
+    batch.execute('''
+      CREATE TABLE product_variants (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        sku TEXT UNIQUE,
+        barcode TEXT UNIQUE,
+        purchase_price INTEGER NOT NULL DEFAULT 0,
+        selling_price INTEGER NOT NULL DEFAULT 0,
+        wholesale_price INTEGER NOT NULL DEFAULT 0,
+        stock INTEGER NOT NULL DEFAULT 0,
+        minimum_stock INTEGER NOT NULL DEFAULT 0,
+        track_stock INTEGER NOT NULL DEFAULT 1,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_product_variants_product ON product_variants(product_id, is_active, name)');
+    batch.execute('CREATE INDEX idx_product_variants_barcode ON product_variants(barcode)');
 
     // Master kategori produk. Nama kategori unik tanpa membedakan huruf besar/kecil.
     batch.execute('''
@@ -885,6 +908,35 @@ class AppDatabase {
   }
 
   Future<void> _upgradeDatabase(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    // Varian produk ditambahkan secara aditif; data produk dan transaksi lama tidak diubah.
+    if (oldVersion < 38) {
+      await db.execute('''
+        CREATE TABLE product_variants (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          product_id INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          sku TEXT UNIQUE,
+          barcode TEXT UNIQUE,
+          purchase_price INTEGER NOT NULL DEFAULT 0,
+          selling_price INTEGER NOT NULL DEFAULT 0,
+          wholesale_price INTEGER NOT NULL DEFAULT 0,
+          stock INTEGER NOT NULL DEFAULT 0,
+          minimum_stock INTEGER NOT NULL DEFAULT 0,
+          track_stock INTEGER NOT NULL DEFAULT 1,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT,
+          FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_product_variants_product ON product_variants(product_id, is_active, name)');
+      await db.execute('CREATE INDEX idx_product_variants_barcode ON product_variants(barcode)');
+    }
+
     Database db,
     int oldVersion,
     int newVersion,

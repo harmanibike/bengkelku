@@ -299,6 +299,63 @@ class ProductRepository {
     });
   }
 
+  /// Salin data master produk dan seluruh variannya tanpa menyalin stok,
+  /// SKU, barcode, batch biaya, histori, atau transaksi produk asal.
+  Future<int> copyProduct(int productId) async {
+    AuthSession.instance.requireAdmin('Penyalinan produk hanya dapat diakses Admin.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('products', where: 'id = ?', whereArgs: [productId], limit: 1);
+      if (rows.isEmpty) throw StateError('Produk yang akan disalin tidak ditemukan.');
+      final source = rows.first;
+      final copiedName = '${source['name']} (Salinan)';
+      final now = DateTime.now().toIso8601String();
+      final newProductId = await txn.insert('products', {
+        'sku': null,
+        'barcode': null,
+        'name': copiedName,
+        'category': source['category'],
+        'brand': source['brand'],
+        'unit': source['unit'] ?? 'pcs',
+        'purchase_price': source['purchase_price'] ?? 0,
+        'selling_price': source['selling_price'] ?? 0,
+        'wholesale_price': source['wholesale_price'] ?? 0,
+        'stock': 0,
+        'minimum_stock': source['minimum_stock'] ?? 0,
+        'track_stock': source['track_stock'] ?? 1,
+        'description': source['description'],
+        'image_path': source['image_path'],
+        'is_active': 1,
+        'created_at': now,
+      });
+      final variants = await txn.query('product_variants', where: 'product_id = ?', whereArgs: [productId], orderBy: 'id ASC');
+      for (final variant in variants) {
+        await txn.insert('product_variants', {
+          'product_id': newProductId,
+          'name': variant['name'],
+          'sku': null,
+          'barcode': null,
+          'purchase_price': variant['purchase_price'] ?? 0,
+          'selling_price': variant['selling_price'] ?? 0,
+          'wholesale_price': variant['wholesale_price'] ?? 0,
+          'stock': 0,
+          'minimum_stock': variant['minimum_stock'] ?? 0,
+          'track_stock': variant['track_stock'] ?? 1,
+          'is_active': variant['is_active'] ?? 1,
+          'created_at': now,
+        });
+      }
+      await ActivityLogRepository.record(
+        txn,
+        action: 'product_copied',
+        description: 'Menyalin produk ${source['name']} beserta ${variants.length} varian menjadi $copiedName. Stok, SKU, dan barcode salinan dikosongkan.',
+        entityType: 'product',
+        entityId: newProductId,
+      );
+      return newProductId;
+    });
+  }
+
   Future<int> deactivateProduct(int id) async {
     AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
