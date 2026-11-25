@@ -197,3 +197,30 @@ Sebelum keputusan final, buat proof-of-concept terisolasi yang membuktikan selur
 
 Catatan ini merupakan hasil evaluasi dokumentasi dan kode, bukan hasil uji TLS pada perangkat fisik.
 
+## Evaluasi lanjutan kandidat penerbit sertifikat — 25 November 2026
+
+Pemeriksaan API paket memperjelas bahwa dua kandidat yang sebelumnya ditinjau belum dapat dipakai langsung sebagai solusi produksi.
+
+### `rk_pki` 0.4.0
+
+- Metadata pub.dev mensyaratkan Dart SDK minimal 3.8, sedangkan batas SDK yang dinyatakan proyek saat ini adalah `>=3.5.0`. Workflow menggunakan Flutter stable tanpa pin versi, sehingga versi SDK build aktual perlu dicatat sebelum mempertimbangkan upgrade batas SDK proyek.
+- Paket ini dirancang untuk identitas mesin dan mutual TLS pada transport yang mengintegrasikannya, bukan sebagai server HTTPS umum.
+- Kunci privat identitas mesin tetap berada di native library dan tidak diekspor. Satu pengecualian adalah `serverCredential(CertProfile.browserFacing)`, yang mengembalikan sertifikat leaf beserta private key untuk kebutuhan terminasi TLS WebTransport. Profil tersebut berumur tujuh hari dan ditujukan ke loopback, bukan alamat LAN Server Bike POS.
+- Karena `HttpServer.bindSecure` membutuhkan certificate chain dan private key yang dapat dimuat ke `SecurityContext`, paket ini tidak menyediakan jalur yang tepat untuk sertifikat server LAN yang dibutuhkan sekarang tanpa mengubah arsitektur transport.
+- Kesimpulan: jangan tambahkan `rk_pki` sebagai dependensi untuk listener REST HTTPS saat ini. Evaluasi ulang hanya jika arsitektur transport beralih ke implementasi yang memang terintegrasi dengan PKI tersebut.
+
+Referensi: [rk_pki di pub.dev](https://pub.dev/packages/rk_pki).
+
+### `ftp_server` 2.4.0 — generator sertifikat
+
+- API `SelfSignedCertificate.generate` membuat sertifikat ECDSA P-256 dan mengekspos `certificatePem`, `privateKeyPem`, serta fingerprint SHA-256. Sertifikat yang sudah dibuat dapat dimuat kembali melalui konstruktornya.
+- API generator yang didokumentasikan menerima `commonName`, `dnsNames`, dan masa berlaku; tidak menyediakan parameter `ipAddresses` untuk Subject Alternative Name bertipe IP.
+- Client Bike POS direncanakan terhubung ke alamat IP LAN yang dapat berubah. Mengisi alamat IP sebagai DNS SAN bukan pengganti IP SAN. Karena itu sertifikat dari generator ini belum memenuhi rancangan verifikasi hostname/IP secara normal untuk koneksi ke alamat IP.
+- Dokumentasi paket menyatakan generator dapat digunakan di Android/iOS, tetapi matriks CI yang dipublikasikan untuk paket FTP menyebut macOS, Linux, dan Windows. Klaim tersebut belum membuktikan pengujian generator pada Android API 23/24 dan ABI Sunmi sasaran.
+- Paket FTP tidak perlu dimasukkan ke aplikasi hanya untuk mengambil generator sertifikat. Jika source generator dipertimbangkan untuk diadaptasi, audit implementasi kriptografi, dependency, SAN, lisensi, dan pengujian Android tetap wajib dilakukan terlebih dahulu.
+
+Referensi: [API SelfSignedCertificate](https://pub.dev/documentation/ftp_server/latest/self_signed_certificate/SelfSignedCertificate-class.html), [dokumentasi ftp_server](https://pub.dev/packages/ftp_server).
+
+### Keputusan setelah pemeriksaan API
+
+Belum ada kandidat yang lolos untuk diintegrasikan ke aplikasi utama. Jangan mengubah `pubspec.yaml`, jangan menambahkan endpoint HTTPS/pairing, dan jangan mengaktifkan Mode Client. Langkah teknis berikutnya adalah membuat proof-of-concept sertifikat dengan SAN IP yang benar dan siklus penyimpanan private key yang terlindungi, lalu menjalankannya pada Android API 23/24. Bila tidak ada generator Dart murni yang memenuhi kebutuhan tersebut, evaluasi opsi native Android/Java atau transport TLS yang terintegrasi dengan PKI sebelum memilih dependensi.
