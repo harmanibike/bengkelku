@@ -137,7 +137,6 @@ class CustomerWalletRepository {
         'received_by_id': AuthSession.instance.userId, 'received_by_name': AuthSession.instance.displayName,
         'received_at': now,
       });
-      final recipient = recipientName?.trim();
       await ActivityLogRepository.record(txn, action: 'tip_received',
         description: 'Mencatat uang tip Rp$amount.', entityType: 'tip', entityId: tipId);
       return tipId;
