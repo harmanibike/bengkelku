@@ -65,8 +65,8 @@ jobs:
               )
           else:
               source, count = re.subn(
-                  r'(<application\\b)',
-                  r'\\1 android:allowBackup="false"',
+                  r'(<application\b)',
+                  r'\1 android:allowBackup="false"',
                   source,
                   count=1,
               )
