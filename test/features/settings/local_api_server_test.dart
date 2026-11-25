@@ -103,7 +103,7 @@ void main() {
   });
 
   test('can start again after the previous listener has stopped', () async {
-    final firstPort = await server.start(port: 0);
+    await server.start(port: 0);
     await server.stop();
     expect(server.isRunning, isFalse);
 
