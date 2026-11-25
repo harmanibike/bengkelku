@@ -96,12 +96,12 @@ class _PurchasesPageState extends State<PurchasesPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextField(controller: invoice, decoration: const InputDecoration(labelText: 'Nomor faktur *')),
+                    TextField(controller: invoice, decoration: const InputDecoration(labelText: 'Nomor faktur *', border: const OutlineInputBorder())),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<int>(
                       initialValue: supplierId,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Pemasok *'),
+                      decoration: const InputDecoration(labelText: 'Pemasok *', border: const OutlineInputBorder()),
                       items: suppliers.map((s) => DropdownMenuItem<int>(
                         value: s['id'] as int,
                         child: Text(s['name'] as String? ?? '-'),
@@ -114,7 +114,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                     DropdownButtonFormField<int>(
                       initialValue: productId,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Produk'),
+                      decoration: const InputDecoration(labelText: 'Produk', border: const OutlineInputBorder()),
                       items: products.map((p) => DropdownMenuItem<int>(
                         value: p['id'] as int,
                         child: Text(p['name'] as String? ?? '-', overflow: TextOverflow.ellipsis),
@@ -138,7 +138,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                       DropdownButtonFormField<int>(
                         initialValue: variantId,
                         isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'Varian produk'),
+                        decoration: const InputDecoration(labelText: 'Varian produk', border: const OutlineInputBorder()),
                         items: variants.map((v) => DropdownMenuItem<int>(
                           value: v['id'] as int,
                           child: Text(v['name']?.toString() ?? '-', overflow: TextOverflow.ellipsis),
@@ -156,10 +156,10 @@ class _PurchasesPageState extends State<PurchasesPage> {
                     Row(
                       children: [
                         Expanded(child: TextField(controller: qty, keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: 'Jumlah'))),
+                          decoration: const InputDecoration(labelText: 'Jumlah', border: const OutlineInputBorder()))),
                         const SizedBox(width: 8),
                         Expanded(child: TextField(controller: cost, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
-                          decoration: const InputDecoration(labelText: 'Harga beli'))),
+                          decoration: const InputDecoration(labelText: 'Harga beli', border: const OutlineInputBorder()))),
                         IconButton(
                           tooltip: 'Tambahkan barang',
                           onPressed: () {
@@ -226,15 +226,15 @@ class _PurchasesPageState extends State<PurchasesPage> {
                     ],
                     const Divider(),
                     TextField(controller: discount, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
-                      decoration: const InputDecoration(labelText: 'Diskon pembelian')),
+                      decoration: const InputDecoration(labelText: 'Diskon pembelian', border: const OutlineInputBorder())),
                     const SizedBox(height: 8),
                     Text('Total: ${_money(grandTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     TextField(controller: payment, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
-                      decoration: const InputDecoration(labelText: 'Pembayaran awal')),
+                      decoration: const InputDecoration(labelText: 'Pembayaran awal', border: const OutlineInputBorder())),
                     const SizedBox(height: 8),
                     TextField(controller: notes, maxLines: 2,
-                      decoration: const InputDecoration(labelText: 'Catatan')),
+                      decoration: const InputDecoration(labelText: 'Catatan', border: const OutlineInputBorder())),
                     if (errorText != null)
                       Padding(padding: const EdgeInsets.only(top: 8),
                         child: Text(errorText!, style: const TextStyle(color: Colors.red, fontSize: 12))),
@@ -467,7 +467,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
             Text('Sisa utang: ${_money(remaining)}'),
             const SizedBox(height: 8),
             TextField(controller: amount, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
-              decoration: const InputDecoration(labelText: 'Jumlah pembayaran')),
+              decoration: const InputDecoration(labelText: 'Jumlah pembayaran', border: const OutlineInputBorder())),
           ],
         ),
         actions: [
