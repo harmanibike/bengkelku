@@ -97,7 +97,8 @@ class ProductImportService {
     return result;
   }
 
-  ProductImportPreview prepare(List<List<String>> input) {
+  Future<ProductImportPreview> prepare(List<List<String>> input) async {
+    AuthSession.instance.requireAdmin('Impor produk hanya dapat dilakukan Admin.');
     if (input.length < 2) throw const FormatException('File harus berisi header dan minimal satu produk.');
     final headers = input.first.map(_header).toList();
     if (!headers.contains('name')) throw const FormatException('Kolom name/nama_produk wajib ada.');
@@ -130,7 +131,24 @@ class ProductImportService {
       });
     }
     if (rows.isEmpty && errors.isEmpty) throw const FormatException('Tidak ada produk pada file.');
-    return ProductImportPreview(rows, errors);
+    final db = await AppDatabase.instance.database;
+    final available = <Map<String, Object?>>[];
+    for (final row in rows) {
+      final sku = row['sku'] as String?, barcode = row['barcode'] as String?;
+      var duplicate = false;
+      if (sku != null) {
+        final p = await db.query('products', columns: ['id'], where: 'LOWER(sku)=?', whereArgs: [sku.toLowerCase()], limit: 1);
+        final v = await db.query('product_variants', columns: ['id'], where: 'LOWER(sku)=?', whereArgs: [sku.toLowerCase()], limit: 1);
+        if (p.isNotEmpty || v.isNotEmpty) { errors.add('Baris ${row['row']}: SKU "$sku" sudah ada di aplikasi.'); duplicate = true; }
+      }
+      if (barcode != null) {
+        final p = await db.query('products', columns: ['id'], where: 'LOWER(barcode)=?', whereArgs: [barcode.toLowerCase()], limit: 1);
+        final v = await db.query('product_variants', columns: ['id'], where: 'LOWER(barcode)=?', whereArgs: [barcode.toLowerCase()], limit: 1);
+        if (p.isNotEmpty || v.isNotEmpty) { errors.add('Baris ${row['row']}: barcode "$barcode" sudah ada di aplikasi.'); duplicate = true; }
+      }
+      if (!duplicate) available.add(row);
+    }
+    return ProductImportPreview(available, errors);
   }
 
   Future<ProductImportReport> import(ProductImportPreview preview) async {
