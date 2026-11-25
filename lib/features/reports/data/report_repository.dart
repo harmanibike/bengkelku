@@ -18,7 +18,7 @@ class ReportRepository {
         COALESCE(SUM(CASE WHEN transaction_type = 'expense' THEN amount ELSE 0 END), 0) AS expense,
         COUNT(*) AS transaction_count
       FROM cash_transactions
-      WHERE reference_type NOT IN ('tip', 'tip_handover')
+      WHERE COALESCE(reference_type, '') NOT IN ('tip', 'tip_handover')
         AND datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
     ''', [from, until]);
 
@@ -31,7 +31,7 @@ class ReportRepository {
         END
       ), 0) AS balance
       FROM cash_transactions
-      WHERE reference_type NOT IN ('tip', 'tip_handover')
+      WHERE COALESCE(reference_type, '') NOT IN ('tip', 'tip_handover')
         AND datetime(transaction_date) < datetime(?)
     ''', [from]);
 
@@ -342,7 +342,7 @@ class ReportRepository {
              SUM(amount) AS amount,
              transaction_type
       FROM cash_transactions
-      WHERE reference_type NOT IN ('tip', 'tip_handover')
+      WHERE COALESCE(reference_type, '') NOT IN ('tip', 'tip_handover')
         AND datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
       GROUP BY category, transaction_type
       ORDER BY amount DESC
@@ -350,7 +350,7 @@ class ReportRepository {
 
     final latest = await db.query(
       'cash_transactions',
-      where: "reference_type NOT IN ('tip', 'tip_handover') AND datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)",
+      where: "COALESCE(reference_type, '') NOT IN ('tip', 'tip_handover') AND datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)",
       whereArgs: [from, until],
       orderBy: 'datetime(transaction_date) DESC, id DESC',
       limit: 20,
