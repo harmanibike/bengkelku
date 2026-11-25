@@ -84,6 +84,12 @@ class _BicycleListPageState extends State<BicycleListPage> {
     final notes = TextEditingController(
       text: bicycle?['notes']?.toString() ?? '',
     );
+    final ownerName = TextEditingController(
+      text: bicycle?['owner_name']?.toString() ?? '',
+    );
+    final ownerPhone = TextEditingController(
+      text: bicycle?['owner_phone']?.toString() ?? '',
+    );
 
     const types = [
       'Standar',
@@ -98,6 +104,17 @@ class _BicycleListPageState extends State<BicycleListPage> {
 
     String selectedType =
         bicycle?['bicycle_type']?.toString() ?? 'Standar';
+    const ownershipStatuses = <String, String>{
+      'customer_owned': 'Milik pelanggan',
+      'third_party': 'Milik orang lain',
+      'for_sale': 'Untuk dijual',
+      'sold': 'Sudah dijual',
+      'unknown': 'Tidak diketahui',
+    };
+    String selectedOwnershipStatus =
+        ownershipStatuses.containsKey(bicycle?['ownership_status']?.toString())
+            ? bicycle!['ownership_status'].toString()
+            : 'customer_owned';
 
     int? selectedCustomer = bicycle?['customer_id'] == null
         ? null
@@ -154,6 +171,46 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           });
                         },
                       ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedOwnershipStatus,
+                        decoration: const InputDecoration(
+                          labelText: 'Status kepemilikan',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: ownershipStatuses.entries.map((entry) =>
+                          DropdownMenuItem<String>(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          ),
+                        ).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedOwnershipStatus = value);
+                          }
+                        },
+                      ),
+                      if (selectedOwnershipStatus == 'third_party' ||
+                          selectedOwnershipStatus == 'unknown' ||
+                          selectedOwnershipStatus == 'for_sale') ...[
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: ownerName,
+                          decoration: const InputDecoration(
+                            labelText: 'Nama pemilik sebenarnya (opsional)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: ownerPhone,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Telepon pemilik (opsional)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       TextField(
                         controller: brand,
@@ -252,6 +309,9 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           frameSize: size.text,
                           serialNumber: serial.text,
                           notes: notes.text,
+                          ownershipStatus: selectedOwnershipStatus,
+                          ownerName: ownerName.text,
+                          ownerPhone: ownerPhone.text,
                         );
                       } else {
                         await _repository.updateBicycle(
@@ -264,6 +324,9 @@ class _BicycleListPageState extends State<BicycleListPage> {
                           frameSize: size.text,
                           serialNumber: serial.text,
                           notes: notes.text,
+                          ownershipStatus: selectedOwnershipStatus,
+                          ownerName: ownerName.text,
+                          ownerPhone: ownerPhone.text,
                         );
                       }
 
@@ -296,6 +359,8 @@ class _BicycleListPageState extends State<BicycleListPage> {
     size.dispose();
     serial.dispose();
     notes.dispose();
+    ownerName.dispose();
+    ownerPhone.dispose();
   }
 
   Future<void> _deleteBicycle(
@@ -412,7 +477,9 @@ class _BicycleListPageState extends State<BicycleListPage> {
                                     : title,
                               ),
                               subtitle: Text(
-                                'Pemilik: ${bike['customer_name'] ?? '-'}\n'
+                                'Pelanggan terkait: ${bike['customer_name'] ?? '-'}\n'
+                                'Pemilik sebenarnya: ${bike['owner_name'] ?? bike['customer_name'] ?? '-'}\n'
+                                'Status: ${ownershipStatuses[bike['ownership_status']?.toString()] ?? 'Milik pelanggan'}\n'
                                 'Jenis: ${bike['bicycle_type'] ?? '-'}\n'
                                 'Serial: ${bike['serial_number'] ?? '-'}',
                               ),
