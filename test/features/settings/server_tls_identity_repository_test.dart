@@ -48,7 +48,7 @@ void main() {
       ).loadOrCreate();
 
       expect(first.serverId, matches(RegExp(r'^[a-f0-9]{32}$')));
-      expect(first.dnsName, 'bikepos-\${first.serverId}.invalid');
+      expect(first.dnsName, 'bikepos-' + first.serverId + '.invalid');
       expect(first.fingerprint, hasLength(64));
       expect(restored.serverId, first.serverId);
       expect(restored.dnsName, first.dnsName);
@@ -120,7 +120,7 @@ void main() {
         try {
           socket.write(
             'GET /health HTTP/1.1\r\n'
-            'Host: \${identity.dnsName}\r\n'
+            'Host: ' + identity.dnsName + '\r\n'
             'Connection: close\r\n\r\n',
           );
           final response = await utf8.decoder
