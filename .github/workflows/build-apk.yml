@@ -635,9 +635,15 @@ jobs:
       - name: Build signed APK with network backoff
         run: |
           set -eu
+          VERSION="$(sed -n 's/^version: \\([^+]*\\).*/\\1/p' pubspec.yaml)"
+          if [ -z "$VERSION" ]; then
+            echo "Nomor versi tidak ditemukan di pubspec.yaml."
+            exit 1
+          fi
+          echo "Membangun Bike POS versi $VERSION"
           for attempt in 1 2 3; do
             echo "Build APK attempt $attempt/3"
-            if flutter build apk --release; then
+            if flutter build apk --release --dart-define=APP_VERSION="$VERSION"; then
               exit 0
             fi
             if [ "$attempt" -lt 3 ]; then
