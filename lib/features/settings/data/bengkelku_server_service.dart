@@ -97,6 +97,13 @@ class BengkelKuServerService {
           'Layanan Server belum memberi konfirmasi. Periksa notifikasi Android.',
         ),
       );
+    } catch (_) {
+      // Jangan tinggalkan foreground service aktif bila API gagal bind atau
+      // tidak mengirim konfirmasi dalam batas waktu.
+      if (await FlutterForegroundTask.isRunningService) {
+        await FlutterForegroundTask.stopService();
+      }
+      rethrow;
     } finally {
       FlutterForegroundTask.removeTaskDataCallback(onTaskData);
     }
@@ -129,6 +136,8 @@ class BengkelKuServerTaskHandler extends TaskHandler {
         'type': 'server_start_failed',
         'message': error.toString(),
       });
+      // Hentikan notifikasi/service yang tidak memiliki listener aktif.
+      await FlutterForegroundTask.stopService();
     }
   }
 
