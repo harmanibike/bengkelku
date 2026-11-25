@@ -516,7 +516,6 @@ class _DashboardPageState extends State<DashboardPage> {
         _menuTile(title: 'Retur', icon: Icons.assignment_return_rounded, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: _openSaleReturns),
         if (AuthSession.instance.isAdmin) ...[
           _menuTile(title: 'Produk', icon: Icons.inventory_2_rounded, colors: const [Color(0xFFEF8D32), Color(0xFFFFB74D)], onTap: _openProducts),
-          _menuTile(title: 'Stok', icon: Icons.bar_chart_rounded, colors: const [Color(0xFF039BE5), Color(0xFF4FC3F7)], onTap: _openProducts),
         ],
         _menuTile(title: 'Pelanggan', icon: Icons.people_alt_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openCustomers),
         _menuTile(title: 'Sepeda', icon: Icons.pedal_bike_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openBicycles),
@@ -524,8 +523,6 @@ class _DashboardPageState extends State<DashboardPage> {
       _menuTile(title: 'Servis', icon: Icons.build_rounded, colors: const [Color(0xFFE91E63), Color(0xFFF06292)], onTap: _openServices),
       if (AuthSession.instance.isAdmin) ...[
         _menuTile(title: 'Harga Jasa', icon: Icons.price_change_rounded, colors: const [Color(0xFF1565C0), Color(0xFF64B5F6)], onTap: _openServicePricing),
-        _menuTile(title: 'Audit', icon: Icons.history_rounded, colors: const [Color(0xFF00796B), Color(0xFF4DB6AC)], onTap: _openStockMovements),
-        _menuTile(title: 'Opname', icon: Icons.fact_check_rounded, colors: const [Color(0xFF5E35B1), Color(0xFF9575CD)], onTap: _openStockOpname),
         _menuTile(title: 'Laporan', icon: Icons.analytics_rounded, colors: const [Color(0xFF8E24AA), Color(0xFFBA68C8)], onTap: _openReports),
         _menuTile(title: 'Buku Kas', icon: Icons.account_balance_wallet_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openCashbook),
         _menuTile(title: 'Pengeluaran', icon: Icons.money_off_rounded, colors: const [Color(0xFFE64A19), Color(0xFFFF8A65)], onTap: _openReports),
