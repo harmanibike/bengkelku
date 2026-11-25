@@ -86,7 +86,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Hapus nota servis terpilih?'),
+        title: const Text('Hapus nota servis percobaan terpilih?'),
         content: Text(
           'Anda memilih ${ids.length} nota yang masih menunggu. Pastikan ini nota percobaan, bukan sepeda pelanggan yang benar-benar sudah diterima. Penghapusan hanya berhasil untuk nota tanpa pembayaran, saldo pelanggan, tip, pergerakan stok, batch biaya, riwayat audit, atau arsip nota.',
         ),
@@ -151,7 +151,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Hapus penjualan dummy terpilih?'),
+        title: const Text('Hapus penjualan percobaan terpilih?'),
         content: Text('Anda memilih ${ids.length} transaksi belum dibayar. Pastikan semuanya benar-benar transaksi percobaan, bukan penjualan asli yang belum dibayar. Transaksi dengan pembayaran, retur, catatan saldo/poin, atau arsip nota akan ditolak.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
@@ -186,7 +186,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Hapus pembelian dummy terpilih?'),
+        title: const Text('Hapus pembelian percobaan terpilih?'),
         content: Text('Anda memilih ${ids.length} faktur tanpa pembayaran dan kredit retur. Pastikan faktur ini benar-benar percobaan, bukan pembelian asli yang belum dibayar. Sistem akan memeriksa retur, batch biaya, stok, dan arsip nota sebelum penghapusan.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
@@ -256,7 +256,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
-              'Pilih transaksi dummy penjualan, pembelian, atau servis yang ingin dibersihkan. Transaksi yang memiliki pembayaran, retur, pergerakan stok, saldo, tip, riwayat, atau arsip akan dilindungi.',
+              'Daftar ini hanya menampilkan kandidat yang belum dibayar atau masih menunggu. Status tersebut bukan bukti bahwa transaksi adalah dummy. Pilih hanya transaksi percobaan yang memang ingin dihapus. Transaksi dengan pembayaran, retur, pergerakan stok, saldo, tip, riwayat, atau arsip akan dilindungi.',
               style: TextStyle(fontSize: 12),
             ),
           ),
@@ -271,13 +271,6 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                           Row(children: [
                             const Expanded(child: Text('Kandidat penjualan belum dibayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selectedSales.length} dipilih', style: const TextStyle(fontSize: 11)),
-                            TextButton(
-                              onPressed: _working ? null : () => setState(() {
-                                if (_selectedSales.length == _sales.length) { _selectedSales.clear(); }
-                                else { _selectedSales..clear()..addAll(_sales.map((row) => row['id'] as int)); }
-                              }),
-                              child: Text(_selectedSales.length == _sales.length && _sales.isNotEmpty ? 'Batal' : 'Pilih'),
-                            ),
                             IconButton(tooltip: 'Hapus penjualan terpilih', onPressed: _selectedSales.isEmpty || _working ? null : _deleteSelectedSales, icon: const Icon(Icons.delete_outline, color: Colors.red)),
                           ]),
                           if (_sales.isEmpty)
@@ -300,13 +293,6 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                           Row(children: [
                             const Expanded(child: Text('Kandidat pembelian belum dibayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selectedPurchases.length} dipilih', style: const TextStyle(fontSize: 11)),
-                            TextButton(
-                              onPressed: _working ? null : () => setState(() {
-                                if (_selectedPurchases.length == _purchases.length) { _selectedPurchases.clear(); }
-                                else { _selectedPurchases..clear()..addAll(_purchases.map((row) => row['id'] as int)); }
-                              }),
-                              child: Text(_selectedPurchases.length == _purchases.length && _purchases.isNotEmpty ? 'Batal' : 'Pilih'),
-                            ),
                             IconButton(tooltip: 'Hapus pembelian terpilih', onPressed: _selectedPurchases.isEmpty || _working ? null : _deleteSelectedPurchases, icon: const Icon(Icons.delete_outline, color: Colors.red)),
                           ]),
                           if (_purchases.isEmpty)
@@ -329,13 +315,6 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                           Row(children: [
                             const Expanded(child: Text('Kandidat nota servis (menunggu)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selected.length} dipilih', style: const TextStyle(fontSize: 11)),
-                            TextButton(
-                              onPressed: _working ? null : () => setState(() {
-                                if (_selected.length == _orders.length) { _selected.clear(); }
-                                else { _selected..clear()..addAll(_orders.map((row) => row['id'] as int)); }
-                              }),
-                              child: Text(_selected.length == _orders.length && _orders.isNotEmpty ? 'Batal' : 'Pilih'),
-                            ),
                             IconButton(tooltip: 'Hapus nota servis terpilih', onPressed: _selected.isEmpty || _working ? null : _deleteSelected, icon: const Icon(Icons.delete_outline, color: Colors.red)),
                           ]),
                           if (_orders.isEmpty)
