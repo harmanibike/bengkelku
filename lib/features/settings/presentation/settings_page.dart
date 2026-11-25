@@ -5,6 +5,7 @@ import 'payment_methods_page.dart';
 import 'account_pages.dart';
 import 'activity_log_page.dart';
 import 'database_backup_page.dart';
+import 'transaction_cleanup_page.dart';
 import 'device_mode_page.dart';
 import 'receipt_settings_page.dart';
 import 'cash_drawer_settings_page.dart';
@@ -91,6 +92,15 @@ class SettingsPage extends StatelessWidget {
             title: 'Backup & Pemulihan Data',
             subtitle: 'Buat salinan database atau pulihkan dari file backup',
             page: const DatabaseBackupPage(),
+          ),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.delete_sweep_outlined,
+            color: const Color(0xFFC62828),
+            title: 'Pemeliharaan Data',
+            subtitle: 'Pilih dan hapus nota servis dummy yang aman dihapus',
+            page: const TransactionCleanupPage(),
           ),
           const SizedBox(height: 10),
           ],
