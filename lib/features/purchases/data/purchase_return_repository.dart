@@ -195,6 +195,24 @@ class PurchaseReturnRepository {
       if (creditApplied > (outstanding < 0 ? 0 : outstanding)) {
         throw StateError('Kredit retur melebihi sisa utang faktur Rp${outstanding < 0 ? 0 : outstanding}.');
       }
+      // Uang tunai dari pemasok hanya boleh diakui sebesar pembayaran
+      // pembelian yang benar-benar pernah diterima pemasok, setelah refund
+      // retur sebelumnya. Retur atas faktur yang belum dibayar hanya dapat
+      // menjadi kredit untuk mengurangi utang, bukan pemasukan kas.
+      final priorRefundRows = await txn.rawQuery('''
+        SELECT COALESCE(SUM(refund_received), 0) AS total
+        FROM purchase_returns
+        WHERE purchase_id = ? AND id != ?
+      ''', [row['purchase_id'], returnId]);
+      final priorRefunds = (priorRefundRows.first['total'] as num?)?.toInt() ?? 0;
+      final availableCashRefund = (paid - priorRefunds - alreadyRefund)
+          .clamp(0, 1 << 62).toInt();
+      if (refundReceived > availableCashRefund) {
+        throw StateError(
+          'Pengembalian tunai pemasok melebihi pembayaran pembelian yang tersedia. '
+          'Maksimal Rp$availableCashRefund; sisanya gunakan kredit untuk mengurangi utang.',
+        );
+      }
       final now = DateTime.now().toIso8601String();
       await txn.update('purchase_returns', {
         'credit_applied': alreadyCredit + creditApplied,
