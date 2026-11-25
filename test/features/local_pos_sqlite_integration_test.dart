@@ -148,6 +148,62 @@ void main() {
     expect(clean, isEmpty);
   });
 
+  test('service cancellation refuses wallet refund when customer link is missing', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
+    final wallet = CustomerWalletRepository();
+    await wallet.addDeposit(
+      customerId: customerId,
+      amount: 10000,
+      paymentMethod: 'cash',
+    );
+    final services = ServiceRepository();
+    final serviceId = await services.createServiceOrder(
+      customerId: customerId,
+      bicycleId: bicycleId,
+      complaint: 'Uji pembatalan dengan relasi pelanggan hilang',
+      laborCost: 100000,
+      downPayment: 20000,
+      downPaymentMethod: 'cash',
+    );
+    await services.addWalletPayment(id: serviceId, amount: 10000);
+    await db.update(
+      'service_orders',
+      {'customer_id': null},
+      where: 'id = ?',
+      whereArgs: [serviceId],
+    );
+
+    await expectLater(
+      services.updateServiceStatus(id: serviceId, status: 'cancelled'),
+      throwsA(isA<StateError>()),
+    );
+
+    final order = (await db.query(
+      'service_orders',
+      where: 'id = ?',
+      whereArgs: [serviceId],
+    )).single;
+    expect(order['service_status'], isNot('cancelled'));
+    expect(await wallet.getBalance(customerId), 0);
+    expect(
+      await db.query(
+        'cash_transactions',
+        where: "reference_type = 'service_order_cancellation' AND reference_id = ?",
+        whereArgs: [serviceId],
+      ),
+      isEmpty,
+    );
+    expect(
+      await db.query(
+        'customer_wallet_ledger',
+        where: "reference_type = 'service_order_cancellation' AND reference_id = ?",
+        whereArgs: [serviceId],
+      ),
+      isEmpty,
+    );
+  });
+
   test('sale cancellation refuses wallet refund when customer link is missing', () async {
     final db = await AppDatabase.instance.database;
     final (customerId, _) = await createRegisteredCustomerAndBicycle(db);
