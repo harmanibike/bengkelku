@@ -635,7 +635,7 @@ jobs:
       - name: Build signed APK with network backoff
         run: |
           set -eu
-          VERSION="$(awk -F '[:+ ]' '/^version:/{print $2; exit}' pubspec.yaml)"
+          VERSION="$(awk '/^version:/{sub(/^version:[[:space:]]*/, ""); sub(/\+.*/, ""); print; exit}' pubspec.yaml)"
           if [ -z "$VERSION" ]; then
             echo "Nomor versi tidak ditemukan di pubspec.yaml."
             exit 1
@@ -662,7 +662,7 @@ jobs:
 
       - name: Rename Bike POS APK with version
         run: |
-          VERSION="$(awk -F '[:+ ]' '/^version:/{print $2; exit}' pubspec.yaml)"
+          VERSION="$(awk '/^version:/{sub(/^version:[[:space:]]*/, ""); sub(/\+.*/, ""); print; exit}' pubspec.yaml)"
           if [ -z "$VERSION" ]; then
             echo "Nomor versi tidak ditemukan di pubspec.yaml."
             exit 1
