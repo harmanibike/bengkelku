@@ -89,12 +89,19 @@ class ReceivableRepository {
         WHERE s.id = ? LIMIT 1
       ''', [recordId]);
       if (rows.isEmpty) throw StateError('Nota servis tidak ditemukan.');
-      final payments = await db.query(
-        'cash_transactions',
-        where: "reference_type = 'service_order' AND reference_id = ? AND transaction_type = 'income'",
-        whereArgs: [recordId],
-        orderBy: 'datetime(transaction_date) ASC, id ASC',
-      );
+      final payments = await db.rawQuery('''
+        SELECT transaction_date, amount, payment_method, 'cash' AS payment_source
+        FROM cash_transactions
+        WHERE reference_type = 'service_order'
+          AND reference_id = ? AND transaction_type = 'income'
+        UNION ALL
+        SELECT created_at AS transaction_date, amount, payment_method,
+          'customer_wallet' AS payment_source
+        FROM customer_wallet_ledger
+        WHERE reference_type = 'service_order'
+          AND reference_id = ? AND entry_type = 'service_payment'
+        ORDER BY datetime(transaction_date) ASC
+      ''', [recordId, recordId]);
       return {'record': rows.first, 'payments': payments, 'returns': <Map<String, Object?>>[]};
     }
     if (type == 'sale') {
@@ -112,12 +119,19 @@ class ReceivableRepository {
         WHERE s.id = ? LIMIT 1
       ''', [recordId]);
       if (rows.isEmpty) throw StateError('Nota penjualan tidak ditemukan.');
-      final payments = await db.query(
-        'cash_transactions',
-        where: "reference_type IN ('sale', 'sale_payment') AND reference_id = ? AND transaction_type = 'income'",
-        whereArgs: [recordId],
-        orderBy: 'datetime(transaction_date) ASC, id ASC',
-      );
+      final payments = await db.rawQuery('''
+        SELECT transaction_date, amount, payment_method, 'cash' AS payment_source
+        FROM cash_transactions
+        WHERE reference_type IN ('sale', 'sale_payment')
+          AND reference_id = ? AND transaction_type = 'income'
+        UNION ALL
+        SELECT created_at AS transaction_date, amount, payment_method,
+          'customer_wallet' AS payment_source
+        FROM customer_wallet_ledger
+        WHERE reference_type = 'sale'
+          AND reference_id = ? AND entry_type = 'sale_payment'
+        ORDER BY datetime(transaction_date) ASC
+      ''', [recordId, recordId]);
       final returns = await db.query(
         'sale_returns',
         where: 'sale_id = ?',
