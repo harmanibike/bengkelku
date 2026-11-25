@@ -833,6 +833,54 @@ class SaleRepository {
     return deleted;
   }
 
+  /// Menghapus permanen penjualan dummy yang sudah dibatalkan.
+  /// Pembatalan sudah mengembalikan stok; metode ini hanya membersihkan
+  /// jejak transaksi yang aman dan TIDAK mengubah stok maupun saldo batch.
+  Future<int> deleteCancelledDummySale(int id) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat menghapus transaksi.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('sales', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) throw StateError('Transaksi penjualan tidak ditemukan.');
+      final sale = rows.first;
+      if (sale['payment_status']?.toString() != 'cancelled') {
+        throw StateError('Hanya transaksi berstatus Dibatalkan yang dapat dibersihkan dari daftar ini.');
+      }
+      if ((sale['paid'] as num? ?? 0) != 0) {
+        throw StateError('Transaksi pernah menerima pembayaran; riwayat keuangan harus dipertahankan.');
+      }
+
+      Future<void> ensureNoRows(String table, String where, List<Object?> args, String label) async {
+        final found = await txn.query(table, columns: ['id'], where: where, whereArgs: args, limit: 1);
+        if (found.isNotEmpty) throw StateError('Transaksi memiliki $label; penghapusan permanen ditolak.');
+      }
+
+      await ensureNoRows('sale_returns', 'sale_id = ?', [id], 'retur');
+      await ensureNoRows('cash_transactions',
+        "reference_id = ? AND reference_type IN ('sale', 'sale_payment', 'sale_cancel')", [id], 'catatan kas/pengembalian');
+      await ensureNoRows('customer_wallet_ledger',
+        "reference_id = ? AND reference_type IN ('sale', 'sale_cancel')", [id], 'riwayat saldo pelanggan');
+      await ensureNoRows('loyalty_point_ledger', 'sale_id = ?', [id], 'riwayat poin');
+      await ensureNoRows('receipt_snapshots', "source_type = 'sale' AND source_id = ?", [id], 'arsip nota');
+      await ensureNoRows('tip_transactions', "source_type = 'sale' AND source_id = ?", [id], 'catatan tip');
+
+      // Status cancelled berarti proses pembatalan telah mengembalikan stok.
+      // Karena itu jangan mengulang penambahan stok atau batch di sini.
+      await txn.delete('stock_movements',
+        where: "reference_id = ? AND reference_type IN ('sale', 'sale_cancel')", whereArgs: [id]);
+      await txn.delete('sale_batch_allocations', where: 'sale_id = ?', whereArgs: [id]);
+      final count = await txn.delete('sales', where: 'id = ?', whereArgs: [id]);
+      await ActivityLogRepository.record(
+        txn,
+        action: 'cancelled_dummy_sale_deleted',
+        description: 'Menghapus riwayat penjualan dummy yang sudah dibatalkan ${sale['invoice_number'] ?? id}.',
+        entityType: 'sale',
+        entityId: id,
+      );
+      return count;
+    });
+  }
+
   Future<List<Map<String, Object?>>> getSales({String keyword = ''}) async {
     AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses riwayat penjualan.');
     final db = await _db;
