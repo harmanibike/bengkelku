@@ -153,7 +153,7 @@ class _TipReportPageState extends State<TipReportPage> {
                       ));
                     }),
                   const SizedBox(height: 12),
-                  const Text('Tip disimpan terpisah dari omzet. Penyerahan tip dicatat sebagai pengeluaran kas, bukan pengurang omzet.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  const Text('Tip dicatat terpisah dari omzet dan Buku Kas. Penerimaan serta penyerahan hanya ditampilkan pada Laporan Uang Tip.', style: TextStyle(fontSize: 11, color: Colors.grey)),
                 ],
               ),
             ),
