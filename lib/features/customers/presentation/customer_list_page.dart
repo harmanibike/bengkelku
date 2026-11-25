@@ -264,23 +264,29 @@ class _CustomerListPageState extends State<CustomerListPage> {
           photoBase64: photoBase64,
         );
       } else {
-        final customerId = await _repository.addCustomer(
-          name: nameController.text,
-          phone: phoneController.text,
-          address: addressController.text,
-          email: emailController.text,
-          notes: notesController.text,
-          photoBase64: photoBase64,
-        );
         if (createBicycle) {
-          await _repository.addBicycle(
-            customerId: customerId,
-            brand: bicycleBrandController.text,
-            model: bicycleModelController.text,
+          await _repository.addCustomerWithBicycle(
+            name: nameController.text,
+            phone: phoneController.text,
+            address: addressController.text,
+            email: emailController.text,
+            notes: notesController.text,
+            photoBase64: photoBase64,
+            bicycleBrand: bicycleBrandController.text,
+            bicycleModel: bicycleModelController.text,
             bicycleType: selectedBicycleType,
-            color: bicycleColorController.text,
-            frameSize: bicycleSizeController.text,
-            serialNumber: bicycleSerialController.text,
+            bicycleColor: bicycleColorController.text,
+            bicycleFrameSize: bicycleSizeController.text,
+            bicycleSerialNumber: bicycleSerialController.text,
+          );
+        } else {
+          await _repository.addCustomer(
+            name: nameController.text,
+            phone: phoneController.text,
+            address: addressController.text,
+            email: emailController.text,
+            notes: notesController.text,
+            photoBase64: photoBase64,
           );
         }
       }
