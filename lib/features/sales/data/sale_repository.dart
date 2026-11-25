@@ -225,7 +225,13 @@ class SaleRepository {
         savedCustomerName = customer.first['name']?.toString() ?? savedCustomerName;
       }
 
+      final testModeRows = await txn.query('app_settings',
+        columns: ['setting_value'], where: 'setting_key = ?',
+        whereArgs: ['transaction_test_mode'], limit: 1);
+      final isTest = testModeRows.isNotEmpty &&
+          testModeRows.first['setting_value']?.toString() == '1';
       final saleId = await txn.insert('sales', {
+        'is_test': isTest ? 1 : 0,
         'invoice_number': invoice,
         'customer_id': customerId,
         'customer_name': savedCustomerName,
