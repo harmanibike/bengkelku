@@ -18,6 +18,7 @@ import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
 import 'package:bengkelku_pos/features/purchases/data/purchase_return_repository.dart';
 import 'package:bengkelku_pos/features/purchases/data/purchase_repository.dart';
 import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
+import 'package:bengkelku_pos/features/receivables/data/receivable_repository.dart';
 import 'package:bengkelku_pos/features/products/data/stock_opname_repository.dart';
 
 void main() {
@@ -62,6 +63,40 @@ void main() {
     });
     return (customerId, bicycleId);
   }
+
+  test('service receivable shows cumulative cash and wallet payments, not only initial deposit', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
+    final services = ServiceRepository();
+    final serviceId = await services.createServiceOrder(
+      customerId: customerId,
+      bicycleId: bicycleId,
+      complaint: 'Rem sepeda perlu disetel',
+      laborCost: 100000,
+      downPayment: 20000,
+      downPaymentMethod: 'cash',
+    );
+
+    await services.addPayment(id: serviceId, amount: 30000);
+    final wallet = CustomerWalletRepository();
+    await wallet.addDeposit(customerId: customerId, amount: 10000, paymentMethod: 'cash');
+    await services.addWalletPayment(id: serviceId, amount: 10000);
+
+    final receivables = ReceivableRepository();
+    final list = await receivables.getReceivables(type: 'service');
+    final row = list.singleWhere((item) => item['record_id'] == serviceId);
+    expect(row['paid_amount'], 60000);
+    expect(row['remaining_amount'], 40000);
+
+    final detail = await receivables.getReceivableDetail(
+      type: 'service',
+      recordId: serviceId,
+    );
+    final record = detail['record'] as Map<String, Object?>;
+    expect(record['paid_amount'], 60000);
+    expect(record['remaining_payment'], 40000);
+    expect(detail['payments'], hasLength(3));
+  });
 
   test('supplier payment history and cashbook stay synchronized', () async {
     final db = await AppDatabase.instance.database;
