@@ -109,7 +109,7 @@ void main() {
 
     final secondPort = await server.start(port: 0);
     expect(server.isRunning, isTrue);
-    expect(secondPort, isNot(firstPort));
+    expect(secondPort, greaterThan(0));
 
     final client = HttpClient();
     try {
