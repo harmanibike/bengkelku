@@ -487,6 +487,111 @@ void main() {
     expect(issues, isEmpty);
   });
 
+  test('service wallet payment is not counted as new cash and is refunded on cancellation', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
+    final wallet = CustomerWalletRepository();
+    final service = ServiceRepository();
+
+    await wallet.addDeposit(
+      customerId: customerId,
+      amount: 80000,
+      paymentMethod: 'cash',
+    );
+    final serviceId = await service.createServiceOrder(
+      customerId: customerId,
+      bicycleId: bicycleId,
+      complaint: 'Rantai perlu disetel',
+      laborCost: 100000,
+    );
+
+    await service.addWalletPayment(id: serviceId, amount: 60000);
+    expect(await wallet.getBalance(customerId), 20000);
+
+    final order = await service.getServiceOrderById(serviceId);
+    expect(order?['down_payment'], 60000);
+    expect(order?['remaining_payment'], 40000);
+
+    final cashBeforeCancellation = await db.query(
+      'cash_transactions',
+      where: "reference_type = 'service_order' AND reference_id = ?",
+      whereArgs: [serviceId],
+    );
+    expect(cashBeforeCancellation, isEmpty);
+
+    await expectLater(
+      service.addWalletPayment(id: serviceId, amount: 50000),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(await wallet.getBalance(customerId), 20000);
+
+    await service.updateServiceStatus(
+      id: serviceId,
+      status: 'cancelled',
+      note: 'Pembatalan uji pembayaran saldo',
+    );
+    expect(await wallet.getBalance(customerId), 80000);
+
+    final refunds = await wallet.getLedger(customerId);
+    expect(
+      refunds.any((row) =>
+          row['entry_type'] == 'refund' &&
+          row['reference_type'] == 'service_order_cancellation' &&
+          row['amount'] == 60000),
+      isTrue,
+    );
+
+    final cashRefunds = await db.query(
+      'cash_transactions',
+      where: "reference_type = 'service_order_cancellation' AND reference_id = ?",
+      whereArgs: [serviceId],
+    );
+    expect(cashRefunds, isEmpty);
+  });
+
+  test('cashbook excludes legacy tip receipt and handover rows', () async {
+    final db = await AppDatabase.instance.database;
+    final customerId = await db.insert('customers', {'name': 'Pelanggan Uji Tip'});
+    await CustomerWalletRepository().addDeposit(
+      customerId: customerId,
+      amount: 100000,
+      paymentMethod: 'cash',
+    );
+
+    final now = DateTime.now().toIso8601String();
+    await db.insert('cash_transactions', {
+      'transaction_type': 'income',
+      'category': 'Tip (data lama)',
+      'description': 'Data tip lama yang tidak boleh masuk Buku Kas',
+      'amount': 25000,
+      'reference_type': 'tip',
+      'reference_id': 9001,
+      'transaction_date': now,
+    });
+    await db.insert('cash_transactions', {
+      'transaction_type': 'expense',
+      'category': 'Penyerahan Tip (data lama)',
+      'description': 'Data penyerahan tip lama yang tidak boleh masuk Buku Kas',
+      'amount': 10000,
+      'reference_type': 'tip_handover',
+      'reference_id': 9001,
+      'transaction_date': now,
+    });
+
+    final ledger = await CashbookRepository().getLedger(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(ledger['income'], 100000);
+    expect(ledger['expense'], 0);
+    expect(ledger['closing_balance'], 100000);
+    expect(ledger['count'], 1);
+    final entries = ledger['entries'] as List<Map<String, Object?>>;
+    expect(entries.every((row) =>
+        row['reference_type'] != 'tip' &&
+        row['reference_type'] != 'tip_handover'), isTrue);
+  });
+
   test('service cancellation refunds cash and wallet without mixing tip', () async {
     final db = await AppDatabase.instance.database;
     final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
