@@ -47,6 +47,16 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   final _guestBicycleColorController = TextEditingController();
   final _guestBicycleSerialController = TextEditingController();
   bool _guestMode = false;
+  String? _selectedGuestBicycleBrand;
+  String _selectedGuestBicycleType = 'Standar';
+  static const List<String> _bicycleBrands = [
+    'Polygon', 'United', 'Pacific', 'Wimcycle', 'Element', 'Thrill',
+    'Trek', 'Giant', 'Specialized', 'Cannondale', 'Scott', 'Bianchi',
+    'Merida', 'Phoenix', 'Genio', 'Lainnya',
+  ];
+  static const List<String> _bicycleTypes = [
+    'Standar', 'MTB', 'BMX', 'Road Bike', 'Lipat', 'Anak', 'E-Bike', 'Lainnya',
+  ];
   List<Map<String, Object?>> _customerSearchResults = [];
   bool _searchingCustomers = false;
   int _customerSearchToken = 0;
@@ -444,9 +454,10 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       return;
     }
     if (_guestMode &&
-        (_guestNameController.text.trim().isEmpty ||
-         _guestBicycleBrandController.text.trim().isEmpty)) {
-      _showMessage('Nama pelanggan dan merek sepeda wajib diisi.');
+        (_selectedGuestBicycleBrand == null ||
+         (_selectedGuestBicycleBrand == 'Lainnya' &&
+          _guestBicycleBrandController.text.trim().isEmpty))) {
+      _showMessage('Pilih merek sepeda terlebih dahulu.');
       return;
     }
 
@@ -455,11 +466,11 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       final id = await _serviceRepository.createServiceOrder(
         customerId: _guestMode ? null : _selectedCustomerId,
         bicycleId: _guestMode ? null : _selectedBicycleId,
-        guestCustomerName: _guestMode ? _guestNameController.text : null,
+        guestCustomerName: _guestMode ? 'Pelanggan Umum' : null,
         guestCustomerPhone: _guestMode ? _guestPhoneController.text : null,
-        guestBicycleBrand: _guestMode ? _guestBicycleBrandController.text : null,
+        guestBicycleBrand: _guestMode ? (_selectedGuestBicycleBrand == 'Lainnya' ? _guestBicycleBrandController.text.trim() : _selectedGuestBicycleBrand) : null,
         guestBicycleModel: _guestMode ? _guestBicycleModelController.text : null,
-        guestBicycleType: _guestMode ? _guestBicycleTypeController.text : null,
+        guestBicycleType: _guestMode ? _selectedGuestBicycleType : null,
         guestBicycleColor: _guestMode ? _guestBicycleColorController.text : null,
         guestBicycleSerialNumber: _guestMode ? _guestBicycleSerialController.text : null,
         complaint: _complaintController.text,
@@ -619,6 +630,10 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                             selected: _guestMode,
                             onSelected: (_) => setState(() {
                               _guestMode = true;
+                              _guestNameController.text = 'Pelanggan Umum';
+                              _selectedGuestBicycleBrand = null;
+                              _guestBicycleBrandController.clear();
+                              _selectedGuestBicycleType = 'Standar';
                               _selectedCustomerId = null;
                               _selectedBicycleId = null;
                               _bicycles = [];
@@ -632,16 +647,12 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                       if (_guestMode) ...[
                         TextFormField(
                           controller: _guestNameController,
-                          textCapitalization: TextCapitalization.words,
+                          readOnly: true,
                           decoration: const InputDecoration(
-                            labelText: 'Nama pelanggan *',
-                            hintText: 'Nama pelanggan umum',
+                            labelText: 'Nama pelanggan',
+                            prefixIcon: Icon(Icons.person_outline),
                             border: OutlineInputBorder(),
                           ),
-                          validator: (value) => _guestMode &&
-                                  (value == null || value.trim().isEmpty)
-                              ? 'Nama pelanggan wajib diisi'
-                              : null,
                         ),
                         const SizedBox(height: 8),
                         TextFormField(
@@ -653,18 +664,46 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _guestBicycleBrandController,
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedGuestBicycleBrand,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Merek sepeda *',
-                            hintText: 'Contoh: Polygon',
+                            prefixIcon: Icon(Icons.pedal_bike_outlined),
                             border: OutlineInputBorder(),
                           ),
-                          validator: (value) => _guestMode &&
-                                  (value == null || value.trim().isEmpty)
-                              ? 'Merek sepeda wajib diisi'
+                          items: _bicycleBrands.map((brand) =>
+                            DropdownMenuItem<String>(
+                              value: brand,
+                              child: Text(brand),
+                            ),
+                          ).toList(),
+                          onChanged: (value) => setState(() {
+                            _selectedGuestBicycleBrand = value;
+                            if (value != 'Lainnya') {
+                              _guestBicycleBrandController.clear();
+                            }
+                          }),
+                          validator: (value) => _guestMode && value == null
+                              ? 'Pilih merek sepeda'
                               : null,
                         ),
+                        if (_selectedGuestBicycleBrand == 'Lainnya') ...[
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _guestBicycleBrandController,
+                            textCapitalization: TextCapitalization.words,
+                            decoration: const InputDecoration(
+                              labelText: 'Nama merek sepeda',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) => _guestMode &&
+                                    _selectedGuestBicycleBrand == 'Lainnya' &&
+                                    (value == null || value.trim().isEmpty)
+                                ? 'Masukkan nama merek sepeda'
+                                : null,
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _guestBicycleModelController,
@@ -675,12 +714,24 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         ),
                         const SizedBox(height: 8),
                         Row(children: [
-                          Expanded(child: TextFormField(
-                            controller: _guestBicycleTypeController,
+                          Expanded(child: DropdownButtonFormField<String>(
+                            initialValue: _selectedGuestBicycleType,
+                            isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Jenis sepeda',
                               border: OutlineInputBorder(),
                             ),
+                            items: _bicycleTypes.map((type) =>
+                              DropdownMenuItem<String>(
+                                value: type,
+                                child: Text(type),
+                              ),
+                            ).toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() => _selectedGuestBicycleType = value);
+                              }
+                            },
                           )),
                           const SizedBox(width: 8),
                           Expanded(child: TextFormField(
