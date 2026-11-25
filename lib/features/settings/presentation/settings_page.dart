@@ -12,6 +12,7 @@ import 'printer_settings_page.dart';
 import 'loyalty_settings_page.dart';
 import '../../customers/presentation/loyalty_rewards_page.dart';
 import 'stock_reminder_settings_page.dart';
+import 'test_transaction_mode_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -82,6 +83,15 @@ class SettingsPage extends StatelessWidget {
             title: 'Mode Perangkat',
             subtitle: 'Pengaturan mode Lokal, Server, dan Client',
             page: const DeviceModePage(),
+          ),
+          const SizedBox(height: 8),
+          _item(
+            context: context,
+            icon: Icons.science_outlined,
+            color: const Color(0xFF6A1B9A),
+            title: 'Mode Transaksi Percobaan',
+            subtitle: 'Tandai transaksi baru sebagai data uji coba',
+            page: const TestTransactionModePage(),
           ),
           const SizedBox(height: 8),
           _item(
