@@ -167,6 +167,7 @@ class AppTheme {
         ),
         side: const BorderSide(color: Color(0xFF9AA8B7)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        visualDensity: VisualDensity.compact,
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith(
@@ -276,7 +277,6 @@ class AppTheme {
         side: BorderSide.none,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        visualDensity: VisualDensity.compact,
       ),
       tabBarTheme: const TabBarThemeData(
         labelColor: Colors.white,
