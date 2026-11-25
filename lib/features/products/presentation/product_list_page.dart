@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
@@ -9,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/formatters/currency_input_formatter.dart';
 import '../../../core/widgets/app_photo_preview.dart';
 import '../data/product_repository.dart';
+import '../data/product_import_service.dart';
 import '../../purchases/presentation/purchase_cost_settings_page.dart';
 import 'product_category_page.dart';
 import '../../sales/presentation/barcode_scanner_page.dart';
@@ -50,6 +52,99 @@ class _ProductListPageState extends State<ProductListPage> {
   }
 
   void _refresh() => setState(() { _page = 0; _loadProducts(); });
+
+
+  Future<void> _importProducts() async {
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'csv'],
+        withData: true,
+      );
+      if (picked == null || picked.files.isEmpty || !mounted) return;
+      final file = picked.files.single;
+      final bytes = file.bytes;
+      if (bytes == null) throw StateError('File tidak dapat dibaca. Coba pilih ulang.');
+      final service = ProductImportService();
+      final sourceRows = ProductImportService.decode(bytes, p.extension(file.name).replaceFirst('.', ''));
+      final preview = service.prepare(sourceRows);
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Periksa Impor Produk'),
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('File: ${file.name}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text('Produk siap diimpor: ${preview.rows.length}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w700)),
+                  Text('Baris bermasalah: ${preview.errors.length}'),
+                  const SizedBox(height: 10),
+                  const Text('Produk yang sudah memiliki SKU/barcode akan dilewati. Kategori baru dibuat otomatis. Stok awal akan dicatat ke riwayat stok dan batch modal.'),
+                  if (preview.errors.isNotEmpty) ...[
+                    const Divider(),
+                    const Text('Peringatan:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...preview.errors.take(8).map((error) => Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text('• $error', style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
+                    )),
+                    if (preview.errors.length > 8)
+                      Text('Dan ${preview.errors.length - 8} peringatan lainnya.', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+            FilledButton(
+              onPressed: preview.rows.isEmpty ? null : () => Navigator.pop(dialogContext, true),
+              child: const Text('Impor Sekarang'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final report = await service.import(preview);
+      if (!mounted) return;
+      _refresh();
+      final detail = report.errors.take(4).join('\n');
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Impor Selesai'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Berhasil diimpor: ${report.imported}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                Text('Dilewati: ${report.skipped}'),
+                if (report.errors.isNotEmpty) ...[
+                  const Divider(),
+                  const Text('Catatan:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(detail, style: const TextStyle(fontSize: 12)),
+                  if (report.errors.length > 4)
+                    Text('Dan ${report.errors.length - 4} catatan lainnya.', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ],
+            ),
+          ),
+          actions: [FilledButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Selesai'))],
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mengimpor produk: $error')),
+      );
+    }
+  }
 
   void _openPurchaseCostSettings() {
     Navigator.push(
@@ -865,6 +960,11 @@ class _ProductListPageState extends State<ProductListPage> {
       appBar: AppBar(
         title: const Text('Produk & Stok'),
         actions: [
+          IconButton(
+            tooltip: 'Impor produk Excel/CSV',
+            onPressed: _importProducts,
+            icon: const Icon(Icons.file_upload_outlined),
+          ),
           IconButton(
             tooltip: 'Kelola kategori produk',
             onPressed: () async {
