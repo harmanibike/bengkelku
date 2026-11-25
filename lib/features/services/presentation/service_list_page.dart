@@ -1200,12 +1200,12 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final isPriority = (order['queue_priority'] as num? ?? 0).toInt() == 1;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () => _showDetail(order),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1331,7 +1331,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
             child: TextField(
               controller: _searchController,
               onChanged: (_) => _refresh(),
@@ -1345,12 +1345,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   },
                   icon: const Icon(Icons.close),
                 ),
+                isDense: true,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
           SizedBox(
-            height: 54,
+            height: 48,
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               scrollDirection: Axis.horizontal,
@@ -1411,7 +1412,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   );
                 }
                 return ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
+                  padding: const EdgeInsets.fromLTRB(10, 4, 10, 90),
                   itemCount: orders.length,
                   itemBuilder: (context, index) => _buildOrderCard(orders[index]),
                 );
