@@ -1,30 +1,35 @@
 import 'dart:convert';
 import 'dart:io';
 
-/// Test-only route for the LAN TLS proof of concept.
+/// Opens TCP to the paired LAN address, then explicitly upgrades that socket
+/// to TLS using the stable paired DNS identity for SNI and certificate checks.
 ///
-/// The URL keeps a stable logical DNS identity for TLS hostname validation,
-/// while the TCP socket is routed to the current LAN IP learned at pairing.
-HttpClient createLanTlsTestClient({
+/// This deliberately avoids HttpClient.connectionFactory: a custom factory
+/// returns a plain Socket and HttpClient does not automatically wrap that
+/// socket in TLS for HTTPS requests.
+Future<SecureSocket> connectLanTlsTestSocket({
+  required String urlHost,
   required String expectedDnsName,
   required InternetAddress routeAddress,
   required int routePort,
   required String trustedCertificatePem,
-}) {
+}) async {
+  if (urlHost.toLowerCase() != expectedDnsName.toLowerCase()) {
+    throw StateError('Identitas host URL tidak cocok dengan pairing.');
+  }
+
   final context = SecurityContext(withTrustedRoots: false)
     ..setTrustedCertificatesBytes(utf8.encode(trustedCertificatePem));
 
-  return HttpClient(context: context)
-    ..findProxy = ((_) => 'DIRECT')
-    ..connectionFactory = (uri, proxyHost, proxyPort) {
-      if (proxyHost != null || proxyPort != null) {
-        throw StateError('Proxy tidak diizinkan untuk rute LAN PoC.');
-      }
-      if (uri.scheme != 'https' ||
-          uri.host.toLowerCase() != expectedDnsName.toLowerCase() ||
-          uri.port != routePort) {
-        throw StateError('Identitas host/port URL tidak cocok dengan pairing.');
-      }
-      return Socket.startConnect(routeAddress, routePort);
-    };
+  final socket = await Socket.connect(routeAddress, routePort);
+  try {
+    return await SecureSocket.secure(
+      socket,
+      host: expectedDnsName,
+      context: context,
+    );
+  } catch (_) {
+    socket.destroy();
+    rethrow;
+  }
 }
