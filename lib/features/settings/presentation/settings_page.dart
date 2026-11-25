@@ -34,9 +34,9 @@ class SettingsPage extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         dense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         leading: CircleAvatar(
-          radius: 20,
+          radius: 18,
           backgroundColor: color.withValues(alpha: 0.12),
           child: Icon(icon, color: color, size: 22),
         ),
@@ -53,7 +53,7 @@ class SettingsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Pengaturan')),
       body: ListView(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         children: [
           if (AuthSession.instance.isAdmin) ...[
           const Text('Akun', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
