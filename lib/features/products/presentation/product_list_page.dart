@@ -14,6 +14,8 @@ import '../data/product_import_service.dart';
 import '../../purchases/presentation/purchase_cost_settings_page.dart';
 import 'product_category_page.dart';
 import '../../sales/presentation/barcode_scanner_page.dart';
+import 'stock_movement_page.dart';
+import 'stock_opname_page.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -144,6 +146,14 @@ class _ProductListPageState extends State<ProductListPage> {
         SnackBar(content: Text('Gagal mengimpor produk: $error')),
       );
     }
+  }
+
+  void _openStockMovements() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const StockMovementPage()));
+  }
+
+  void _openStockOpname() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const StockOpnamePage()));
   }
 
   void _openPurchaseCostSettings() {
@@ -996,6 +1006,28 @@ class _ProductListPageState extends State<ProductListPage> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _openStockMovements,
+                    icon: const Icon(Icons.history_rounded, size: 18),
+                    label: const Text('Riwayat Stok'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _openStockOpname,
+                    icon: const Icon(Icons.fact_check_outlined, size: 18),
+                    label: const Text('Stok Opname'),
+                  ),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
             child: TextField(
