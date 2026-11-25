@@ -74,7 +74,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final notes = TextEditingController();
     int? supplierId = suppliers.first['id'] as int;
     int? productId = products.first['id'] as int;
-    var variants = (await _products.getProductVariants(productId!)).where((item) => (item['is_active'] as int? ?? 1) == 1).toList();
+    var variants = (await _products.getProductVariants(productId)).where((item) => (item['is_active'] as int? ?? 1) == 1).toList();
     int? variantId = variants.isEmpty ? null : variants.first['id'] as int;
     final qty = TextEditingController(text: '1');
     final cost = TextEditingController(text: formatCurrencyInput(variants.isEmpty ? products.first['purchase_price'] ?? 0 : variants.first['purchase_price'] ?? 0));
