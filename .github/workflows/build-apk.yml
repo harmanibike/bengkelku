@@ -126,8 +126,8 @@ jobs:
           ]
           missing = [item for item in permissions if item.split('"')[1] not in source]
           if missing:
-              block = "\\n".join(missing) + "\\n"
-              source, count = re.subn(r'(<application\\b)', lambda match: block + match.group(1), source, count=1)
+              block = "\n".join(missing) + "\n"
+              source, count = re.subn(r'(<application\b)', lambda match: block + match.group(1), source, count=1)
               if count != 1:
                   raise SystemExit("Tag application AndroidManifest.xml tidak ditemukan.")
           service = """
@@ -137,7 +137,7 @@ jobs:
                   android:exported="false" />
           """
           if "com.pravera.flutter_foreground_task.service.ForegroundService" not in source:
-              source = source.replace("</application>", service + "\\n</application>", 1)
+              source = source.replace("</application>", service + "\n</application>", 1)
           manifest.write_text(source)
           print("Foreground service connectedDevice disiapkan; tidak auto-start saat boot.")
           PY
