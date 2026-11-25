@@ -310,6 +310,9 @@ class CustomerRepository {
     String? purchaseDate,
     String? warrantyUntil,
     String? notes,
+    String ownershipStatus = 'customer_owned',
+    String? ownerName,
+    String? ownerPhone,
   }) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola sepeda pelanggan.');
     final db = await _db;
@@ -326,6 +329,15 @@ class CustomerRepository {
         'purchase_date': purchaseDate,
         'warranty_until': warrantyUntil,
         'notes': notes?.trim(),
+        'ownership_status': ownershipStatus,
+        'owner_name': _nullableText(ownerName),
+        'owner_phone': _nullableText(ownerPhone),
+      });
+      await txn.insert('bicycle_ownership_history', {
+        'bicycle_id': id,
+        'new_customer_id': customerId,
+        'new_owner_name': _nullableText(ownerName),
+        'change_type': ownershipStatus == 'unknown' ? 'ownership_unknown' : 'registered',
       });
       await ActivityLogRepository.record(
         txn,
@@ -336,6 +348,107 @@ class CustomerRepository {
       );
       return id;
     });
+  }
+
+  /// Memindahkan kepemilikan sepeda tanpa menghapus riwayat pemilik sebelumnya.
+  Future<void> transferBicycleOwnership({
+    required int bicycleId,
+    required int newCustomerId,
+    String? newOwnerName,
+    String? notes,
+  }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola sepeda pelanggan.');
+    final db = await _db;
+    await db.transaction((txn) async {
+      final rows = await txn.query('bicycles', where: 'id = ?', whereArgs: [bicycleId], limit: 1);
+      if (rows.isEmpty) throw StateError('Sepeda tidak ditemukan.');
+      final bicycle = rows.first;
+      final previousCustomerId = bicycle['customer_id'] as int?;
+      final previousOwnerName = bicycle['owner_name']?.toString();
+      final owner = _nullableText(newOwnerName);
+      await txn.update('bicycles', {
+        'customer_id': newCustomerId,
+        'ownership_status': 'customer_owned',
+        'owner_name': owner,
+        'owner_phone': null,
+      }, where: 'id = ?', whereArgs: [bicycleId]);
+      await txn.insert('bicycle_ownership_history', {
+        'bicycle_id': bicycleId,
+        'previous_customer_id': previousCustomerId,
+        'new_customer_id': newCustomerId,
+        'previous_owner_name': previousOwnerName,
+        'new_owner_name': owner,
+        'change_type': 'owner_changed',
+        'notes': _nullableText(notes),
+      });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'bicycle_owner_changed',
+        description: 'Memindahkan kepemilikan sepeda #$bicycleId ke pelanggan #$newCustomerId.',
+        entityType: 'bicycle',
+        entityId: bicycleId,
+      );
+    });
+  }
+
+  /// Menandai sepeda sebagai barang yang akan dijual atau sudah terjual.
+  Future<void> updateBicycleOwnershipStatus({
+    required int bicycleId,
+    required String status,
+    String? ownerName,
+    String? ownerPhone,
+    String? notes,
+  }) async {
+    const allowed = {'customer_owned', 'third_party', 'for_sale', 'sold', 'unknown'};
+    if (!allowed.contains(status)) throw ArgumentError.value(status, 'status');
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola sepeda pelanggan.');
+    final db = await _db;
+    await db.transaction((txn) async {
+      final rows = await txn.query('bicycles', where: 'id = ?', whereArgs: [bicycleId], limit: 1);
+      if (rows.isEmpty) throw StateError('Sepeda tidak ditemukan.');
+      final bicycle = rows.first;
+      final oldStatus = bicycle['ownership_status']?.toString() ?? 'customer_owned';
+      final changeType = status == 'for_sale'
+          ? 'marked_for_sale'
+          : status == 'sold'
+              ? 'sold'
+              : status == 'unknown'
+                  ? 'ownership_unknown'
+                  : 'owner_changed';
+      await txn.update('bicycles', {
+        'ownership_status': status,
+        'owner_name': _nullableText(ownerName),
+        'owner_phone': _nullableText(ownerPhone),
+        if (status == 'sold') 'customer_id': null,
+      }, where: 'id = ?', whereArgs: [bicycleId]);
+      await txn.insert('bicycle_ownership_history', {
+        'bicycle_id': bicycleId,
+        'previous_customer_id': bicycle['customer_id'],
+        'new_customer_id': status == 'sold' ? null : bicycle['customer_id'],
+        'previous_owner_name': bicycle['owner_name'],
+        'new_owner_name': _nullableText(ownerName),
+        'change_type': changeType,
+        'notes': _nullableText(notes) ?? 'Status kepemilikan diubah dari $oldStatus menjadi $status.',
+      });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'bicycle_ownership_status_changed',
+        description: 'Mengubah status kepemilikan sepeda #$bicycleId menjadi $status.',
+        entityType: 'bicycle',
+        entityId: bicycleId,
+      );
+    });
+  }
+
+  Future<List<Map<String, Object?>>> getBicycleOwnershipHistory(int bicycleId) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat melihat riwayat sepeda.');
+    final db = await _db;
+    return db.query(
+      'bicycle_ownership_history',
+      where: 'bicycle_id = ?',
+      whereArgs: [bicycleId],
+      orderBy: 'changed_at DESC, id DESC',
+    );
   }
 
   Future<int> updateBicycle({
