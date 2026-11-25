@@ -162,3 +162,38 @@ Tahap 1 belum dianggap selesai hanya karena pilihan mode tampil. Server baru din
 - Tes pencabutan token saat Client masih tersambung.
 - Audit log agar kode, token, private key, dan data sensitif tidak tercetak.
 - Sampai seluruh tes tersebut lulus, Mode Server/Client dan transaksi jaringan tetap nonaktif.
+
+## Catatan evaluasi transport TLS — 25 November 2026
+
+Evaluasi pustaka dilakukan sebelum menambahkan dependensi atau membuka endpoint pairing.
+
+### Temuan
+
+- `dart:io HttpServer.bindSecure` memang mendukung HTTPS, tetapi membutuhkan `SecurityContext` yang sudah memuat certificate chain dan private key. Artinya aplikasi tetap harus memiliki proses penerbitan, penyimpanan, pemuatan, dan rotasi sertifikat yang aman.
+- Paket `x509` yang ditemukan berfokus pada parsing/pekerjaan dengan sertifikat X.509; dokumentasinya tidak membuktikan alur lengkap penerbitan sertifikat self-signed untuk kebutuhan ini.
+- Paket `ftp_server` menyediakan generator sertifikat self-signed, tetapi produk utamanya adalah server FTP/FTPS, bukan REST API. Matriks kompatibilitas yang ditampilkan menguji macOS, Linux, dan Windows; belum menjadi bukti dukungan Android API 23/24. Jangan menambahkan paket ini hanya untuk mengambil generator sertifikatnya.
+- Paket `rk_pki` menyediakan penerbitan/validasi identitas berbasis native Rust dan mencantumkan Android termasuk ABI `armeabi-v7a`, `arm64-v8a`, dan `x86_64`. Namun paket ini masih baru dan bukan implementasi HTTP/TLS server; ia mengelola PKI/identitas yang harus diintegrasikan dengan transport. Dokumentasi paket yang tersedia belum membuktikan pengujian pada Android 6/API 23 dan Android 7/API 24 milik perangkat sasaran.
+
+### Keputusan sementara
+
+Belum menambahkan dependensi TLS/PKI ke `pubspec.yaml`. Tidak ada kandidat yang boleh dianggap aman hanya dari klaim dukungan platform atau contoh penggunaan. Paket native yang baru juga tidak boleh langsung menjadi ketergantungan produksi sebelum build dan uji perangkat sasaran.
+
+Sebelum keputusan final, buat proof-of-concept terisolasi yang membuktikan seluruh hal berikut:
+
+1. Sertifikat dan private key dibuat sekali pada Server, disimpan di direktori privat aplikasi, tidak pernah masuk backup umum/log/QR, dan tetap dapat dimuat setelah aplikasi dimulai ulang.
+2. Server dapat menjalankan HTTPS melalui `HttpServer.bindSecure` di isolate foreground yang sekarang digunakan.
+3. Client dapat memverifikasi identitas sertifikat yang diperoleh melalui proses pairing lokal, menolak pin yang salah, sertifikat yang diganti, sertifikat kedaluwarsa, dan koneksi tanpa TLS.
+4. Pengujian dilakukan pada Android API 23 dan 24 serta ABI perangkat Sunmi yang benar-benar digunakan.
+5. Mekanisme rotasi sertifikat dan pairing ulang dirancang agar perubahan sertifikat tidak diterima diam-diam.
+6. Private key tidak dikirim ke Client; QR hanya memuat informasi publik/fingerprint dan kode pairing sekali pakai.
+
+### Pekerjaan yang tetap diblokir
+
+- Jangan menambahkan endpoint pairing atau endpoint transaksi ke listener HTTP saat ini.
+- Jangan mengirim kode pairing, token, kredensial, atau data bisnis melalui HTTP.
+- Jangan mengubah `badCertificateCallback` menjadi selalu menerima sertifikat.
+- Jangan membuka database dari task isolate. Jalur komunikasi terverifikasi ke pemilik database atau arsitektur database isolate khusus harus diputuskan dan diuji lebih dahulu.
+- Jangan mengaktifkan mode Server/Client di UI sebelum transport, pairing, otorisasi, dan akses database melewati gerbang pengujian.
+
+Catatan ini merupakan hasil evaluasi dokumentasi dan kode, bukan hasil uji TLS pada perangkat fisik.
+
