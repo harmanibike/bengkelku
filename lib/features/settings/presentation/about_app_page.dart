@@ -38,7 +38,7 @@ class AboutAppPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Image.asset(
-                      'assets/branding/bengkelku_logo.jpg',
+                      'assets/branding/bike_pos_icon.png',
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => const Icon(
                         Icons.pedal_bike_rounded,
