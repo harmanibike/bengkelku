@@ -921,20 +921,6 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
-    // Penanda transaksi percobaan. Data lama default 0 (belum diklasifikasikan);
-    // tidak ada transaksi lama yang otomatis dianggap sebagai percobaan.
-    if (oldVersion < 40) {
-      final existingTables = (await db.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type = 'table'",
-      )).map((row) => row['name']?.toString()).toSet();
-      for (final table in ['sales', 'purchases', 'service_orders']) {
-        if (existingTables.contains(table)) {
-          await db.execute('ALTER TABLE $table ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0');
-          await db.execute('CREATE INDEX idx_${table}_is_test ON $table(is_test)');
-        }
-      }
-    }
-
     // Varian produk ditambahkan secara aditif; data produk dan transaksi lama tidak diubah.
     if (oldVersion < 38) {
       await db.execute('''
@@ -1798,6 +1784,20 @@ class AppDatabase {
       await db.execute('ALTER TABLE service_orders ADD COLUMN queue_priority INTEGER NOT NULL DEFAULT 0');
       await db.execute('CREATE UNIQUE INDEX idx_service_daily_queue ON service_orders(queue_date, queue_number) WHERE queue_number IS NOT NULL');
       await db.execute('CREATE INDEX idx_service_queue_order ON service_orders(queue_date, queue_priority DESC, queue_number ASC)');
+    }
+
+    // Penanda transaksi percobaan. Data lama default 0 (belum diklasifikasikan);
+    // tidak ada transaksi lama yang otomatis dianggap sebagai percobaan.
+    if (oldVersion < 40) {
+      final existingTables = (await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table'",
+      )).map((row) => row['name']?.toString()).toSet();
+      for (final table in ['sales', 'purchases', 'service_orders']) {
+        if (existingTables.contains(table)) {
+          await db.execute('ALTER TABLE $table ADD COLUMN is_test INTEGER NOT NULL DEFAULT 0');
+          await db.execute('CREATE INDEX idx_${table}_is_test ON $table(is_test)');
+        }
+      }
     }
 
   }
