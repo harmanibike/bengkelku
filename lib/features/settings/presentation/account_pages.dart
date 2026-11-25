@@ -101,7 +101,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) => Scaffold(
     body: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(22), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Card(
       child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Image.asset('assets/branding/bengkelku_logo.jpg', height: 90, errorBuilder: (_, __, ___) => const Icon(Icons.pedal_bike, size: 64)),
+        Image.asset('assets/branding/bike_pos_icon.png', height: 90, errorBuilder: (_, __, ___) => const Icon(Icons.pedal_bike, size: 64)),
         const SizedBox(height: 10), const Text('Bike POS', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 18), TextField(controller: _username, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person))),
         const SizedBox(height: 12), TextField(controller: _pin, obscureText: true, keyboardType: TextInputType.number, onSubmitted: (_) => _login(), decoration: const InputDecoration(labelText: 'PIN', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock))),
