@@ -644,6 +644,11 @@ class SaleRepository {
       ''', [id]);
       final walletRefund = (walletPaidRows.first['total'] as num?)?.toInt() ?? 0;
       final customerId = sale['customer_id'] as int?;
+      if (walletRefund > 0 && customerId == null) {
+        throw StateError(
+          'Pelanggan asal tidak ditemukan untuk mengembalikan pembayaran saldo. Pembatalan dibatalkan agar saldo pelanggan tidak hilang.',
+        );
+      }
       if (walletRefund > 0 && customerId != null) {
         final balanceRows = await txn.rawQuery(
           'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
