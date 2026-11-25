@@ -346,3 +346,26 @@ Ketentuan yang disepakati:
 - Backup sebelum pembersihan massal dan catat aktivitas Admin.
 
 Status: spesifikasi disepakati; UI, repository, migrasi/penanda percobaan, penghapusan aman, dan tes otomatis belum dibuat. Fitur hapus nota servis yang sudah ada bukan pengganti fitur pembersihan lintas-modul ini.
+
+## 18. Backup lengkap lokal dan Google Drive
+
+Keputusan pengguna: backup Bike POS menggunakan **penyimpanan lokal dan Google Drive**.
+
+Spesifikasi yang disepakati:
+- [ ] Paket backup lengkap berisi database SQLite dan seluruh media yang direferensikan database.
+- [ ] Media yang harus dicakup: foto produk, foto profil pelanggan (saat ini tersimpan sebagai Base64 di database), foto sebelum/sesudah servis, logo usaha, foto profil akun, serta media lain yang ditambahkan oleh modul aplikasi.
+- [ ] Simpan backup lokal di penyimpanan perangkat atau lokasi yang dipilih pengguna; proses pembuatan backup harus tetap dapat berjalan tanpa internet.
+- [ ] Sediakan ekspor/simpan ke Google Drive ketika layanan Drive tersedia dan pengguna telah memberi izin. Kegagalan internet/Drive tidak boleh membatalkan backup lokal.
+- [ ] Sediakan daftar backup dengan tanggal, ukuran, versi aplikasi/skema, dan ringkasan jumlah file media; jangan menimpa backup lama secara diam-diam.
+- [ ] Pemulihan memvalidasi arsip, integritas SQLite, versi skema, dan kelengkapan media sebelum mengganti data aktif.
+- [ ] Pemulihan ke perangkat baru harus memetakan ulang lokasi file media agar foto tetap terbaca, serta membuat salinan pengaman data aktif sebelum pemulihan.
+- [ ] Batasi buat/pulihkan backup untuk Admin dan catat aktivitasnya.
+- [ ] Uji backup database + media, arsip rusak, media hilang, pemulihan gagal, dan pemulihan ke direktori/perangkat berbeda.
+
+Kondisi kode saat keputusan ini dicatat:
+- Menu Backup & Pemulihan dan layanan backup database `.db` sudah ada.
+- Backup yang ada belum mengemas file media dan belum menyediakan integrasi Google Drive langsung.
+- Alur berbagi file Android dapat digunakan sebagai tahap ekspor manual ke aplikasi penyimpanan yang kompatibel; ini **bukan** sinkronisasi atau unggah otomatis Google Drive.
+- Implementasi paket backup lengkap, pemetaan ulang media, dan alur Google Drive masih belum selesai.
+
+Urutan pengerjaan: (1) inventaris seluruh kolom/lokasi media, (2) paket arsip database + media dan validasi, (3) pemulihan aman beserta pemetaan ulang path, (4) penyimpanan lokal dan riwayat backup, (5) integrasi Google Drive dengan izin pengguna, lalu (6) pengujian pemulihan lintas perangkat. Backup lokal harus tetap berfungsi mandiri bila Drive tidak tersedia.
