@@ -145,7 +145,7 @@ class _DashboardPageState extends State<DashboardPage> {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF536DFE), Color(0xFF7B1FA2)],
+          colors: [Color(0xFF1558A6), Color(0xFF2478C8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -173,10 +173,10 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               clipBehavior: Clip.antiAlias,
               child: Image.asset(
-                'assets/branding/bengkelku_logo.jpg',
+                'assets/branding/bike_pos_icon.png',
                 width: 50,
                 height: 50,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => const ColoredBox(
                   color: Color(0xFF0756D8),
                   child: Icon(Icons.pedal_bike_rounded, color: Colors.white, size: 38),
@@ -305,13 +305,13 @@ class _DashboardPageState extends State<DashboardPage> {
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF6200EA), Color(0xFF9C27B0)],
+          colors: [Color(0xFF1558A6), Color(0xFF16866A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(17),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF7B1FA2).withValues(alpha: 0.22), blurRadius: 15, offset: const Offset(0, 7)),
+          BoxShadow(color: const Color(0xFF1558A6).withValues(alpha: 0.18), blurRadius: 15, offset: const Offset(0, 7)),
         ],
       ),
       child: Row(
@@ -346,19 +346,19 @@ class _DashboardPageState extends State<DashboardPage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: _openCashier,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         child: Ink(
           width: double.infinity,
           padding: const EdgeInsets.all(11),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)],
+              colors: [Color(0xFF1767B1), Color(0xFF3B91D5)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
-              BoxShadow(color: const Color(0xFF9C27B0).withValues(alpha: 0.18), blurRadius: 12, offset: const Offset(0, 5)),
+              BoxShadow(color: const Color(0xFF1558A6).withValues(alpha: 0.16), blurRadius: 12, offset: const Offset(0, 5)),
             ],
           ),
           child: const Column(
@@ -485,12 +485,12 @@ class _DashboardPageState extends State<DashboardPage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(14),
       child: Column(
         children: [
           Container(
-            width: 68,
-            height: 68,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(14),
@@ -501,7 +501,7 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Icon(icon, color: Colors.white, size: 32),
           ),
           const SizedBox(height: 4),
-          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, height: 1.12, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
+          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, height: 1.15, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
         ],
       ),
     );
@@ -563,7 +563,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
                         sliver: SliverList(
                           delegate: SliverChildListDelegate([
                             _shopCard(),
