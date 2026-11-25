@@ -48,6 +48,34 @@ jobs:
             flutter create --platforms=android --project-name bengkelku_pos .
           fi
 
+      - name: Disable Android backup for encrypted TLS identity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          source = path.read_text()
+          if 'android:allowBackup=' in source:
+              source, count = re.subn(
+                  r'android:allowBackup="[^"]*"',
+                  'android:allowBackup="false"',
+                  source,
+                  count=1,
+              )
+          else:
+              source, count = re.subn(
+                  r'(<application\\b)',
+                  r'\\1 android:allowBackup="false"',
+                  source,
+                  count=1,
+              )
+          if count != 1:
+              raise SystemExit("Atribut application tidak ditemukan untuk menonaktifkan backup Android.")
+          path.write_text(source)
+          print("Android Auto Backup dinonaktifkan agar kunci TLS terenkripsi tidak dipulihkan tanpa kunci Keystore.")
+          PY
+
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
         with:
