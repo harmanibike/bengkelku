@@ -447,7 +447,7 @@ class _DashboardPageState extends State<DashboardPage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final columns = constraints.maxWidth >= 560 ? 3 : 2;
-            final ratio = constraints.maxWidth >= 380 ? 2.12 : 1.9;
+            final ratio = constraints.maxWidth >= 380 ? 2.45 : 2.15;
             return GridView.count(
           crossAxisCount: columns,
           shrinkWrap: true,
@@ -538,7 +538,7 @@ class _DashboardPageState extends State<DashboardPage> {
       const SizedBox(height: 4),
       LayoutBuilder(builder: (context, constraints) {
         final columns = constraints.maxWidth >= 560 ? 4 : 3;
-        final ratio = constraints.maxWidth >= 560 ? 1.12 : 1.10;
+        final ratio = constraints.maxWidth >= 560 ? 1.45 : 1.30;
         return GridView.count(crossAxisCount: columns, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisSpacing: 6, mainAxisSpacing: 6, childAspectRatio: ratio, children: tiles);
       }),
     ]);
