@@ -715,6 +715,81 @@ class SaleRepository {
     });
   }
 
+  /// Menghapus penjualan percobaan yang belum menerima pembayaran.
+  /// Penjualan yang punya retur, pembayaran, saldo, poin, atau arsip ditolak.
+  Future<int> deleteDummySale(int id) async {
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat menghapus transaksi.');
+    final db = await _db;
+    final deleted = await db.transaction((txn) async {
+      final rows = await txn.query('sales', where: 'id = ?', whereArgs: [id], limit: 1);
+      if (rows.isEmpty) throw StateError('Transaksi penjualan tidak ditemukan.');
+      final sale = rows.first;
+      if ((sale['paid'] as num? ?? 0) != 0 ||
+          (sale['payment_status']?.toString() != 'unpaid')) {
+        throw StateError('Hanya transaksi dummy yang belum menerima pembayaran yang dapat dihapus.');
+      }
+
+      Future<void> ensureNoRows(String table, String where, List<Object?> args, String label) async {
+        final found = await txn.query(table, columns: ['id'], where: where, whereArgs: args, limit: 1);
+        if (found.isNotEmpty) throw StateError('Transaksi memiliki $label; penghapusan permanen ditolak.');
+      }
+
+      await ensureNoRows('sale_returns', 'sale_id = ?', [id], 'retur');
+      await ensureNoRows('cash_transactions', "reference_id = ? AND reference_type IN ('sale', 'sale_payment', 'sale_cancel')", [id], 'catatan kas');
+      await ensureNoRows('customer_wallet_ledger', "reference_id = ? AND reference_type IN ('sale', 'sale_cancel')", [id], 'riwayat saldo pelanggan');
+      await ensureNoRows('loyalty_point_ledger', 'sale_id = ?', [id], 'riwayat poin');
+      await ensureNoRows('receipt_snapshots', "source_type = 'sale' AND source_id = ?", [id], 'arsip nota');
+
+      final movements = await txn.query('stock_movements',
+        where: "reference_type = 'sale' AND reference_id = ? AND movement_type = 'out'",
+        whereArgs: [id], orderBy: 'id ASC');
+      final allocations = await txn.query('sale_batch_allocations',
+        where: 'sale_id = ?', whereArgs: [id]);
+      for (final allocation in allocations) {
+        final batchId = allocation['batch_id'] as int;
+        final quantity = (allocation['quantity'] as num?)?.toInt() ?? 0;
+        if (quantity > 0) {
+          final batches = await txn.query('inventory_cost_batches',
+            columns: ['id'], where: 'id = ?', whereArgs: [batchId], limit: 1);
+          if (batches.isEmpty) throw StateError('Batch biaya sudah tidak ditemukan; transaksi tidak dihapus.');
+          await txn.rawUpdate(
+            'UPDATE inventory_cost_batches SET quantity_remaining = quantity_remaining + ? WHERE id = ?',
+            [quantity, batchId],
+          );
+        }
+      }
+      for (final movement in movements) {
+        final productId = movement['product_id'] as int;
+        final quantity = (movement['quantity'] as num?)?.toInt() ?? 0;
+        if (quantity <= 0) throw StateError('Riwayat stok tidak valid; transaksi tidak dihapus.');
+        final products = await txn.query('products', columns: ['id', 'stock'],
+          where: 'id = ?', whereArgs: [productId], limit: 1);
+        if (products.isEmpty) throw StateError('Produk terkait tidak ditemukan; transaksi tidak dihapus.');
+        final before = (products.first['stock'] as num?)?.toInt() ?? 0;
+        await txn.update('products', {
+          'stock': before + quantity,
+          'updated_at': DateTime.now().toIso8601String(),
+        }, where: 'id = ?', whereArgs: [productId]);
+      }
+
+      await txn.delete('stock_movements',
+        where: "reference_type = 'sale' AND reference_id = ?", whereArgs: [id]);
+      await txn.delete('sale_batch_allocations', where: 'sale_id = ?', whereArgs: [id]);
+      await txn.delete('sale_items', where: 'sale_id = ?', whereArgs: [id]);
+      final count = await txn.delete('sales', where: 'id = ?', whereArgs: [id]);
+      await ActivityLogRepository.record(
+        txn,
+        action: 'sale_dummy_deleted',
+        description: 'Menghapus transaksi penjualan dummy ${sale['invoice_number'] ?? id}.',
+        entityType: 'sale',
+        entityId: id,
+      );
+      return count;
+    });
+    await StockReminderNotificationService.instance.syncStockReminder();
+    return deleted;
+  }
+
   Future<List<Map<String, Object?>>> getSales({String keyword = ''}) async {
     AuthSession.instance.requireCashierOrAdmin('Akun Mekanik tidak memiliki akses riwayat penjualan.');
     final db = await _db;
