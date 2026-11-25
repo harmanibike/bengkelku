@@ -236,8 +236,8 @@ class ProductImportService {
     var raw = (value ?? '').trim();
     if (raw.isEmpty) return 0;
     raw = raw
-        .replaceAll(RegExp(r'(?i)rp'), '')
-        .replaceAll(RegExp(r'[\\s\\u00a0]'), '');
+        .replaceAll(RegExp(r'rp', caseSensitive: false), '')
+        .replaceAll(RegExp(r'[\s\u00a0]'), '');
     if (!RegExp(r'^-?\\d[\\d.,]*
 
   static String? _clean(String? value) {
