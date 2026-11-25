@@ -1430,6 +1430,71 @@ void main() {
     ), isEmpty);
   });
 
+  test('purchase return cash refunds across multiple returns cannot exceed total paid', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Refund Bertahap'});
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-REFUND-BERTAHAP',
+      supplierId: supplierId,
+      items: [
+        {
+          'product_id': null,
+          'product_name': 'Barang Refund Bertahap',
+          'quantity': 2,
+          'unit_cost': 30000,
+          'discount': 0,
+        },
+      ],
+      initialPayment: 50000,
+      paymentMethod: 'cash',
+    );
+    final item = (await db.query(
+      'purchase_items',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+      limit: 1,
+    )).single;
+    final returns = PurchaseReturnRepository();
+    final firstReturn = await returns.createReturn(
+      purchaseId: purchaseId,
+      returnNumber: 'PR-REFUND-BERTAHAP-1',
+      quantities: {item['id'] as int: 1},
+    );
+    await returns.settleReturn(
+      returnId: firstReturn,
+      creditApplied: 0,
+      refundReceived: 30000,
+    );
+    final secondReturn = await returns.createReturn(
+      purchaseId: purchaseId,
+      returnNumber: 'PR-REFUND-BERTAHAP-2',
+      quantities: {item['id'] as int: 1},
+    );
+
+    await expectLater(
+      returns.settleReturn(
+        returnId: secondReturn,
+        creditApplied: 0,
+        refundReceived: 30000,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    final refunds = await db.query(
+      'cash_transactions',
+      where: "reference_type = 'purchase_return_refund'",
+    );
+    expect(refunds, hasLength(1));
+    expect(refunds.single['amount'], 30000);
+    final second = (await db.query(
+      'purchase_returns',
+      where: 'id = ?',
+      whereArgs: [secondReturn],
+    )).single;
+    expect(second['refund_received'], 0);
+  });
+
   test('purchase return cancellation restores stock and original cost batch', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {
