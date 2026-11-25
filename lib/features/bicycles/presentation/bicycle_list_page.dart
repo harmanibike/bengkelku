@@ -11,7 +11,7 @@ class BicycleListPage extends StatefulWidget {
 }
 
 class _BicycleListPageState extends State<BicycleListPage> {
-  static const Map<String, String> __ownershipStatuses = {
+  static const Map<String, String> _ownershipStatuses = {
     'customer_owned': 'Milik pelanggan',
     'third_party': 'Milik orang lain',
     'for_sale': 'Untuk dijual',
