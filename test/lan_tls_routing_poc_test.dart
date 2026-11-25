@@ -3,17 +3,15 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/lan_tls_test_client.dart';
+import 'support/test_certificate.dart';
 
 const _expectedHost = 'bikepos-poc.invalid';
 const _wrongHost = 'wrong-bikepos-poc.invalid';
 
-Future<HttpServer> _startSecureServer({
-  required String certificatePath,
-  required String privateKeyPath,
-}) async {
+Future<HttpServer> _startSecureServer(TestCertificate certificate) async {
   final context = SecurityContext()
-    ..useCertificateChainBytes(await File(certificatePath).readAsBytes())
-    ..usePrivateKeyBytes(await File(privateKeyPath).readAsBytes());
+    ..useCertificateChainBytes(await certificate.certificate.readAsBytes())
+    ..usePrivateKeyBytes(await certificate.privateKey.readAsBytes());
 
   final server = await HttpServer.bindSecure(
     InternetAddress.loopbackIPv4,
@@ -54,16 +52,13 @@ Future<int> _request(HttpClient client, String host, int port) async {
 void main() {
   group('LAN TLS stable DNS routing PoC', () {
     test('routes TCP to LAN IP while TLS verifies stable DNS identity', () async {
-      final server = await _startSecureServer(
-        certificatePath: 'test/fixtures/server-cert.pem',
-        privateKeyPath: 'test/fixtures/server-key.pem',
-      );
+      final certificate = await createTestCertificate(_expectedHost);
+      final server = await _startSecureServer(certificate);
       final client = createLanTlsTestClient(
         expectedDnsName: _expectedHost,
         routeAddress: InternetAddress.loopbackIPv4,
         routePort: server.port,
-        trustedCertificatePem:
-            await File('test/fixtures/server-cert.pem').readAsString(),
+        trustedCertificatePem: await certificate.certificate.readAsString(),
       );
 
       try {
@@ -71,22 +66,19 @@ void main() {
       } finally {
         client.close(force: true);
         await server.close(force: true);
+        await certificate.dispose();
       }
     });
 
     test('rejects a trusted certificate with the wrong DNS identity', () async {
-      final server = await _startSecureServer(
-        certificatePath: 'test/fixtures/wrong-cert.pem',
-        privateKeyPath: 'test/fixtures/wrong-key.pem',
-      );
+      final certificate = await createTestCertificate(_wrongHost);
+      final server = await _startSecureServer(certificate);
       final client = createLanTlsTestClient(
         expectedDnsName: _expectedHost,
         routeAddress: InternetAddress.loopbackIPv4,
         routePort: server.port,
-        // Trust the presented certificate so this test isolates hostname
-        // verification rather than merely testing an unknown trust anchor.
-        trustedCertificatePem:
-            await File('test/fixtures/wrong-cert.pem').readAsString(),
+        // Trust the presented certificate so this isolates hostname checking.
+        trustedCertificatePem: await certificate.certificate.readAsString(),
       );
 
       try {
@@ -97,20 +89,21 @@ void main() {
       } finally {
         client.close(force: true);
         await server.close(force: true);
+        await certificate.dispose();
       }
     });
 
     test('rejects a server certificate that differs from the pinned cert', () async {
-      final server = await _startSecureServer(
-        certificatePath: 'test/fixtures/server-cert.pem',
-        privateKeyPath: 'test/fixtures/server-key.pem',
-      );
+      final serverCertificate = await createTestCertificate(_expectedHost);
+      final differentTrustedCertificate =
+          await createTestCertificate(_expectedHost);
+      final server = await _startSecureServer(serverCertificate);
       final client = createLanTlsTestClient(
         expectedDnsName: _expectedHost,
         routeAddress: InternetAddress.loopbackIPv4,
         routePort: server.port,
         trustedCertificatePem:
-            await File('test/fixtures/wrong-cert.pem').readAsString(),
+            await differentTrustedCertificate.certificate.readAsString(),
       );
 
       try {
@@ -121,17 +114,19 @@ void main() {
       } finally {
         client.close(force: true);
         await server.close(force: true);
+        await serverCertificate.dispose();
+        await differentTrustedCertificate.dispose();
       }
     });
 
     test('rejects plaintext HTTP on the HTTPS route', () async {
+      final certificate = await createTestCertificate(_expectedHost);
       final server = await _startPlainServer();
       final client = createLanTlsTestClient(
         expectedDnsName: _expectedHost,
         routeAddress: InternetAddress.loopbackIPv4,
         routePort: server.port,
-        trustedCertificatePem:
-            await File('test/fixtures/server-cert.pem').readAsString(),
+        trustedCertificatePem: await certificate.certificate.readAsString(),
       );
 
       try {
@@ -142,16 +137,17 @@ void main() {
       } finally {
         client.close(force: true);
         await server.close(force: true);
+        await certificate.dispose();
       }
     });
 
     test('refuses a URL host that differs from the paired identity', () async {
+      final certificate = await createTestCertificate(_expectedHost);
       final client = createLanTlsTestClient(
         expectedDnsName: _expectedHost,
         routeAddress: InternetAddress.loopbackIPv4,
         routePort: 443,
-        trustedCertificatePem:
-            await File('test/fixtures/server-cert.pem').readAsString(),
+        trustedCertificatePem: await certificate.certificate.readAsString(),
       );
 
       try {
@@ -161,6 +157,7 @@ void main() {
         );
       } finally {
         client.close(force: true);
+        await certificate.dispose();
       }
     });
   });
