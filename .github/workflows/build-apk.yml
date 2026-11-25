@@ -657,19 +657,36 @@ jobs:
 
       - name: Verify APK signature
         run: |
+          set -eu
           APK="build/app/outputs/flutter-apk/app-release.apk"
-          jarsigner -verify -verbose -certs "$APK"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APKSIGNER="$(find "$SDK_ROOT/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
+            echo "Android apksigner tidak ditemukan."
+            exit 1
+          fi
+          if [ ! -s "$APK" ]; then
+            echo "File APK hasil build tidak ditemukan atau kosong: $APK"
+            exit 1
+          fi
+          "$APKSIGNER" verify --verbose --print-certs "$APK"
 
       - name: Rename Bike POS APK with version
         run: |
-          VERSION="$(awk '/^version:/{sub(/^version:[[:space:]]*/, ""); sub(/\+.*/, ""); print; exit}' pubspec.yaml)"
+          set -eu
+          VERSION="$(awk '/^version:/{sub(/^version:[[:space:]]*/, ""); sub(/\\+.*/, ""); print; exit}' pubspec.yaml)"
           if [ -z "$VERSION" ]; then
             echo "Nomor versi tidak ditemukan di pubspec.yaml."
             exit 1
           fi
-          cp build/app/outputs/flutter-apk/app-release.apk \\
-             "build/app/outputs/flutter-apk/Bike-POS-v${VERSION}.apk"
-          echo "APK siap: Bike-POS-v${VERSION}.apk"
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          TARGET="build/app/outputs/flutter-apk/Bike-POS-v${VERSION}.apk"
+          if [ ! -s "$APK" ]; then
+            echo "File APK sumber tidak ditemukan atau kosong: $APK"
+            exit 1
+          fi
+          cp "$APK" "$TARGET"
+          echo "APK siap: $TARGET"
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v5
