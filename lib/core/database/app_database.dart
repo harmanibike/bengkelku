@@ -604,6 +604,9 @@ class AppDatabase {
       )
     ''');
     batch.execute('CREATE INDEX idx_inventory_cost_batches_product ON inventory_cost_batches(product_id, received_at, id)');
+    batch.execute('CREATE INDEX idx_inventory_cost_batches_variant ON inventory_cost_batches(variant_id, received_at, id)');
+    batch.execute('CREATE INDEX idx_stock_movements_variant ON stock_movements(variant_id, created_at DESC)');
+    batch.execute('CREATE INDEX idx_purchase_items_variant ON purchase_items(variant_id)');
     batch.execute('''
       CREATE TABLE sale_batch_allocations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

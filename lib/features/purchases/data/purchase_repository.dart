@@ -60,6 +60,9 @@ class PurchaseRepository {
       final quantity = item['quantity'] as int? ?? 0;
       final unitCost = item['unit_cost'] as int? ?? 0;
       final lineDiscount = item['discount'] as int? ?? 0;
+      if (variantId != null && productId == null) {
+        throw ArgumentError('Varian pembelian harus terhubung ke produk induk.');
+      }
       if (name.isEmpty || quantity <= 0 || unitCost < 0 || lineDiscount < 0) {
         throw ArgumentError('Rincian barang pembelian tidak valid.');
       }
