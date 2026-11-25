@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 39;
+  static const int currentVersion = 40;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -1782,6 +1782,33 @@ class AppDatabase {
       await db.execute('CREATE UNIQUE INDEX idx_service_daily_queue ON service_orders(queue_date, queue_number) WHERE queue_number IS NOT NULL');
       await db.execute('CREATE INDEX idx_service_queue_order ON service_orders(queue_date, queue_priority DESC, queue_number ASC)');
     }
+
+    // Status kepemilikan sepeda dan jejak perpindahan pemilik.
+    // customer_id tetap menyimpan relasi pelanggan yang terkait dengan sepeda;
+    // owner_name/owner_phone menyimpan identitas pemilik sebenarnya bila berbeda.
+    if (oldVersion < 40) {
+      await db.execute("ALTER TABLE bicycles ADD COLUMN ownership_status TEXT NOT NULL DEFAULT 'customer_owned'");
+      await db.execute('ALTER TABLE bicycles ADD COLUMN owner_name TEXT');
+      await db.execute('ALTER TABLE bicycles ADD COLUMN owner_phone TEXT');
+      await db.execute('''
+        CREATE TABLE bicycle_ownership_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          bicycle_id INTEGER NOT NULL,
+          previous_customer_id INTEGER,
+          new_customer_id INTEGER,
+          previous_owner_name TEXT,
+          new_owner_name TEXT,
+          change_type TEXT NOT NULL CHECK(change_type IN ('registered', 'owner_changed', 'marked_for_sale', 'sold', 'ownership_unknown')),
+          notes TEXT,
+          changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (bicycle_id) REFERENCES bicycles(id) ON DELETE RESTRICT,
+          FOREIGN KEY (previous_customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+          FOREIGN KEY (new_customer_id) REFERENCES customers(id) ON DELETE SET NULL
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_bicycle_ownership_history_bicycle ON bicycle_ownership_history(bicycle_id, changed_at DESC, id DESC)');
+    }
+
 
   }
 
