@@ -89,13 +89,16 @@ class _CustomerListPageState extends State<CustomerListPage> {
     final formKey = GlobalKey<FormState>();
     String? photoBase64 = customer?['photo_base64']?.toString();
     bool createBicycle = false;
-    final bicycleBrandController = TextEditingController();
-    final bicycleModelController = TextEditingController();
-    final bicycleColorController = TextEditingController();
-    final bicycleSizeController = TextEditingController();
-    final bicycleSerialController = TextEditingController();
     const bicycleTypes = ['Standar', 'MTB', 'BMX', 'Road Bike', 'Lipat', 'Anak', 'E-Bike', 'Lainnya'];
-    String selectedBicycleType = 'Standar';
+    Map<String, dynamic> newBicycleForm() => {
+      'brand': TextEditingController(),
+      'model': TextEditingController(),
+      'color': TextEditingController(),
+      'size': TextEditingController(),
+      'serial': TextEditingController(),
+      'type': 'Standar',
+    };
+    final bicycleForms = <Map<String, dynamic>>[newBicycleForm()];
 
     Future<void> choosePhoto(ImageSource source, StateSetter setDialogState) async {
       final image = await ImagePicker().pickImage(source: source, imageQuality: 75, maxWidth: 512, maxHeight: 512);
@@ -193,36 +196,52 @@ class _CustomerListPageState extends State<CustomerListPage> {
                         ),
                         if (createBicycle) ...[
                           const SizedBox(height: 8),
-                          TextFormField(
-                            controller: bicycleBrandController,
-                            decoration: const InputDecoration(labelText: 'Merek sepeda', border: OutlineInputBorder()),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: bicycleModelController,
-                            decoration: const InputDecoration(labelText: 'Model sepeda', border: OutlineInputBorder()),
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: selectedBicycleType,
-                            decoration: const InputDecoration(labelText: 'Jenis sepeda', border: OutlineInputBorder()),
-                            items: bicycleTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
-                            onChanged: (value) { if (value != null) setDialogState(() => selectedBicycleType = value); },
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: bicycleColorController,
-                            decoration: const InputDecoration(labelText: 'Warna', border: OutlineInputBorder()),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: bicycleSizeController,
-                            decoration: const InputDecoration(labelText: 'Ukuran frame', border: OutlineInputBorder()),
-                          ),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: bicycleSerialController,
-                            decoration: const InputDecoration(labelText: 'Nomor rangka / serial', border: OutlineInputBorder()),
+                          ...bicycleForms.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            final bike = entry.value;
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              child: Padding(
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(child: Text('Sepeda ${index + 1}', style: const TextStyle(fontWeight: FontWeight.w600))),
+                                        if (bicycleForms.length > 1)
+                                          IconButton(
+                                            tooltip: 'Hapus sepeda',
+                                            onPressed: () => setDialogState(() => bicycleForms.removeAt(index)),
+                                            icon: const Icon(Icons.delete_outline),
+                                          ),
+                                      ],
+                                    ),
+                                    TextFormField(controller: bike['brand'] as TextEditingController, decoration: const InputDecoration(labelText: 'Merek sepeda', border: OutlineInputBorder())),
+                                    const SizedBox(height: 8),
+                                    TextFormField(controller: bike['model'] as TextEditingController, decoration: const InputDecoration(labelText: 'Model sepeda', border: OutlineInputBorder())),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      initialValue: bike['type'] as String,
+                                      decoration: const InputDecoration(labelText: 'Jenis sepeda', border: OutlineInputBorder()),
+                                      items: bicycleTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                                      onChanged: (value) { if (value != null) setDialogState(() => bike['type'] = value); },
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextFormField(controller: bike['color'] as TextEditingController, decoration: const InputDecoration(labelText: 'Warna', border: OutlineInputBorder())),
+                                    const SizedBox(height: 8),
+                                    TextFormField(controller: bike['size'] as TextEditingController, decoration: const InputDecoration(labelText: 'Ukuran frame', border: OutlineInputBorder())),
+                                    const SizedBox(height: 8),
+                                    TextFormField(controller: bike['serial'] as TextEditingController, decoration: const InputDecoration(labelText: 'Nomor rangka / serial', border: OutlineInputBorder())),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                          OutlinedButton.icon(
+                            onPressed: () => setDialogState(() => bicycleForms.add(newBicycleForm())),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Tambah Sepeda Lagi'),
                           ),
                         ],
                       ],
@@ -265,19 +284,22 @@ class _CustomerListPageState extends State<CustomerListPage> {
         );
       } else {
         if (createBicycle) {
-          await _repository.addCustomerWithBicycle(
+          final bicycles = bicycleForms.map((bike) => <String, Object?>{
+            'brand': (bike['brand'] as TextEditingController).text,
+            'model': (bike['model'] as TextEditingController).text,
+            'bicycle_type': bike['type'],
+            'color': (bike['color'] as TextEditingController).text,
+            'frame_size': (bike['size'] as TextEditingController).text,
+            'serial_number': (bike['serial'] as TextEditingController).text,
+          }).toList();
+          await _repository.addCustomerWithBicycles(
             name: nameController.text,
             phone: phoneController.text,
             address: addressController.text,
             email: emailController.text,
             notes: notesController.text,
             photoBase64: photoBase64,
-            bicycleBrand: bicycleBrandController.text,
-            bicycleModel: bicycleModelController.text,
-            bicycleType: selectedBicycleType,
-            bicycleColor: bicycleColorController.text,
-            bicycleFrameSize: bicycleSizeController.text,
-            bicycleSerialNumber: bicycleSerialController.text,
+            bicycles: bicycles,
           );
         } else {
           await _repository.addCustomer(
@@ -316,11 +338,13 @@ class _CustomerListPageState extends State<CustomerListPage> {
       addressController.dispose();
       emailController.dispose();
       notesController.dispose();
-      bicycleBrandController.dispose();
-      bicycleModelController.dispose();
-      bicycleColorController.dispose();
-      bicycleSizeController.dispose();
-      bicycleSerialController.dispose();
+      for (final bike in bicycleForms) {
+        (bike['brand'] as TextEditingController).dispose();
+        (bike['model'] as TextEditingController).dispose();
+        (bike['color'] as TextEditingController).dispose();
+        (bike['size'] as TextEditingController).dispose();
+        (bike['serial'] as TextEditingController).dispose();
+      }
     }
   }
 
