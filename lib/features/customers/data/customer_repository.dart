@@ -463,6 +463,9 @@ class CustomerRepository {
     String? purchaseDate,
     String? warrantyUntil,
     String? notes,
+    String ownershipStatus = 'customer_owned',
+    String? ownerName,
+    String? ownerPhone,
   }) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola sepeda pelanggan.');
     final db = await _db;
@@ -471,6 +474,9 @@ class CustomerRepository {
       'bicycles',
       {
         'customer_id': customerId,
+        'ownership_status': ownershipStatus,
+        'owner_name': _nullableText(ownerName),
+        'owner_phone': _nullableText(ownerPhone),
         'brand': brand?.trim(),
         'model': model?.trim(),
         'bicycle_type': bicycleType?.trim(),
