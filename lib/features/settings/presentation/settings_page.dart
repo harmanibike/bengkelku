@@ -193,11 +193,7 @@ class SettingsPage extends StatelessWidget {
               page: const StockReminderSettingsPage(),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}          const SizedBox(height: 10),
+          const SizedBox(height: 10),
           const Text('Informasi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 8),
           _item(
@@ -209,4 +205,8 @@ class SettingsPage extends StatelessWidget {
             page: const AboutAppPage(),
           ),
           const SizedBox(height: 10),
-
+        ],
+      ),
+    );
+  }
+}
