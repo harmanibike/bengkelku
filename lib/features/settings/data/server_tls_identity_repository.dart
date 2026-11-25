@@ -116,9 +116,11 @@ class SelfSignedServerTlsIdentityGenerator
       csr,
       825,
       sans: [dnsName],
-      keyUsage: [KeyUsage.DIGITAL_SIGNATURE, KeyUsage.KEY_ENCIPHERMENT],
-      extKeyUsage: [ExtendedKeyUsage.SERVER_AUTH],
-      cA: false,
+      // Keep the leaf certificate extensions minimal. The current
+      // basic_utils X.509 extension encoder has produced DER that Android's
+      // TLS parser rejects when optional KeyUsage/EKU/BasicConstraints are
+      // added. SAN is required for hostname verification; absent KU/EKU
+      // means no additional certificate-purpose restriction is asserted.
       serialNumber: _serialNumber(),
     );
     final privateKeyPem = CryptoUtils.encodeRSAPrivateKeyToPem(privateKey);
