@@ -137,11 +137,6 @@ class CustomerWalletRepository {
         'received_at': now,
       });
       final recipient = recipientName?.trim();
-      await txn.insert('cash_transactions', {
-        'transaction_type': 'income', 'category': 'Uang Tip',
-        'description': recipient == null || recipient.isEmpty ? 'Penerimaan uang tip' : 'Penerimaan uang tip untuk $recipient',
-        'amount': amount, 'reference_type': 'tip', 'reference_id': tipId, 'transaction_date': now,
-      });
       await ActivityLogRepository.record(txn, action: 'tip_received',
         description: 'Mencatat uang tip Rp$amount.', entityType: 'tip', entityId: tipId);
       return tipId;
@@ -163,11 +158,6 @@ class CustomerWalletRepository {
         'handed_over_by_name': AuthSession.instance.displayName, 'handed_over_at': now,
         if (note?.trim().isNotEmpty == true) 'note': note!.trim(),
       }, where: 'id = ?', whereArgs: [tipId]);
-      await txn.insert('cash_transactions', {
-        'transaction_type': 'expense', 'category': 'Penyerahan Uang Tip',
-        'description': 'Penyerahan uang tip #$tipId', 'amount': amount,
-        'reference_type': 'tip_handover', 'reference_id': tipId, 'transaction_date': now,
-      });
       await ActivityLogRepository.record(txn, action: 'tip_handed_over',
         description: 'Menyerahkan uang tip #$tipId sebesar Rp$amount.',
         entityType: 'tip', entityId: tipId);
