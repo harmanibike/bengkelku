@@ -7,6 +7,9 @@ import 'dart:io';
 /// This deliberately avoids HttpClient.connectionFactory: a custom factory
 /// returns a plain Socket and HttpClient does not automatically wrap that
 /// socket in TLS for HTTPS requests.
+///
+/// Keep this helper under test/support; tests in nested test/features folders
+/// should import it with a relative path back to the test root.
 Future<SecureSocket> connectLanTlsTestSocket({
   required String urlHost,
   required String expectedDnsName,
