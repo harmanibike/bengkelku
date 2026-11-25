@@ -43,6 +43,58 @@ class CustomerRepository {
     });
   }
 
+  Future<int> addCustomerWithBicycle({
+    required String name,
+    String? phone,
+    String? address,
+    String? email,
+    String? notes,
+    String? photoBase64,
+    String? bicycleBrand,
+    String? bicycleModel,
+    String? bicycleType,
+    String? bicycleColor,
+    String? bicycleFrameSize,
+    String? bicycleSerialNumber,
+  }) async {
+    AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola pelanggan.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final customerId = await txn.insert('customers', {
+        'name': name.trim(),
+        'phone': phone?.trim(),
+        'address': address?.trim(),
+        'email': email?.trim(),
+        'notes': notes?.trim(),
+        'photo_base64': photoBase64,
+      });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'customer_created',
+        description: 'Menambahkan pelanggan ${name.trim()}.',
+        entityType: 'customer',
+        entityId: customerId,
+      );
+      final bikeId = await txn.insert('bicycles', {
+        'customer_id': customerId,
+        'brand': bicycleBrand?.trim(),
+        'model': bicycleModel?.trim(),
+        'bicycle_type': bicycleType?.trim(),
+        'color': bicycleColor?.trim(),
+        'frame_size': bicycleFrameSize?.trim(),
+        'serial_number': _nullableText(bicycleSerialNumber),
+      });
+      await ActivityLogRepository.record(
+        txn,
+        action: 'bicycle_created',
+        description: 'Menambahkan sepeda ${[bicycleBrand, bicycleModel].where((v) => v != null && v.trim().isNotEmpty).join(' ')} untuk pelanggan ${name.trim()}.',
+        entityType: 'bicycle',
+        entityId: bikeId,
+      );
+      return customerId;
+    });
+  }
+
   Future<int> importCustomers(List<Map<String, Object?>> customers) async {
     AuthSession.instance.requireCashierOrAdmin('Hanya Admin dan Kasir yang dapat mengelola pelanggan.');
     if (customers.isEmpty) return 0;
