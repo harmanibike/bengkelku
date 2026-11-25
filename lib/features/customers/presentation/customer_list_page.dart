@@ -114,12 +114,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircleAvatar(
-                        radius: 38,
-                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                        backgroundImage: photoBase64 == null || photoBase64!.isEmpty ? null : MemoryImage(base64Decode(photoBase64!)),
-                        child: photoBase64 == null || photoBase64!.isEmpty ? Icon(Icons.person, size: 38, color: Theme.of(context).colorScheme.primary) : null,
-                      ),
+                      _customerAvatar(photoBase64, radius: 38),
                       Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
                         TextButton.icon(onPressed: () => choosePhoto(ImageSource.gallery, setDialogState), icon: const Icon(Icons.photo_library_outlined), label: const Text('Galeri')),
                         TextButton.icon(onPressed: () => choosePhoto(ImageSource.camera, setDialogState), icon: const Icon(Icons.camera_alt_outlined), label: const Text('Kamera')),
@@ -501,6 +496,41 @@ class _CustomerListPageState extends State<CustomerListPage> {
     return 'Rp$out';
   }
 
+  /// Foto pelanggan opsional dengan fallback aman untuk data Base64 lama
+  /// yang kosong, tidak valid, atau berisi gambar yang rusak.
+  Widget _customerAvatar(String? encoded, {double radius = 24}) {
+    Uint8List? bytes;
+    final value = encoded?.trim() ?? '';
+    if (value.isNotEmpty) {
+      try {
+        bytes = base64Decode(value);
+      } on FormatException {
+        bytes = null;
+      }
+    }
+
+    final color = Theme.of(context).colorScheme.primary;
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+      child: bytes == null
+          ? Icon(Icons.person_outline, size: radius, color: color)
+          : ClipOval(
+              child: Image.memory(
+                bytes,
+                width: radius * 2,
+                height: radius * 2,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Icon(
+                  Icons.person_outline,
+                  size: radius,
+                  color: color,
+                ),
+              ),
+            ),
+    );
+  }
+
   Widget _buildCustomerCard(Map<String, Object?> customer) {
     final name = customer['name']?.toString() ?? 'Tanpa nama';
     final phone = customer['phone']?.toString() ?? '';
@@ -513,11 +543,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
           horizontal: 14,
           vertical: 8,
         ),
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          backgroundImage: (customer['photo_base64']?.toString().isNotEmpty ?? false) ? MemoryImage(base64Decode(customer['photo_base64'].toString())) : null,
-          child: (customer['photo_base64']?.toString().isNotEmpty ?? false) ? null : Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
-        ),
+        leading: _customerAvatar(customer['photo_base64']?.toString()),
         title: Text(
           name,
           style: const TextStyle(fontWeight: FontWeight.bold),
