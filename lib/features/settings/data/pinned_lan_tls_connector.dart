@@ -23,7 +23,35 @@ class PinnedLanTlsConnector {
       throw ArgumentError('Alamat atau port Server tidak valid.');
     }
     final validDnsName =
-        RegExp('^bikepos-[a-f0-9]{32}\\\\.invalid$').hasMatch(serverDnsName);
+        RegExp(r'^bikepos-[a-f0-9]{32}\.invalid.hasMatch(serverDnsName);
+    if (!validDnsName) {
+      throw ArgumentError('Identitas DNS Server tidak valid.');
+    }
+
+    // Trust is limited to the certificate obtained during pairing.
+    ServerCertificatePin.fingerprintOfPem(certificatePem);
+    final context = SecurityContext(withTrustedRoots: false)
+      ..setTrustedCertificatesBytes(utf8.encode(certificatePem));
+
+    final socket = await Socket.connect(
+      normalizedAddress,
+      port,
+      timeout: timeout,
+    );
+    try {
+      return await SecureSocket.secure(
+        socket,
+        host: serverDnsName,
+        context: context,
+        timeout: timeout,
+      );
+    } catch (_) {
+      socket.destroy();
+      rethrow;
+    }
+  }
+}
+).hasMatch(serverDnsName);
     if (!validDnsName) {
       throw ArgumentError('Identitas DNS Server tidak valid.');
     }
