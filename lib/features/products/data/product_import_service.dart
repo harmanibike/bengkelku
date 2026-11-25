@@ -231,16 +231,14 @@ class ProductImportService {
   static int _number(String? value) {
     final raw = (value ?? '').trim();
     if (raw.isEmpty) return 0;
-    if (RegExp(r'^-?\\d+\\.0+
-  }
-  static String? _clean(String? value) {
-    final text = value?.trim(); return text == null || text.isEmpty ? null : text;
-  }
-}
-).hasMatch(raw)) return int.tryParse(raw.split('.').first) ?? -1;
+    if (RegExp(r'^-?\d+\.0+$').hasMatch(raw)) {
+      return int.tryParse(raw.split('.').first) ?? -1;
+    }
     return int.tryParse(raw.replaceAll(RegExp(r'[^0-9-]'), '')) ?? -1;
   }
+
   static String? _clean(String? value) {
-    final text = value?.trim(); return text == null || text.isEmpty ? null : text;
+    final text = value?.trim();
+    return text == null || text.isEmpty ? null : text;
   }
 }
