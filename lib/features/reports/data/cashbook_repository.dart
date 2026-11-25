@@ -196,8 +196,6 @@ class CashbookRepository {
     ''', [
       start.toIso8601String(), end.toIso8601String(),
       start.toIso8601String(), end.toIso8601String(),
-      start.toIso8601String(), end.toIso8601String(),
-      start.toIso8601String(), end.toIso8601String(),
     ]);
   }
 
