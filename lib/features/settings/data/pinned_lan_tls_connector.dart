@@ -43,8 +43,7 @@ class PinnedLanTlsConnector {
         socket,
         host: serverDnsName,
         context: context,
-        timeout: timeout,
-      );
+      ).timeout(timeout);
     } catch (_) {
       socket.destroy();
       rethrow;
