@@ -916,6 +916,120 @@ void main() {
     expect(await SaleReturnRepository().getReturnableItems(saleId), isNotEmpty);
   });
 
+  test('partial mixed-payment returns refund wallet first without exceeding cash paid', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, _) = await createRegisteredCustomerAndBicycle(db);
+    final wallet = CustomerWalletRepository();
+    await wallet.addDeposit(
+      customerId: customerId,
+      amount: 70000,
+      paymentMethod: 'cash',
+    );
+
+    final productId = await db.insert('products', {
+      'name': 'Ban Uji Retur Campuran',
+      'selling_price': 50000,
+      'purchase_price': 20000,
+      'stock': 2,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 2,
+      'quantity_remaining': 2,
+      'unit_cost': 20000,
+    });
+
+    final saleId = await SaleRepository().checkout(
+      items: [
+        {'product_id': productId, 'quantity': 2, 'unit_price': 50000},
+      ],
+      paid: 40000,
+      paymentMethod: 'cash',
+      customerId: customerId,
+      walletPayment: 60000,
+    );
+    final saleItem = (await db.query(
+      'sale_items',
+      where: 'sale_id = ?',
+      whereArgs: [saleId],
+    )).single;
+    final returns = SaleReturnRepository();
+
+    final firstReturnId = await returns.createReturn(
+      saleId: saleId,
+      items: [
+        {'sale_item_id': saleItem['id'], 'quantity': 1},
+      ],
+      refundAmount: 50000,
+    );
+    expect(await wallet.getBalance(customerId), 60000);
+    expect(
+      await db.query(
+        'cash_transactions',
+        where: "reference_type = 'sale_return' AND reference_id = ?",
+        whereArgs: [firstReturnId],
+      ),
+      isEmpty,
+    );
+
+    final secondReturnId = await returns.createReturn(
+      saleId: saleId,
+      items: [
+        {'sale_item_id': saleItem['id'], 'quantity': 1},
+      ],
+      refundAmount: 50000,
+    );
+    expect(await wallet.getBalance(customerId), 70000);
+
+    final walletRefunds = await db.query(
+      'customer_wallet_ledger',
+      where: "reference_type = 'sale_return' AND entry_type = 'refund'",
+    );
+    expect(
+      walletRefunds.fold<int>(
+        0,
+        (sum, row) => sum + (row['amount'] as int),
+      ),
+      60000,
+    );
+
+    final cashRefunds = await db.query(
+      'cash_transactions',
+      where: "reference_type = 'sale_return' AND transaction_type = 'expense'",
+    );
+    expect(cashRefunds, hasLength(1));
+    expect(cashRefunds.single['reference_id'], secondReturnId);
+    expect(cashRefunds.single['amount'], 40000);
+
+    final product = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    expect(product['stock'], 2);
+
+    await expectLater(
+      returns.createReturn(
+        saleId: saleId,
+        items: [
+          {'sale_item_id': saleItem['id'], 'quantity': 1},
+        ],
+        refundAmount: 50000,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(await db.query('sale_returns'), hasLength(2));
+    expect(
+      await CashbookRepository().getReconciliationIssues(
+        start: DateTime(2000),
+        end: DateTime(2100),
+      ),
+      isEmpty,
+    );
+  });
+
   test('sale return rejects quantities beyond the remaining returnable amount', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {
