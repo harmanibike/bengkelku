@@ -42,6 +42,12 @@ class BengkelKuServerService {
     _initialized = true;
   }
 
+  Future<bool> get isRunning async {
+    if (!Platform.isAndroid) return false;
+    initialize();
+    return FlutterForegroundTask.isRunningService;
+  }
+
   Future<int> startServer() async {
     if (!Platform.isAndroid) {
       throw UnsupportedError('Layanan Server hanya tersedia pada Android.');

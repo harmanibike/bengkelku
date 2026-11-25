@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import '../data/client_connection_service.dart';
@@ -48,6 +49,16 @@ class _DeviceModePageState extends State<DeviceModePage> {
       text: DeviceModeRepository.defaultClientPort.toString(),
     );
     _clientConfigFuture = _loadClientConfig();
+    unawaited(_refreshServerStatus());
+  }
+
+  Future<void> _refreshServerStatus() async {
+    try {
+      final running = await BengkelKuServerService.instance.isRunning;
+      if (mounted) setState(() => _serverRunning = running);
+    } catch (_) {
+      // Status yang gagal dibaca tidak boleh mengubah mode atau menghentikan app.
+    }
   }
 
   Future<void> _loadClientConfig() async {
