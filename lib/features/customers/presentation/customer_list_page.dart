@@ -88,6 +88,14 @@ class _CustomerListPageState extends State<CustomerListPage> {
 
     final formKey = GlobalKey<FormState>();
     String? photoBase64 = customer?['photo_base64']?.toString();
+    bool createBicycle = false;
+    final bicycleBrandController = TextEditingController();
+    final bicycleModelController = TextEditingController();
+    final bicycleColorController = TextEditingController();
+    final bicycleSizeController = TextEditingController();
+    final bicycleSerialController = TextEditingController();
+    const bicycleTypes = ['Standar', 'MTB', 'BMX', 'Road Bike', 'Lipat', 'Anak', 'E-Bike', 'Lainnya'];
+    String selectedBicycleType = 'Standar';
 
     Future<void> choosePhoto(ImageSource source, StateSetter setDialogState) async {
       final image = await ImagePicker().pickImage(source: source, imageQuality: 75, maxWidth: 512, maxHeight: 512);
@@ -174,6 +182,50 @@ class _CustomerListPageState extends State<CustomerListPage> {
                           border: OutlineInputBorder(),
                         ),
                       ),
+                      if (!isEditing) ...[
+                        const Divider(height: 24),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          value: createBicycle,
+                          title: const Text('Sekaligus tambah data sepeda'),
+                          subtitle: const Text('Data sepeda langsung terhubung dengan pelanggan ini.'),
+                          onChanged: (value) => setDialogState(() => createBicycle = value),
+                        ),
+                        if (createBicycle) ...[
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: bicycleBrandController,
+                            decoration: const InputDecoration(labelText: 'Merek sepeda', border: OutlineInputBorder()),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: bicycleModelController,
+                            decoration: const InputDecoration(labelText: 'Model sepeda', border: OutlineInputBorder()),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            initialValue: selectedBicycleType,
+                            decoration: const InputDecoration(labelText: 'Jenis sepeda', border: OutlineInputBorder()),
+                            items: bicycleTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                            onChanged: (value) { if (value != null) setDialogState(() => selectedBicycleType = value); },
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: bicycleColorController,
+                            decoration: const InputDecoration(labelText: 'Warna', border: OutlineInputBorder()),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: bicycleSizeController,
+                            decoration: const InputDecoration(labelText: 'Ukuran frame', border: OutlineInputBorder()),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: bicycleSerialController,
+                            decoration: const InputDecoration(labelText: 'Nomor rangka / serial', border: OutlineInputBorder()),
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -212,7 +264,7 @@ class _CustomerListPageState extends State<CustomerListPage> {
           photoBase64: photoBase64,
         );
       } else {
-        await _repository.addCustomer(
+        final customerId = await _repository.addCustomer(
           name: nameController.text,
           phone: phoneController.text,
           address: addressController.text,
@@ -220,6 +272,17 @@ class _CustomerListPageState extends State<CustomerListPage> {
           notes: notesController.text,
           photoBase64: photoBase64,
         );
+        if (createBicycle) {
+          await _repository.addBicycle(
+            customerId: customerId,
+            brand: bicycleBrandController.text,
+            model: bicycleModelController.text,
+            bicycleType: selectedBicycleType,
+            color: bicycleColorController.text,
+            frameSize: bicycleSizeController.text,
+            serialNumber: bicycleSerialController.text,
+          );
+        }
       }
 
       if (!mounted) return;
@@ -247,6 +310,11 @@ class _CustomerListPageState extends State<CustomerListPage> {
       addressController.dispose();
       emailController.dispose();
       notesController.dispose();
+      bicycleBrandController.dispose();
+      bicycleModelController.dispose();
+      bicycleColorController.dispose();
+      bicycleSizeController.dispose();
+      bicycleSerialController.dispose();
     }
   }
 
