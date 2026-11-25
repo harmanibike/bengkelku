@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:sqflite/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/auth/auth_session.dart';
@@ -1572,25 +1575,30 @@ class ServiceRepository {
   }
 
   Future<int> deleteServiceOrder(int id) async {
-    if (!AuthSession.instance.isAdmin) {
-      throw StateError('Hanya Admin yang dapat menghapus nota servis.');
-    }
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat menghapus nota servis.');
     final db = await _db;
+    final photoPaths = <String>{};
 
-    return db.transaction((txn) async {
-      final order = await txn.query(
+    final deleted = await db.transaction((txn) async {
+      final orders = await txn.query(
         'service_orders',
-        columns: ['id'],
+        columns: ['id', 'service_status', 'down_payment', 'before_photo_path', 'after_photo_path'],
         where: 'id = ?',
         whereArgs: [id],
         limit: 1,
       );
+      if (orders.isEmpty) return 0;
+      final order = orders.first;
 
-      if (order.isEmpty) return 0;
+      // Hanya nota yang masih berada di antrean awal yang boleh dibersihkan.
+      // Nota yang pernah masuk pemeriksaan/pengerjaan harus dipertahankan.
+      if (order['service_status']?.toString() != 'waiting') {
+        throw StateError('Hanya nota servis dummy yang masih berstatus menunggu dapat dihapus.');
+      }
+      if ((order['down_payment'] as num? ?? 0) > 0) {
+        throw StateError('Nota servis memiliki uang muka; penghapusan ditolak.');
+      }
 
-      // Jangan hapus nota yang sudah memiliki pembayaran kas.
-      // cash_transactions tidak memakai foreign key ke service_orders;
-      // menghapus nota saja akan meninggalkan pemasukan tanpa sumber.
       final payments = await txn.query(
         'cash_transactions',
         columns: ['id'],
@@ -1598,17 +1606,10 @@ class ServiceRepository {
         whereArgs: [id],
         limit: 1,
       );
-
       if (payments.isNotEmpty) {
-        throw StateError(
-          'Nota servis sudah memiliki pembayaran. '
-          'Batalkan melalui proses koreksi kas agar riwayat keuangan tetap utuh.',
-        );
+        throw StateError('Nota servis sudah memiliki pembayaran kas dan tidak dapat dihapus.');
       }
 
-      // Pembayaran saldo pelanggan tidak masuk cash_transactions. Periksa
-      // ledger secara terpisah agar penghapusan nota tidak meninggalkan
-      // referensi pembayaran/refund yang yatim.
       final walletEntries = await txn.query(
         'customer_wallet_ledger',
         columns: ['id'],
@@ -1617,14 +1618,9 @@ class ServiceRepository {
         limit: 1,
       );
       if (walletEntries.isNotEmpty) {
-        throw StateError(
-          'Nota servis sudah memiliki riwayat pembayaran atau pengembalian saldo pelanggan. '
-          'Nota tidak dapat dihapus agar riwayat saldo tetap utuh.',
-        );
+        throw StateError('Nota servis memiliki riwayat saldo pelanggan dan tidak dapat dihapus.');
       }
 
-      // Jangan hapus data yang sudah menghasilkan pergerakan stok atau
-      // memakai batch biaya. Penghapusan nota tidak boleh mengubah stok diam-diam.
       final stockMovements = await txn.query(
         'stock_movements',
         columns: ['id'],
@@ -1640,13 +1636,9 @@ class ServiceRepository {
         limit: 1,
       );
       if (stockMovements.isNotEmpty || partAllocations.isNotEmpty) {
-        throw StateError(
-          'Nota servis sudah memengaruhi stok atau batch biaya. '
-          'Gunakan proses koreksi servis, bukan hapus langsung.',
-        );
+        throw StateError('Nota servis sudah memengaruhi stok atau batch biaya dan tidak dapat dihapus.');
       }
 
-      // Riwayat audit, permintaan perubahan, dan snapshot nota harus tetap utuh.
       for (final table in [
         'service_direct_cost_history',
         'service_estimate_history',
@@ -1655,9 +1647,7 @@ class ServiceRepository {
       ]) {
         final where = table == 'receipt_snapshots'
             ? "source_type = 'service_order' AND source_id = ?"
-            : table == 'service_part_change_requests'
-                ? 'service_order_id = ?'
-                : 'service_order_id = ?';
+            : 'service_order_id = ?';
         final linked = await txn.query(
           table,
           columns: ['id'],
@@ -1666,14 +1656,10 @@ class ServiceRepository {
           limit: 1,
         );
         if (linked.isNotEmpty) {
-          throw StateError(
-            'Nota servis memiliki riwayat atau arsip terkait ($table). '
-            'Data tersebut dilindungi dan nota tidak dapat dihapus.',
-          );
+          throw StateError('Nota servis memiliki riwayat atau arsip terkait ($table); penghapusan ditolak.');
         }
       }
 
-      // Tip dicatat dengan referensi tersendiri, bukan service_order pada kas.
       final tips = await txn.query(
         'tip_transactions',
         columns: ['id'],
@@ -1682,18 +1668,62 @@ class ServiceRepository {
         limit: 1,
       );
       if (tips.isNotEmpty) {
-        throw StateError(
-          'Nota servis sudah memiliki catatan uang tip. '
-          'Nota tidak dapat dihapus agar riwayat tip tetap utuh.',
-        );
+        throw StateError('Nota servis memiliki catatan uang tip dan tidak dapat dihapus.');
       }
 
-      return txn.delete(
+      // Kumpulkan hanya foto di folder privat aplikasi. Jangan menyentuh file
+      // di luar folder ini atau foto yang masih dipakai nota servis lain.
+      final appDirectory = await getApplicationDocumentsDirectory();
+      final photoDirectory = Directory(
+        '${appDirectory.path}${Platform.pathSeparator}service_photos',
+      );
+      final photoRoot = photoDirectory.absolute.path;
+      for (final value in [order['before_photo_path'], order['after_photo_path']]) {
+        final path = value?.toString();
+        if (path == null || path.isEmpty) continue;
+        final absolutePath = File(path).absolute.path;
+        if (!absolutePath.startsWith('$photoRoot${Platform.pathSeparator}')) continue;
+        final shared = await txn.query(
+          'service_orders',
+          columns: ['id'],
+          where: 'id != ? AND (before_photo_path = ? OR after_photo_path = ?)',
+          whereArgs: [id, path, path],
+          limit: 1,
+        );
+        if (shared.isEmpty) photoPaths.add(absolutePath);
+      }
+
+      final invoice = await txn.query(
         'service_orders',
+        columns: ['order_number'],
         where: 'id = ?',
         whereArgs: [id],
+        limit: 1,
       );
+      final count = await txn.delete('service_orders', where: 'id = ?', whereArgs: [id]);
+      if (count > 0) {
+        await ActivityLogRepository.record(
+          txn,
+          action: 'service_dummy_deleted',
+          description: 'Menghapus nota servis dummy ${invoice.first['order_number'] ?? id}.',
+          entityType: 'service_order',
+          entityId: id,
+        );
+      }
+      return count;
     });
+
+    // File dihapus setelah transaksi database berhasil. Kegagalan file cleanup
+    // tidak boleh membatalkan atau merusak penghapusan database yang sudah sah.
+    for (final path in photoPaths) {
+      try {
+        final file = File(path);
+        if (await file.exists()) await file.delete();
+      } catch (_) {
+        // Best effort: hanya orphan photo yang mungkin tertinggal.
+      }
+    }
+    return deleted;
   }
 
   Future<int> countServiceOrders({String? status}) async {
