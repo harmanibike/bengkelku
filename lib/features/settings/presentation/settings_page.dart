@@ -99,7 +99,7 @@ class SettingsPage extends StatelessWidget {
             icon: Icons.delete_sweep_outlined,
             color: const Color(0xFFC62828),
             title: 'Pemeliharaan Data',
-            subtitle: 'Pilih dan hapus nota servis dummy yang aman dihapus',
+            subtitle: 'Pilih transaksi percobaan penjualan, pembelian, atau servis yang aman dihapus',
             page: const TransactionCleanupPage(),
           ),
           const SizedBox(height: 10),
