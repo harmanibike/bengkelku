@@ -342,7 +342,8 @@ class ReportRepository {
              SUM(amount) AS amount,
              transaction_type
       FROM cash_transactions
-      WHERE datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
+      WHERE reference_type NOT IN ('tip', 'tip_handover')
+        AND datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)
       GROUP BY category, transaction_type
       ORDER BY amount DESC
     ''', [from, until]);
