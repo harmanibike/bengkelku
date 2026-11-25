@@ -244,16 +244,16 @@ jobs:
           print("Nama aplikasi: Bike POS")
           PY
 
-      - name: Generate rounded BengkelKu launcher icons from official image
+      - name: Generate rounded Bike POS launcher icons from official image
         run: |
           python3 -m pip install --user Pillow
           python3 - <<'PY'
           from pathlib import Path
           from PIL import Image
 
-          source = Path("assets/branding/bengkelku_logo.jpg")
+          source = Path("assets/branding/bike_pos_icon.png")
           if not source.exists():
-              raise SystemExit("Aset logo resmi BengkelKu tidak ditemukan.")
+              raise SystemExit("Aset ikon Bike POS tidak ditemukan di assets/branding/bike_pos_icon.png.")
 
           image = Image.open(source).convert("RGBA")
           if image.width != image.height:
@@ -281,7 +281,7 @@ jobs:
           else:
               content = content.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@mipmap/ic_launcher"\n        android:roundIcon="@mipmap/ic_launcher"', 1)
           manifest.write_text(content)
-          print("Ikon launcher reguler dan rounded dibuat dari gambar logo resmi.")
+          print("Ikon launcher reguler dan rounded dibuat dari gambar Bike POS.")
           PY
 
       - name: Keep Android navigation bar opaque
@@ -654,16 +654,22 @@ jobs:
           APK="build/app/outputs/flutter-apk/app-release.apk"
           jarsigner -verify -verbose -certs "$APK"
 
-      - name: Rename Bike POS APK
+      - name: Rename Bike POS APK with version
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/Bike-POS.apk
+          VERSION="$(sed -n 's/^version: \\([^+]*\\).*/\\1/p' pubspec.yaml)"
+          if [ -z "$VERSION" ]; then
+            echo "Nomor versi tidak ditemukan di pubspec.yaml."
+            exit 1
+          fi
+          cp build/app/outputs/flutter-apk/app-release.apk \\
+             "build/app/outputs/flutter-apk/Bike-POS-v${VERSION}.apk"
+          echo "APK siap: Bike-POS-v${VERSION}.apk"
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v5
         with:
           name: Bike-POS
-          path: build/app/outputs/flutter-apk/BengkelKu-POS.apk
+          path: build/app/outputs/flutter-apk/Bike-POS-v*.apk
           retention-days: 14
 
       - name: Remove temporary signing files
