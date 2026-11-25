@@ -52,7 +52,8 @@ class CustomerWalletRepository {
       await txn.insert('cash_transactions', {
         'transaction_type': 'income', 'category': 'Deposit Pelanggan',
         'description': 'Deposit ${customer.first['name']}', 'amount': amount,
-        'reference_type': 'customer_deposit', 'reference_id': ledgerId, 'transaction_date': now,
+        'reference_type': 'customer_deposit', 'reference_id': ledgerId,
+        'payment_method': paymentMethod, 'transaction_date': now,
       });
       await ActivityLogRepository.record(txn, action: 'customer_wallet_deposit',
         description: 'Menerima deposit Rp$amount dari ${customer.first['name']}.',
