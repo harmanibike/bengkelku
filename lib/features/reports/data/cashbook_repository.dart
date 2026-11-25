@@ -165,8 +165,6 @@ class CashbookRepository {
       LEFT JOIN (
         SELECT purchase_id, SUM(amount) AS payment_total
         FROM supplier_payments
-        WHERE datetime(payment_date) >= datetime(?)
-          AND datetime(payment_date) < datetime(?)
         GROUP BY purchase_id
       ) pay ON pay.purchase_id = p.id
       LEFT JOIN (
@@ -174,8 +172,6 @@ class CashbookRepository {
         FROM cash_transactions
         WHERE reference_type = 'purchase_payment'
           AND transaction_type = 'expense'
-          AND datetime(transaction_date) >= datetime(?)
-          AND datetime(transaction_date) < datetime(?)
         GROUP BY reference_id
       ) cash ON cash.purchase_id = p.id
       WHERE (
