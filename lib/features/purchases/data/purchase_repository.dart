@@ -84,7 +84,13 @@ class PurchaseRepository {
       final configuredMethod = settingRows.isEmpty ? 'weighted_average' : settingRows.first['setting_value']?.toString();
       final costMethod = const ['weighted_average', 'last_cost', 'manual', 'per_batch'].contains(configuredMethod) ? configuredMethod! : 'weighted_average';
       if (supplier.isEmpty) throw StateError('Pemasok tidak ditemukan.');
+      final testModeRows = await txn.query('app_settings',
+        columns: ['setting_value'], where: 'setting_key = ?',
+        whereArgs: ['transaction_test_mode'], limit: 1);
+      final isTest = testModeRows.isNotEmpty &&
+          testModeRows.first['setting_value']?.toString() == '1';
       final purchaseId = await txn.insert('purchases', {
+        'is_test': isTest ? 1 : 0,
         'invoice_number': invoice, 'supplier_id': supplierId, 'subtotal': subtotal,
         'discount': discount, 'total': total, 'paid': initialPayment,
         'payment_status': initialPayment == 0 ? 'unpaid' : initialPayment == total ? 'paid' : 'partial',
