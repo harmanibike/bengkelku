@@ -762,14 +762,21 @@ class SaleRepository {
         final productId = movement['product_id'] as int;
         final quantity = (movement['quantity'] as num?)?.toInt() ?? 0;
         if (quantity <= 0) throw StateError('Riwayat stok tidak valid; transaksi tidak dihapus.');
-        final products = await txn.query('products', columns: ['id', 'stock'],
-          where: 'id = ?', whereArgs: [productId], limit: 1);
-        if (products.isEmpty) throw StateError('Produk terkait tidak ditemukan; transaksi tidak dihapus.');
-        final before = (products.first['stock'] as num?)?.toInt() ?? 0;
-        await txn.update('products', {
+        final variantId = (movement['variant_id'] as num?)?.toInt();
+        final stockTable = variantId == null ? 'products' : 'product_variants';
+        final stockId = variantId ?? productId;
+        final owners = await txn.query(stockTable,
+          columns: ['id', 'stock', if (variantId != null) 'product_id'],
+          where: 'id = ?', whereArgs: [stockId], limit: 1);
+        if (owners.isEmpty ||
+            (variantId != null && (owners.first['product_id'] as num?)?.toInt() != productId)) {
+          throw StateError('Produk/varian terkait tidak ditemukan; transaksi tidak dihapus.');
+        }
+        final before = (owners.first['stock'] as num?)?.toInt() ?? 0;
+        await txn.update(stockTable, {
           'stock': before + quantity,
           'updated_at': DateTime.now().toIso8601String(),
-        }, where: 'id = ?', whereArgs: [productId]);
+        }, where: 'id = ?', whereArgs: [stockId]);
       }
 
       await txn.delete('stock_movements',
