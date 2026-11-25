@@ -6,7 +6,10 @@ import 'dart:io';
 /// belum menyediakan akses transaksi atau database untuk perangkat Client.
 class LocalApiServer {
   static const int apiVersion = 1;
-  static const String appVersion = '1.0.0';
+  static const String appVersion = String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: '1.0.0',
+  );
   static const String minimumClientVersion = '1.0.0';
   static const String maximumClientVersion = '1.0.99';
   static const int defaultPort = 8765;
