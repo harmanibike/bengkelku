@@ -282,7 +282,7 @@ class CashbookRepository {
           )
           GROUP BY reference_id
         ) pay ON pay.service_order_id = s.id
-        WHERE s.down_payment != COALESCE(pay.payment_total, 0)
+        WHERE (s.total_cost - s.remaining_payment) != COALESCE(pay.payment_total, 0)
           AND (
             (datetime(s.received_at) >= datetime(?) AND datetime(s.received_at) < datetime(?))
             OR EXISTS (
