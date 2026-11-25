@@ -28,6 +28,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
   bool _savingClient = false;
   bool _testingClient = false;
   bool _startingServer = false;
+  bool _serverRunning = false;
   String? _serverMessage;
   late final TextEditingController _hostController;
   late final TextEditingController _portController;
@@ -83,6 +84,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
           .toList();
       if (!mounted) return;
       setState(() {
+        _serverRunning = true;
         _serverMessage = addresses.isEmpty
             ? 'API aktif pada port $port. IP Wi-Fi belum terdeteksi; pastikan kedua HP berada pada jaringan yang sama.'
             : 'API pemeriksaan aktif. Alamat Server: ${addresses.join(', ')}:$port';
@@ -98,7 +100,10 @@ class _DeviceModePageState extends State<DeviceModePage> {
   Future<void> _stopLocalApiServer() async {
     await BengkelKuServerService.instance.stopServer();
     if (!mounted) return;
-    setState(() => _serverMessage = 'API pemeriksaan Server dihentikan.');
+    setState(() {
+      _serverRunning = false;
+      _serverMessage = 'API pemeriksaan Server dihentikan.';
+    });
   }
 
   Future<void> _saveClientConfig() async {
@@ -329,7 +334,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
                         children: [
                           Expanded(
                             child: FilledButton.icon(
-                              onPressed: _startingServer || _localApiServer.isRunning
+                              onPressed: _startingServer || _serverRunning
                                   ? null
                                   : _startLocalApiServer,
                               icon: _startingServer
@@ -341,7 +346,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: _localApiServer.isRunning ? _stopLocalApiServer : null,
+                              onPressed: _serverRunning ? _stopLocalApiServer : null,
                               icon: const Icon(Icons.stop),
                               label: const Text('Hentikan API'),
                             ),
