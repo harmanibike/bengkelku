@@ -221,6 +221,14 @@ class AppTheme {
         border: _inputBorder(_border),
         enabledBorder: _inputBorder(_border),
       ),
+      dropdownButtonTheme: DropdownButtonThemeData(
+        style: const TextStyle(fontSize: 13, color: _text),
+        dropdownColor: _surface,
+        iconEnabledColor: _muted,
+        borderRadius: BorderRadius.circular(10),
+        elevation: 4,
+        menuMaxHeight: 360,
+      ),
       dropdownMenuTheme: DropdownMenuThemeData(
         textStyle: const TextStyle(fontSize: 13, color: _text),
         inputDecorationTheme: InputDecorationTheme(
