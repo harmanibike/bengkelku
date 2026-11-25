@@ -234,8 +234,7 @@ class CashbookRepository {
           )
           GROUP BY reference_id
         ) pay ON pay.sale_id = s.id
-        WHERE s.payment_status != 'cancelled'
-          AND s.paid != COALESCE(pay.payment_total, 0)
+        WHERE s.paid != COALESCE(pay.payment_total, 0)
           AND (
             (datetime(s.transaction_date) >= datetime(?) AND datetime(s.transaction_date) < datetime(?))
             OR EXISTS (
