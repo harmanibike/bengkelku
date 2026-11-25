@@ -10,6 +10,7 @@ import '../../../core/formatters/currency_input_formatter.dart';
 import '../data/product_repository.dart';
 import '../../purchases/presentation/purchase_cost_settings_page.dart';
 import 'product_category_page.dart';
+import '../../sales/presentation/barcode_scanner_page.dart';
 
 class ProductListPage extends StatefulWidget {
   const ProductListPage({super.key});
@@ -69,6 +70,16 @@ class _ProductListPageState extends State<ProductListPage> {
 
   int _number(TextEditingController controller) =>
       int.tryParse(controller.text.replaceAll('.', '').replaceAll(',', '').trim()) ?? 0;
+
+  Future<void> _scanProductBarcode(TextEditingController controller) async {
+    final scanned = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const BarcodeScannerPage()),
+    );
+    if (!mounted || scanned == null || scanned.trim().isEmpty) return;
+    controller.text = scanned.trim();
+    controller.selection = TextSelection.collapsed(offset: controller.text.length);
+  }
 
   Future<void> _showProductForm({Map<String, Object?>? product}) async {
     final categories = await _repository.getCategories();
@@ -188,7 +199,19 @@ class _ProductListPageState extends State<ProductListPage> {
                       const SizedBox(height: 10),
                       TextFormField(controller: sku, decoration: const InputDecoration(labelText: 'SKU / Kode produk', border: OutlineInputBorder())),
                       const SizedBox(height: 10),
-                      TextFormField(controller: barcode, decoration: const InputDecoration(labelText: 'Barcode', border: OutlineInputBorder())),
+                      TextFormField(
+                        controller: barcode,
+                        keyboardType: TextInputType.text,
+                        decoration: InputDecoration(
+                          labelText: 'Barcode',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            tooltip: 'Scan barcode',
+                            onPressed: () => _scanProductBarcode(barcode),
+                            icon: const Icon(Icons.qr_code_scanner),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
                         initialValue: categories.any((item) => item['name']?.toString() == category.text)
