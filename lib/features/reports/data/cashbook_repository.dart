@@ -333,10 +333,8 @@ class CashbookRepository {
       'transaction_date': (date ?? DateTime.now()).toIso8601String(),
     });
   }
-}
 
-
-  /// Daftar transaksi kas manual yang boleh dibersihkan sebagai data percobaan.
+/// Daftar transaksi kas manual yang boleh dibersihkan sebagai data percobaan.
   Future<List<Map<String, Object?>>> getManualCashCandidates() async {
     AuthSession.instance.requireAdmin('Pembersihan transaksi kas hanya dapat dilakukan Admin.');
     final db = await _db;
