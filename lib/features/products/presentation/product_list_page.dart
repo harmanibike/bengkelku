@@ -67,7 +67,7 @@ class _ProductListPageState extends State<ProductListPage> {
       if (bytes == null) throw StateError('File tidak dapat dibaca. Coba pilih ulang.');
       final service = ProductImportService();
       final sourceRows = ProductImportService.decode(bytes, p.extension(file.name).replaceFirst('.', ''));
-      final preview = service.prepare(sourceRows);
+      final preview = await service.prepare(sourceRows);
       if (!mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
