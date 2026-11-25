@@ -944,13 +944,24 @@ class AppDatabase {
     }
 
     // Hubungkan transaksi pembelian, batch biaya, dan pergerakan stok ke varian.
+    // Database lama/minimal untuk migrasi dapat tidak memiliki semua modul tabel.
     if (oldVersion < 39) {
-      await db.execute('ALTER TABLE purchase_items ADD COLUMN variant_id INTEGER');
-      await db.execute('ALTER TABLE stock_movements ADD COLUMN variant_id INTEGER');
-      await db.execute('ALTER TABLE inventory_cost_batches ADD COLUMN variant_id INTEGER');
-      await db.execute('CREATE INDEX idx_purchase_items_variant ON purchase_items(variant_id)');
-      await db.execute('CREATE INDEX idx_stock_movements_variant ON stock_movements(variant_id, created_at DESC)');
-      await db.execute('CREATE INDEX idx_inventory_cost_batches_variant ON inventory_cost_batches(variant_id, received_at, id)');
+      final existingTables = (await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table'",
+      )).map((row) => row['name']?.toString()).toSet();
+
+      if (existingTables.contains('purchase_items')) {
+        await db.execute('ALTER TABLE purchase_items ADD COLUMN variant_id INTEGER');
+        await db.execute('CREATE INDEX idx_purchase_items_variant ON purchase_items(variant_id)');
+      }
+      if (existingTables.contains('stock_movements')) {
+        await db.execute('ALTER TABLE stock_movements ADD COLUMN variant_id INTEGER');
+        await db.execute('CREATE INDEX idx_stock_movements_variant ON stock_movements(variant_id, created_at DESC)');
+      }
+      if (existingTables.contains('inventory_cost_batches')) {
+        await db.execute('ALTER TABLE inventory_cost_batches ADD COLUMN variant_id INTEGER');
+        await db.execute('CREATE INDEX idx_inventory_cost_batches_variant ON inventory_cost_batches(variant_id, received_at, id)');
+      }
     }
 
     // Simpan apakah stok benar-benar dikurangi saat retur dibuat.
