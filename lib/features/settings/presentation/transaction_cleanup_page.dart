@@ -18,9 +18,11 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
   final _purchaseRepository = PurchaseRepository();
   final Set<int> _selected = {};
   final Set<int> _selectedSales = {};
+  final Set<int> _selectedCancelledSales = {};
   final Set<int> _selectedPurchases = {};
   List<Map<String, Object?>> _orders = [];
   List<Map<String, Object?>> _sales = [];
+  List<Map<String, Object?>> _cancelledSales = [];
   List<Map<String, Object?>> _purchases = [];
   bool _loading = true;
   bool _working = false;
@@ -45,6 +47,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       _error = null;
       _selected.clear();
       _selectedSales.clear();
+      _selectedCancelledSales.clear();
       _selectedPurchases.clear();
     });
     try {
@@ -57,6 +60,7 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       setState(() {
         _orders = results[0].where((row) => row['service_status']?.toString() == 'waiting').toList();
         _sales = results[1].where((row) => row['payment_status']?.toString() == 'unpaid').toList();
+        _cancelledSales = results[1].where((row) => row['payment_status']?.toString() == 'cancelled').toList();
         _purchases = results[2].where((row) => row['status']?.toString() != 'cancelled' && (row['paid'] as num? ?? 0) == 0 && (row['return_credit'] as num? ?? 0) == 0).toList();
         _loading = false;
       });
@@ -180,6 +184,58 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       : '$deleted transaksi dihapus; ${failures.length} ditolak karena masih terkait data penting.')));
   }
 
+  Future<void> _deleteSelectedCancelledSales() async {
+    if (_selectedCancelledSales.isEmpty || _working) return;
+    final ids = _selectedCancelledSales.toList(growable: false);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus riwayat penjualan dibatalkan?'),
+        content: Text(
+          'Anda memilih ${ids.length} nota berstatus Dibatalkan. Pastikan nota tersebut hanya transaksi percobaan. Penghapusan tidak mengubah stok karena stok sudah dikembalikan saat pembatalan. Nota yang memiliki pembayaran/pengembalian, retur, saldo pelanggan, poin, tip, atau arsip nota akan ditolak.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus permanen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _working = true);
+    var deleted = 0;
+    final failures = <String>[];
+    for (final id in ids) {
+      try {
+        deleted += await _saleRepository.deleteCancelledDummySale(id);
+      } catch (error) {
+        failures.add('Penjualan #$id: $error');
+      }
+    }
+    if (!mounted) return;
+    setState(() => _working = false);
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(failures.isEmpty
+        ? '$deleted riwayat penjualan dibatalkan berhasil dihapus.'
+        : '$deleted riwayat dihapus; ${failures.length} ditolak karena masih terkait data penting.'),
+    ));
+    if (failures.isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Sebagian riwayat tidak dapat dihapus'),
+          content: SizedBox(width: 520, child: SingleChildScrollView(child: Text(failures.join('\\n\\n')))),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup'))],
+        ),
+      );
+    }
+  }
+
   Future<void> _deleteSelectedPurchases() async {
     if (_selectedPurchases.isEmpty || _working) return;
     final ids = _selectedPurchases.toList(growable: false);
@@ -268,6 +324,45 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                     : ListView(
                         padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
                         children: [
+                          Row(children: [
+                            const Expanded(child: Text('Riwayat penjualan dibatalkan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                            Text('${_selectedCancelledSales.length} dipilih', style: const TextStyle(fontSize: 11)),
+                            IconButton(
+                              tooltip: 'Hapus riwayat dibatalkan terpilih',
+                              onPressed: _selectedCancelledSales.isEmpty || _working ? null : _deleteSelectedCancelledSales,
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                            ),
+                          ]),
+                          if (_cancelledSales.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.only(bottom: 14),
+                              child: Text('Tidak ada riwayat penjualan dibatalkan.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            )
+                          else
+                            ..._cancelledSales.map((row) {
+                              final id = row['id'] as int;
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 4),
+                                child: CheckboxListTile(
+                                  dense: true,
+                                  controlAffinity: ListTileControlAffinity.leading,
+                                  value: _selectedCancelledSales.contains(id),
+                                  onChanged: _working ? null : (checked) => setState(() {
+                                    if (checked == true) {
+                                      _selectedCancelledSales.add(id);
+                                    } else {
+                                      _selectedCancelledSales.remove(id);
+                                    }
+                                  }),
+                                  title: Text(row['invoice_number']?.toString() ?? 'Penjualan #$id', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  subtitle: Text(
+                                    '${row['customer_name'] ?? 'Pelanggan Umum'} • Dibatalkan • ${_money(row['total'])}',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                ),
+                              );
+                            }),
+                          const Divider(height: 22),
                           Row(children: [
                             const Expanded(child: Text('Kandidat penjualan belum dibayar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
                             Text('${_selectedSales.length} dipilih', style: const TextStyle(fontSize: 11)),
