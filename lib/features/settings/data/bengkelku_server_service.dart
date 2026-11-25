@@ -35,7 +35,9 @@ class BengkelKuServerService {
         autoRunOnBoot: false,
         autoRunOnMyPackageReplaced: false,
         allowWakeLock: false,
-        allowWifiLock: false,
+        // Keep the Wi-Fi radio available while the Server is active and the
+        // screen is off. The lock is released when the foreground service stops.
+        allowWifiLock: true,
         stopWithTask: false,
       ),
     );
