@@ -653,7 +653,8 @@ class _CustomerListPageState extends State<CustomerListPage> {
                   )
                 : const Icon(Icons.contacts_outlined),
           ),
-          TextButton.icon(
+          IconButton(
+            tooltip: 'Piutang',
             onPressed: () {
               Navigator.push(
                 context,
@@ -661,7 +662,6 @@ class _CustomerListPageState extends State<CustomerListPage> {
               );
             },
             icon: const Icon(Icons.notifications_active_outlined),
-            label: const Text('Piutang'),
           ),
           const SizedBox(width: 4),
         ],
