@@ -1623,6 +1623,56 @@ class ServiceRepository {
         );
       }
 
+      // Jangan hapus data yang sudah menghasilkan pergerakan stok atau
+      // memakai batch biaya. Penghapusan nota tidak boleh mengubah stok diam-diam.
+      final stockMovements = await txn.query(
+        'stock_movements',
+        columns: ['id'],
+        where: "reference_id = ? AND reference_type IN ('service_order', 'service_order_part', 'service_order_cancel')",
+        whereArgs: [id],
+        limit: 1,
+      );
+      final partAllocations = await txn.query(
+        'service_part_allocations',
+        columns: ['id'],
+        where: 'service_order_item_id IN (SELECT id FROM service_order_items WHERE service_order_id = ?)',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (stockMovements.isNotEmpty || partAllocations.isNotEmpty) {
+        throw StateError(
+          'Nota servis sudah memengaruhi stok atau batch biaya. '
+          'Gunakan proses koreksi servis, bukan hapus langsung.',
+        );
+      }
+
+      // Riwayat audit, permintaan perubahan, dan snapshot nota harus tetap utuh.
+      for (final table in [
+        'service_direct_cost_history',
+        'service_estimate_history',
+        'service_part_change_requests',
+        'receipt_snapshots',
+      ]) {
+        final where = table == 'receipt_snapshots'
+            ? "source_type = 'service_order' AND source_id = ?"
+            : table == 'service_part_change_requests'
+                ? 'service_order_id = ?'
+                : 'service_order_id = ?';
+        final linked = await txn.query(
+          table,
+          columns: ['id'],
+          where: where,
+          whereArgs: [id],
+          limit: 1,
+        );
+        if (linked.isNotEmpty) {
+          throw StateError(
+            'Nota servis memiliki riwayat atau arsip terkait ($table). '
+            'Data tersebut dilindungi dan nota tidak dapat dihapus.',
+          );
+        }
+      }
+
       // Tip dicatat dengan referensi tersendiri, bukan service_order pada kas.
       final tips = await txn.query(
         'tip_transactions',
