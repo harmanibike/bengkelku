@@ -1243,6 +1243,11 @@ class ServiceRepository {
         ''', [id]);
         final walletRefund = (walletPayments.first['total'] as num?)?.toInt() ?? 0;
         final customerId = rows.first['customer_id'] as int?;
+        if (walletRefund > 0 && customerId == null) {
+          throw StateError(
+            'Pengembalian saldo servis tidak dapat diproses karena relasi pelanggan hilang.',
+          );
+        }
         if (walletRefund > 0 && customerId != null) {
           final balanceRows = await txn.rawQuery(
             'SELECT balance_after FROM customer_wallet_ledger WHERE customer_id = ? ORDER BY id DESC LIMIT 1',
