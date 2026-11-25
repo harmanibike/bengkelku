@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/auth/auth_session.dart';
 import '../../services/data/service_repository.dart';
 import '../../sales/data/sale_repository.dart';
+import '../../purchases/data/purchase_repository.dart';
 
 class TransactionCleanupPage extends StatefulWidget {
   const TransactionCleanupPage({super.key});
@@ -14,10 +15,13 @@ class TransactionCleanupPage extends StatefulWidget {
 class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
   final _repository = ServiceRepository();
   final _saleRepository = SaleRepository();
+  final _purchaseRepository = PurchaseRepository();
   final Set<int> _selected = {};
   final Set<int> _selectedSales = {};
+  final Set<int> _selectedPurchases = {};
   List<Map<String, Object?>> _orders = [];
   List<Map<String, Object?>> _sales = [];
+  List<Map<String, Object?>> _purchases = [];
   bool _loading = true;
   bool _working = false;
   String? _error;
@@ -41,16 +45,19 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       _error = null;
       _selected.clear();
       _selectedSales.clear();
+      _selectedPurchases.clear();
     });
     try {
       final results = await Future.wait([
         _repository.getServiceOrders(),
         _saleRepository.getSales(),
+        _purchaseRepository.getPurchases(),
       ]);
       if (!mounted) return;
       setState(() {
         _orders = results[0] as List<Map<String, Object?>>;
         _sales = (results[1] as List<Map<String, Object?>>).where((row) => row['payment_status']?.toString() == 'unpaid').toList();
+        _purchases = (results[2] as List<Map<String, Object?>>).where((row) => row['status']?.toString() != 'cancelled' && (row['paid'] as num? ?? 0) == 0 && (row['return_credit'] as num? ?? 0) == 0).toList();
         _loading = false;
       });
     } catch (error) {
@@ -173,6 +180,51 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
       : '$deleted transaksi dihapus; ${failures.length} ditolak karena masih terkait data penting.')));
   }
 
+  Future<void> _deleteSelectedPurchases() async {
+    if (_selectedPurchases.isEmpty || _working) return;
+    final ids = _selectedPurchases.toList(growable: false);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus pembelian dummy terpilih?'),
+        content: Text('Anda memilih ${ids.length} faktur tanpa pembayaran dan kredit retur. Sistem akan memeriksa retur, batch biaya, stok, dan arsip nota sebelum penghapusan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Kembali')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus yang aman'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _working = true);
+    var deleted = 0;
+    final failures = <String>[];
+    for (final id in ids) {
+      try { deleted += await _purchaseRepository.deleteDummyPurchase(purchaseId: id); }
+      catch (error) { failures.add('Pembelian #$id: $error'); }
+    }
+    if (!mounted) return;
+    setState(() => _working = false);
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failures.isEmpty
+      ? '$deleted faktur pembelian berhasil dihapus.'
+      : '$deleted faktur dihapus; ${failures.length} ditolak karena masih terkait data penting.')));
+    if (failures.isNotEmpty) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Sebagian faktur tidak dapat dihapus'),
+          content: SizedBox(width: 520, child: SingleChildScrollView(child: Text(failures.join('\\n\\n')))),
+          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup'))],
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!AuthSession.instance.isAdmin) {
@@ -272,6 +324,35 @@ class _TransactionCleanupPageState extends State<TransactionCleanupPage> {
                                   onChanged: _working ? null : (checked) => setState(() { if (checked == true) { _selectedSales.add(id); } else { _selectedSales.remove(id); } }),
                                   title: Text(row['invoice_number']?.toString() ?? 'Penjualan #$id', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                   subtitle: Text('${row['customer_name'] ?? 'Pelanggan Umum'} • ${_money(row['total'])}', style: const TextStyle(fontSize: 11)),
+                                ),
+                              );
+                            }),
+                          const Divider(height: 22),
+                          Row(children: [
+                            const Expanded(child: Text('Pembelian dummy (belum dibayar)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                            Text('${_selectedPurchases.length} dipilih', style: const TextStyle(fontSize: 11)),
+                            TextButton(
+                              onPressed: _working ? null : () => setState(() {
+                                if (_selectedPurchases.length == _purchases.length) { _selectedPurchases.clear(); }
+                                else { _selectedPurchases..clear()..addAll(_purchases.map((row) => row['id'] as int)); }
+                              }),
+                              child: Text(_selectedPurchases.length == _purchases.length && _purchases.isNotEmpty ? 'Batal' : 'Pilih'),
+                            ),
+                            IconButton(tooltip: 'Hapus pembelian terpilih', onPressed: _selectedPurchases.isEmpty || _working ? null : _deleteSelectedPurchases, icon: const Icon(Icons.delete_outline, color: Colors.red)),
+                          ]),
+                          if (_purchases.isEmpty)
+                            const Padding(padding: EdgeInsets.only(bottom: 14), child: Text('Tidak ada pembelian dummy yang memenuhi syarat.', style: TextStyle(fontSize: 12, color: Colors.grey)))
+                          else
+                            ..._purchases.map((row) {
+                              final id = row['id'] as int;
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 4),
+                                child: CheckboxListTile(
+                                  dense: true, controlAffinity: ListTileControlAffinity.leading,
+                                  value: _selectedPurchases.contains(id),
+                                  onChanged: _working ? null : (checked) => setState(() { if (checked == true) { _selectedPurchases.add(id); } else { _selectedPurchases.remove(id); } }),
+                                  title: Text(row['invoice_number']?.toString() ?? 'Pembelian #$id', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  subtitle: Text('${row['supplier_name'] ?? 'Pemasok'} • ${_money(row['total'])}', style: const TextStyle(fontSize: 11)),
                                 ),
                               );
                             }),
