@@ -117,7 +117,7 @@ class LocalApiServer {
 
           if (request.method == 'GET' && request.uri.path == '/api/v1/health') {
             request.response.statusCode = HttpStatus.ok;
-            request.response.write(jsonEncode({
+            final payload = jsonEncode({
               'app': 'bengkelku_pos',
               'status': 'ok',
               'server_name': serverName,
@@ -125,7 +125,9 @@ class LocalApiServer {
               'api_version': apiVersion,
               'min_client_version': minimumClientVersion,
               'max_client_version': maximumClientVersion,
-            }));
+            });
+            request.response.contentLength = utf8.encode(payload).length;
+            request.response.write(payload);
           } else if (request.uri.path == '/api/v1/health') {
             request.response.statusCode = HttpStatus.methodNotAllowed;
             request.response.headers.set(HttpHeaders.allowHeader, 'GET');
