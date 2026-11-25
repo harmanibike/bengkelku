@@ -144,12 +144,32 @@ class AppDatabase {
         purchase_date TEXT,
         warranty_until TEXT,
         notes TEXT,
+        ownership_status TEXT NOT NULL DEFAULT 'customer_owned',
+        owner_name TEXT,
+        owner_phone TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (customer_id)
           REFERENCES customers(id)
           ON DELETE SET NULL
       )
     ''');
+    batch.execute('''
+      CREATE TABLE bicycle_ownership_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        bicycle_id INTEGER NOT NULL,
+        previous_customer_id INTEGER,
+        new_customer_id INTEGER,
+        previous_owner_name TEXT,
+        new_owner_name TEXT,
+        change_type TEXT NOT NULL CHECK(change_type IN ('registered', 'owner_changed', 'marked_for_sale', 'sold', 'ownership_unknown')),
+        notes TEXT,
+        changed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (bicycle_id) REFERENCES bicycles(id) ON DELETE RESTRICT,
+        FOREIGN KEY (previous_customer_id) REFERENCES customers(id) ON DELETE SET NULL,
+        FOREIGN KEY (new_customer_id) REFERENCES customers(id) ON DELETE SET NULL
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_bicycle_ownership_history_bicycle ON bicycle_ownership_history(bicycle_id, changed_at DESC, id DESC)');
 
     // Data pemasok.
     batch.execute('''
