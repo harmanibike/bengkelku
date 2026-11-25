@@ -609,22 +609,8 @@ class _ProductListPageState extends State<ProductListPage> {
                           subtitle: Text('SKU: ${item['sku'] ?? '-'} • Barcode: ${item['barcode'] ?? '-'}\nJual: ${_rupiah(item['selling_price'])} • Stok: ${item['stock'] ?? 0}'),
                           isThreeLine: true,
                           trailing: PopupMenuButton<String>(
-                            onSelected: (value) async {
-                              if (value == 'edit') {
-                                try {
-                                  await _editVariant(productId: productId, variant: item);
-                                  if (mounted) setState(() {});
-                                } catch (error) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan varian: $error')));
-                                }
-                              } else if (value == 'deactivate') {
-                                try {
-                                  await _repository.deactivateProductVariant(item['id'] as int);
-                                  if (mounted) setState(() {});
-                                } catch (error) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menonaktifkan varian: $error')));
-                                }
-                              }
+                            onSelected: (value) {
+                              Navigator.pop(dialogContext, '$value:${item['id']}');
                             },
                             itemBuilder: (_) => [
                               if (active) const PopupMenuItem(value: 'edit', child: Text('Edit varian')),
@@ -656,6 +642,23 @@ class _ProductListPageState extends State<ProductListPage> {
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menambah varian: $error')));
         }
         continue;
+      }
+      if (action != null && (action.startsWith('edit:') || action.startsWith('deactivate:'))) {
+        final parts = action.split(':');
+        final variantId = int.tryParse(parts.last);
+        final selected = variants.where((item) => item['id'] == variantId).firstOrNull;
+        if (selected != null) {
+          try {
+            if (parts.first == 'edit') {
+              await _editVariant(productId: productId, variant: selected);
+            } else {
+              await _repository.deactivateProductVariant(variantId!);
+            }
+          } catch (error) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memproses varian: $error')));
+          }
+          continue;
+        }
       }
       break;
     }
