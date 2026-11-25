@@ -25,7 +25,7 @@ class ReceivableRepository {
           s.order_number AS invoice_number,
           s.received_at AS transaction_date,
           s.total_cost AS total_amount,
-          s.down_payment AS paid_amount,
+          (s.total_cost - s.remaining_payment) AS paid_amount,
           s.remaining_payment AS remaining_amount,
           s.service_status AS record_status,
           COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
@@ -82,7 +82,8 @@ class ReceivableRepository {
     final db = await _db;
     if (type == 'service') {
       final rows = await db.rawQuery('''
-        SELECT s.*, COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
+        SELECT s.*, (s.total_cost - s.remaining_payment) AS paid_amount,
+          COALESCE(s.customer_name, c.name, 'Pelanggan Umum') AS customer_name,
           COALESCE(s.customer_phone, c.phone) AS customer_phone
         FROM service_orders s
         LEFT JOIN customers c ON c.id = s.customer_id
