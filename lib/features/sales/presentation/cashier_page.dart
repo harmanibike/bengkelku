@@ -10,6 +10,7 @@ import '../../customers/data/customer_wallet_repository.dart';
 import '../../settings/data/payment_methods_repository.dart';
 import 'barcode_scanner_page.dart';
 import '../../services/presentation/service_list_page.dart';
+import '../../../core/widgets/app_photo_preview.dart';
 
 class CashierPage extends StatefulWidget {
   const CashierPage({super.key});
@@ -593,6 +594,7 @@ class _CashierPageState extends State<CashierPage> {
                     ),
                   ],
                 ),
+                isDense: true,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -638,15 +640,14 @@ class _CashierPageState extends State<CashierPage> {
                                       crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
                                         Expanded(
-                                          child: ClipRRect(
+                                          child: AppPhotoPreview(
+                                            path: product['image_path']?.toString(),
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            fit: BoxFit.cover,
                                             borderRadius: BorderRadius.circular(10),
-                                            child: product['image_path'] != null && product['image_path'].toString().isNotEmpty
-                                                ? Image.file(
-                                                    File(product['image_path'].toString()),
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.inventory_2_outlined, size: 34)),
-                                                  )
-                                                : const Center(child: Icon(Icons.inventory_2_outlined, size: 34)),
+                                            placeholderIcon: Icons.inventory_2_outlined,
+                                            placeholderLabel: 'Foto produk',
                                           ),
                                         ),
                                         const SizedBox(height: 6),
