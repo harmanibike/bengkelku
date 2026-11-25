@@ -28,6 +28,27 @@ class LocalApiServer {
   Future<int> start({
     int port = defaultPort,
     String serverName = 'BengkelKu Server',
+  }) => _start(
+        port: port,
+        serverName: serverName,
+      );
+
+  /// Starts the same health API over TLS. The caller owns certificate
+  /// loading and must keep the private key out of pairing responses/logs.
+  Future<int> startSecure({
+    required SecurityContext securityContext,
+    int port = defaultPort,
+    String serverName = 'BengkelKu Server',
+  }) => _start(
+        port: port,
+        serverName: serverName,
+        securityContext: securityContext,
+      );
+
+  Future<int> _start({
+    required int port,
+    required String serverName,
+    SecurityContext? securityContext,
   }) {
     final runningServer = _server;
     if (runningServer != null) return Future<int>.value(runningServer.port);
@@ -36,14 +57,22 @@ class LocalApiServer {
     final pendingStop = _stopFuture;
     if (pendingStop != null) {
       return pendingStop.then(
-        (_) => start(port: port, serverName: serverName),
+        (_) => _start(
+          port: port,
+          serverName: serverName,
+          securityContext: securityContext,
+        ),
       );
     }
 
     final pendingStart = _startFuture;
     if (pendingStart != null) return pendingStart;
 
-    final future = _startInternal(port: port, serverName: serverName);
+    final future = _startInternal(
+      port: port,
+      serverName: serverName,
+      securityContext: securityContext,
+    );
     _startFuture = future;
     return future.whenComplete(() {
       if (identical(_startFuture, future)) _startFuture = null;
@@ -53,16 +82,24 @@ class LocalApiServer {
   Future<int> _startInternal({
     required int port,
     required String serverName,
+    SecurityContext? securityContext,
   }) async {
     if (port < 0 || port > 65535) {
       throw ArgumentError.value(port, 'port', 'Port harus 0 sampai 65535.');
     }
 
-    final server = await HttpServer.bind(
-      InternetAddress.anyIPv4,
-      port,
-      shared: true,
-    );
+    final server = securityContext == null
+        ? await HttpServer.bind(
+            InternetAddress.anyIPv4,
+            port,
+            shared: true,
+          )
+        : await HttpServer.bindSecure(
+            InternetAddress.anyIPv4,
+            port,
+            securityContext,
+            shared: true,
+          );
     _server = server;
     unawaited(_handleRequests(server, serverName));
     return server.port;
