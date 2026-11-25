@@ -404,7 +404,7 @@ class _ProductListPageState extends State<ProductListPage> {
                     return ListTile(
                       dense: true,
                       leading: Icon(incoming ? Icons.arrow_downward : Icons.arrow_upward, color: incoming ? Colors.green : Colors.red),
-                      title: Text((incoming ? '+' : '-') + (item['quantity']?.toString() ?? '0') + ' ' + (product['unit']?.toString() ?? 'pcs')),
+                      title: Text((item['variant_name'] == null ? '' : '${item['variant_name']} • ') + (incoming ? '+' : '-') + (item['quantity']?.toString() ?? '0') + ' ' + (product['unit']?.toString() ?? 'pcs')),
                       subtitle: Text('Sisa: ' + (item['stock_after']?.toString() ?? '-') + (item['notes'] == null ? '' : '\n' + item['notes'].toString())),
                       trailing: Text(item['created_at']?.toString().substring(0, 10) ?? ''),
                     );

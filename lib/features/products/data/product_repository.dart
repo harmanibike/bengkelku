@@ -528,12 +528,13 @@ class ProductRepository {
   Future<List<Map<String, Object?>>> getStockHistory(int productId) async {
     AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
-    return db.query(
-      'stock_movements',
-      where: 'product_id = ?',
-      whereArgs: [productId],
-      orderBy: 'id DESC',
-    );
+    return db.rawQuery('''
+      SELECT sm.*, v.name AS variant_name
+      FROM stock_movements sm
+      LEFT JOIN product_variants v ON v.id = sm.variant_id
+      WHERE sm.product_id = ?
+      ORDER BY sm.id DESC
+    ''', [productId]);
   }
 
   Future<List<Map<String, Object?>>> getCostBatches(int productId) async {
