@@ -1,4 +1,4 @@
-name: Build BengkelKu POS APK
+name: Build Bike POS APK
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: bengkelku-apk-${{ github.ref }}
+  group: bike-pos-apk-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -232,7 +232,7 @@ jobs:
 
           source, count = re.subn(
               r'android:label="[^"]*"',
-              'android:label="BengkelKu POS"',
+              'android:label="Bike POS"',
               source,
               count=1
           )
@@ -241,7 +241,7 @@ jobs:
               raise SystemExit("android:label tidak ditemukan.")
 
           path.write_text(source)
-          print("Nama aplikasi: BengkelKu POS")
+          print("Nama aplikasi: Bike POS")
           PY
 
       - name: Generate rounded BengkelKu launcher icons from official image
@@ -654,15 +654,15 @@ jobs:
           APK="build/app/outputs/flutter-apk/app-release.apk"
           jarsigner -verify -verbose -certs "$APK"
 
-      - name: Rename APK
+      - name: Rename Bike POS APK
         run: |
           cp build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/BengkelKu-POS.apk
+             build/app/outputs/flutter-apk/Bike-POS.apk
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v5
         with:
-          name: BengkelKu-POS
+          name: Bike-POS
           path: build/app/outputs/flutter-apk/BengkelKu-POS.apk
           retention-days: 14
 
