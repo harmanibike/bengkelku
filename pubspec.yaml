@@ -25,7 +25,8 @@ dependencies:
   printing: ^5.14.3
   share_plus: ^12.0.2
   file_picker: ^10.3.10
-  excel: ^4.0.6
+  archive: ^4.0.7
+  xml: ^6.5.0
   cross_file: ^0.3.4+2
   flutter_contacts: ^1.1.9+2
   unified_esc_pos_printer: ^3.4.0
