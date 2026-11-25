@@ -11,7 +11,7 @@ class AboutAppPage extends StatelessWidget {
       version: '1.0.0',
       date: 'Rilis awal',
       changes: [
-        'BengkelKu POS untuk penjualan toko dan layanan servis sepeda.',
+        'Bike POS untuk penjualan toko dan layanan servis sepeda.',
         'Mode operasional lokal/offline.',
       ],
     ),
@@ -49,7 +49,7 @@ class AboutAppPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'BengkelKu POS',
+                    'Bike POS',
                     style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -91,7 +91,7 @@ class AboutAppPage extends StatelessWidget {
                   dense: true,
                   leading: Icon(Icons.apps_rounded, color: Color(0xFF1565C0)),
                   title: Text('Nama aplikasi'),
-                  subtitle: Text('BengkelKu POS'),
+                  subtitle: Text('Bike POS'),
                 ),
                 Divider(height: 1, indent: 56),
                 ListTile(
