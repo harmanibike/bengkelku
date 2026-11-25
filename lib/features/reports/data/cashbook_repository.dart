@@ -334,3 +334,38 @@ class CashbookRepository {
     });
   }
 }
+
+
+  /// Daftar transaksi kas manual yang boleh dibersihkan sebagai data percobaan.
+  Future<List<Map<String, Object?>>> getManualCashCandidates() async {
+    AuthSession.instance.requireAdmin('Pembersihan transaksi kas hanya dapat dilakukan Admin.');
+    final db = await _db;
+    return db.query('cash_transactions',
+      where: "reference_type = 'manual_cash' AND reference_id IS NULL AND amount > 0 AND transaction_type IN ('income', 'expense')",
+      orderBy: 'transaction_date DESC, id DESC');
+  }
+
+  /// Hapus hanya kas manual; transaksi dari modul lain tidak dihapus di sini.
+  Future<int> deleteDummyManualCash(int id) async {
+    AuthSession.instance.requireAdmin('Penghapusan transaksi kas hanya dapat dilakukan Admin.');
+    final db = await _db;
+    return db.transaction((txn) async {
+      final rows = await txn.query('cash_transactions',
+        where: "id = ? AND reference_type = 'manual_cash' AND reference_id IS NULL AND amount > 0 AND transaction_type IN ('income', 'expense')",
+        whereArgs: [id], limit: 1);
+      if (rows.isEmpty) throw StateError('Transaksi bukan kas manual yang aman untuk dihapus.');
+      final row = rows.first;
+      final deleted = await txn.delete('cash_transactions',
+        where: "id = ? AND reference_type = 'manual_cash' AND reference_id IS NULL", whereArgs: [id]);
+      if (deleted != 1) throw StateError('Transaksi kas tidak berhasil dihapus.');
+      final user = AuthSession.instance;
+      await txn.insert('activity_logs', {
+        'user_id': user.userId, 'user_name': user.displayName ?? 'Admin',
+        'user_role': user.role ?? 'admin', 'action': 'dummy_manual_cash_deleted',
+        'entity_type': 'cash_transaction', 'entity_id': id,
+        'description': 'Menghapus transaksi kas manual percobaan #$id (${row['transaction_type']}, ${row['amount']})',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      return deleted;
+    });
+  }
