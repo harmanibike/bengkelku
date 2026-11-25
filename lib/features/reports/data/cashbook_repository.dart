@@ -267,7 +267,7 @@ class CashbookRepository {
           COALESCE(c.name, '-') AS customer_name,
           (s.total_cost - s.remaining_payment) AS stored_paid_total,
           COALESCE(pay.payment_total, 0) AS payment_history_total,
-          s.down_payment - COALESCE(pay.payment_total, 0) AS difference
+          (s.total_cost - s.remaining_payment) - COALESCE(pay.payment_total, 0) AS difference
         FROM service_orders s
         LEFT JOIN customers c ON c.id = s.customer_id
         LEFT JOIN (
