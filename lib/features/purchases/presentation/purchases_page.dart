@@ -267,11 +267,12 @@ class _PurchasesPageState extends State<PurchasesPage> {
                       MapEntry('Biaya lainnya', otherFee),
                     ]) ...[
                       TextField(controller: entry.value, keyboardType: TextInputType.number,
+                        onChanged: (_) => setDialogState(() {}),
                         inputFormatters: const [CurrencyInputFormatter()],
                         decoration: InputDecoration(labelText: entry.key, border: const OutlineInputBorder(), isDense: true)),
                       const SizedBox(height: 6),
                     ],
-                    TextField(controller: discount, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
+                    TextField(controller: discount, keyboardType: TextInputType.number, onChanged: (_) => setDialogState(() {}), inputFormatters: const [CurrencyInputFormatter()],
                       decoration: const InputDecoration(labelText: 'Diskon pembelian', border: const OutlineInputBorder())),
                     const SizedBox(height: 8),
                     Text('Total termasuk biaya tambahan: ${_money(grandTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
