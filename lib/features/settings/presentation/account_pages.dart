@@ -1,29 +1,79 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/auth/auth_session.dart';
 import '../../dashboard/dashboard_page.dart';
 import '../data/account_repository.dart';
+
+const FlutterSecureStorage _loginStorage = FlutterSecureStorage();
+const String _rememberLoginKey = 'bike_pos_remember_login';
+const String _rememberedAccountIdKey = 'bike_pos_remembered_account_id';
+
+Future<void> clearRememberedLogin() async {
+  await _loginStorage.delete(key: _rememberLoginKey);
+  await _loginStorage.delete(key: _rememberedAccountIdKey);
+}
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
   @override
   State<AuthGate> createState() => _AuthGateState();
 }
-
 class _AuthGateState extends State<AuthGate> {
   final _repository = AccountRepository();
   late Future<bool> _hasAccounts;
+  late Future<Map<String, Object?>?> _restoreSession;
+
   @override
-  void initState() { super.initState(); _hasAccounts = _repository.hasAccounts(); }
+  void initState() {
+    super.initState();
+    _hasAccounts = _repository.hasAccounts();
+    _restoreSession = _tryRestoreSession();
+  }
+
+  Future<Map<String, Object?>?> _tryRestoreSession() async {
+    try {
+      final remember = await _loginStorage.read(key: _rememberLoginKey);
+      final rawId = await _loginStorage.read(key: _rememberedAccountIdKey);
+      if (remember != 'true' || rawId == null) return null;
+      final id = int.tryParse(rawId);
+      if (id == null) {
+        await clearRememberedLogin();
+        return null;
+      }
+      final user = await _repository.getActiveAccountById(id);
+      if (user == null) {
+        await clearRememberedLogin();
+        return null;
+      }
+      AuthSession.instance.signIn(user);
+      return user;
+    } catch (_) {
+      await clearRememberedLogin();
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) => FutureBuilder<bool>(
     future: _hasAccounts,
-    builder: (context, snapshot) {
-      if (snapshot.connectionState != ConnectionState.done) {
+    builder: (context, accountsSnapshot) {
+      if (accountsSnapshot.connectionState != ConnectionState.done) {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
-      if (snapshot.hasError) return Scaffold(body: Center(child: Text('Gagal memeriksa akun: ${snapshot.error}')));
-      return snapshot.data == true ? const LoginPage() : const FirstAdminPage();
+      if (accountsSnapshot.hasError) {
+        return Scaffold(body: Center(child: Text('Gagal memeriksa akun: \${accountsSnapshot.error}')));
+      }
+      if (accountsSnapshot.data != true) return const FirstAdminPage();
+      return FutureBuilder<Map<String, Object?>?>(
+        future: _restoreSession,
+        builder: (context, sessionSnapshot) {
+          if (sessionSnapshot.connectionState != ConnectionState.done) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          return sessionSnapshot.data == null ? const LoginPage() : const DashboardPage();
+        },
+      );
     },
   );
 }
@@ -84,6 +134,7 @@ class _LoginPageState extends State<LoginPage> {
   final _username = TextEditingController();
   final _pin = TextEditingController();
   bool _busy = false;
+  bool _rememberLogin = false;
   @override
   void dispose() { _username.dispose(); _pin.dispose(); super.dispose(); }
   Future<void> _login() async {
@@ -92,6 +143,12 @@ class _LoginPageState extends State<LoginPage> {
       final user = await AccountRepository().authenticate(username: _username.text, pin: _pin.text);
       if (!mounted) return;
       if (user == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Username atau PIN salah, atau akun tidak aktif.'))); return; }
+      if (_rememberLogin) {
+        await _loginStorage.write(key: _rememberLoginKey, value: 'true');
+        await _loginStorage.write(key: _rememberedAccountIdKey, value: user['id'].toString());
+      } else {
+        await clearRememberedLogin();
+      }
       AuthSession.instance.signIn(user);
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardPage()));
     } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Login gagal: $e'))); }
@@ -105,6 +162,16 @@ class _LoginPageState extends State<LoginPage> {
         const SizedBox(height: 10), const Text('Bike POS', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
         const SizedBox(height: 18), TextField(controller: _username, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person))),
         const SizedBox(height: 12), TextField(controller: _pin, obscureText: true, keyboardType: TextInputType.number, onSubmitted: (_) => _login(), decoration: const InputDecoration(labelText: 'PIN', border: OutlineInputBorder(), prefixIcon: Icon(Icons.lock))),
+        const SizedBox(height: 6),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          value: _rememberLogin,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: const Text('Tetap login di perangkat ini'),
+          subtitle: const Text('Tidak perlu memasukkan PIN setiap membuka aplikasi.'),
+          onChanged: _busy ? null : (value) => setState(() => _rememberLogin = value ?? false),
+        ),
         const SizedBox(height: 16), FilledButton(onPressed: _busy ? null : _login, child: Text(_busy ? 'Memeriksa…' : 'Masuk')),
       ])),
     )))),
