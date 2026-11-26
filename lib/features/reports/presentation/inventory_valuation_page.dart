@@ -64,7 +64,7 @@ class _InventoryValuationPageState extends State<InventoryValuationPage> {
           if (snapshot.hasError) {
             return Center(child: Padding(
               padding: const EdgeInsets.all(20),
-              child: Text('Gagal memuat rincian persediaan: \${snapshot.error}', textAlign: TextAlign.center),
+              child: Text('Gagal memuat rincian persediaan: ${snapshot.error}', textAlign: TextAlign.center),
             ));
           }
 
@@ -116,7 +116,7 @@ class _InventoryValuationPageState extends State<InventoryValuationPage> {
                       const SizedBox(height: 4),
                       Text(_rupiah(totalValue), style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Color(0xFF1565C0))),
                       const SizedBox(height: 4),
-                      Text('\${items.length} jenis barang • $totalStock unit stok', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text('${items.length} jenis barang • $totalStock unit stok', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     ]),
                   ),
                 ),
@@ -179,11 +179,11 @@ class _InventoryValuationPageState extends State<InventoryValuationPage> {
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(item['product_name']?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                           const SizedBox(height: 3),
-                          Text('\${sku.isEmpty ? 'Tanpa SKU' : sku} • \${item['category'] ?? 'Lainnya'}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text('${sku.isEmpty ? 'Tanpa SKU' : sku} • ${item['category'] ?? 'Lainnya'}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
                           const Divider(height: 14),
                           Row(children: [
                             Expanded(child: Text('Stok: $stock $unit', style: const TextStyle(fontSize: 12))),
-                            Expanded(child: Text('Modal/unit: \${_rupiah(unitCost)}', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12))),
+                            Expanded(child: Text('Modal/unit: ${_rupiah(unitCost)}', textAlign: TextAlign.end, style: const TextStyle(fontSize: 12))),
                           ]),
                           const SizedBox(height: 5),
                           Row(children: [
