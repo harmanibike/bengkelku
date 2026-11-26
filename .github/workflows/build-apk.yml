@@ -48,6 +48,39 @@ jobs:
             flutter create --platforms=android --project-name bengkelku_pos .
           fi
 
+      - name: Set minimum Android version for Sunmi V2 compatibility
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/build.gradle.kts")
+          source = path.read_text()
+          match = re.search(r'defaultConfig\\s*\\{', source)
+          if not match:
+              raise SystemExit("Blok defaultConfig tidak ditemukan.")
+
+          end = source.find("}", match.end())
+          if end < 0:
+              raise SystemExit("Penutup defaultConfig tidak ditemukan.")
+
+          block = source[match.end():end]
+          if re.search(r'\\bminSdk\\s*=', block):
+              block, count = re.subn(r'\\bminSdk\\s*=\\s*[^\\n]+', 'minSdk = 21', block, count=1)
+              if count != 1:
+                  raise SystemExit("Gagal menetapkan minSdk 21.")
+          elif re.search(r'\\bminSdkVersion\\s*\\(?', block):
+              block, count = re.subn(r'\\bminSdkVersion\\s*\\(?[^\\n]+', 'minSdkVersion(21)', block, count=1)
+              if count != 1:
+                  raise SystemExit("Gagal menetapkan minSdkVersion 21.")
+          else:
+              block += "\\n        minSdk = 21\\n"
+
+          source = source[:match.end()] + block + source[end:]
+          path.write_text(source)
+          print("Minimum Android SDK ditetapkan ke API 21 (Android 5.0+); kompatibel dengan Android 7.1.1 bila seluruh plugin mendukungnya.")
+          PY
+
       - name: Disable Android backup for encrypted TLS identity
         run: |
           python3 - <<'PY'
@@ -683,6 +716,23 @@ jobs:
           done
           echo "Build APK gagal setelah tiga percobaan."
           exit 1
+
+      - name: Report APK Android compatibility metadata
+        run: |
+          set -eu
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          ANALYZER="$(find "$SDK_ROOT" -type f -name apkanalyzer | head -n 1)"
+          if [ -z "$ANALYZER" ]; then
+            echo "apkanalyzer tidak ditemukan; metadata manifest tidak dapat dicetak."
+            exit 1
+          fi
+          echo "APK application id:"
+          "$ANALYZER" manifest application-id "$APK"
+          echo "APK minimum Android SDK:"
+          "$ANALYZER" manifest min-sdk "$APK"
+          echo "APK target Android SDK:"
+          "$ANALYZER" manifest target-sdk "$APK"
 
       - name: Verify APK signature
         run: |
