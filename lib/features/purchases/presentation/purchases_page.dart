@@ -344,7 +344,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
         );
         await _reload();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pembelian berhasil disimpan dan stok diperbarui.')),
+          const SnackBar(content: Text('Pembelian tersimpan. Stok bertambah setelah barang diterima.')),
         );
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -367,6 +367,116 @@ class _PurchasesPageState extends State<PurchasesPage> {
     notes.dispose();
     qty.dispose();
     cost.dispose();
+  }
+
+
+  Future<void> _receivePurchase(Map<String, Object?> row) async {
+    final purchaseId = row['id'] as int;
+    final items = await _purchases.getPurchaseItems(purchaseId);
+    if (!mounted) return;
+    final controllers = <int, TextEditingController>{};
+    for (final item in items) {
+      final id = (item['id'] as num).toInt();
+      final ordered = (item['quantity'] as num?)?.toInt() ?? 0;
+      final received = (item['quantity_received'] as num?)?.toInt() ?? 0;
+      if (ordered > received) controllers[id] = TextEditingController();
+    }
+    if (controllers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua barang pada faktur ini sudah diterima.')),
+      );
+      return;
+    }
+    final quantities = await showDialog<Map<int, int>>(
+      context: context,
+      builder: (dialogContext) {
+        String? error;
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text('Terima Barang • ${row['invoice_number']}'),
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('Isi jumlah yang benar-benar diterima sekarang. Stok hanya bertambah sesuai jumlah ini.'),
+                    const SizedBox(height: 10),
+                    ...items.where((item) => controllers.containsKey((item['id'] as num).toInt())).map((item) {
+                      final id = (item['id'] as num).toInt();
+                      final ordered = (item['quantity'] as num?)?.toInt() ?? 0;
+                      final received = (item['quantity_received'] as num?)?.toInt() ?? 0;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item['product_name']?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.w600)),
+                            Text('Pesanan $ordered • Sudah diterima $received • Sisa ${ordered - received}',
+                              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            const SizedBox(height: 4),
+                            TextField(
+                              controller: controllers[id],
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(labelText: 'Diterima sekarang', isDense: true, border: OutlineInputBorder()),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    if (error != null)
+                      Padding(padding: const EdgeInsets.only(top: 8),
+                        child: Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12))),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+              FilledButton(
+                onPressed: () {
+                  final values = <int, int>{};
+                  for (final entry in controllers.entries) {
+                    final value = int.tryParse(entry.value.text.trim()) ?? 0;
+                    if (value > 0) values[entry.key] = value;
+                  }
+                  final invalid = values.entries.any((entry) {
+                    final item = items.firstWhere((value) => (value['id'] as num).toInt() == entry.key);
+                    final ordered = (item['quantity'] as num?)?.toInt() ?? 0;
+                    final received = (item['quantity_received'] as num?)?.toInt() ?? 0;
+                    return entry.value > ordered - received;
+                  });
+                  if (values.isEmpty || invalid) {
+                    setDialogState(() => error = 'Isi minimal satu jumlah dan jangan melebihi sisa pesanan.');
+                    return;
+                  }
+                  Navigator.pop(dialogContext, values);
+                },
+                child: const Text('Simpan Penerimaan'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    if (quantities == null || !mounted) return;
+    try {
+      await _purchases.receivePurchaseItems(purchaseId: purchaseId, receivedQuantities: quantities);
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Penerimaan tersimpan. Stok diperbarui sesuai barang yang diterima.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Penerimaan gagal: $error')),
+      );
+    }
   }
 
   Future<void> _cancelPurchase(Map<String, Object?> row) async {
@@ -506,6 +616,15 @@ class _PurchasesPageState extends State<PurchasesPage> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup')),
+          if (row['status']?.toString() != 'cancelled' &&
+              items.any((item) => (item['quantity_received'] as num?)?.toInt() < (item['quantity'] as num?)?.toInt()))
+            FilledButton.tonal(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _receivePurchase(row);
+              },
+              child: const Text('Catat Penerimaan'),
+            ),
           if (row['status']?.toString() != 'cancelled')
             TextButton(
               onPressed: () {
