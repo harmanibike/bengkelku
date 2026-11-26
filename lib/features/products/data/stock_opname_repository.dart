@@ -34,10 +34,18 @@ class StockOpnameRepository {
       });
       await txn.execute('''
         INSERT INTO stock_opname_items
-          (session_id,product_id,product_name,sku,unit,system_quantity)
-        SELECT ?,id,name,sku,unit,stock FROM products
-        WHERE is_active=1 AND track_stock=1 ORDER BY name COLLATE NOCASE
-      ''', [id]);
+          (session_id,product_id,variant_id,product_name,sku,unit,system_quantity)
+        SELECT ?,p.id,NULL,p.name,p.sku,p.unit,p.stock
+        FROM products p
+        WHERE p.is_active=1 AND p.track_stock=1
+        UNION ALL
+        SELECT ?,p.id,v.id,p.name || ' - ' || v.name,
+          COALESCE(v.sku,p.sku),p.unit,v.stock
+        FROM product_variants v
+        JOIN products p ON p.id=v.product_id
+        WHERE p.is_active=1 AND v.is_active=1 AND v.track_stock=1
+        ORDER BY 4 COLLATE NOCASE
+      ''', [id,id]);
       final count = Sqflite.firstIntValue(await txn.rawQuery(
         'SELECT COUNT(*) FROM stock_opname_items WHERE session_id=?', [id])) ?? 0;
       if (count == 0) throw StateError('Tidak ada produk aktif yang melacak stok.');
@@ -56,9 +64,10 @@ class StockOpnameRepository {
     AuthSession.instance.requireAdmin('Stok opname hanya dapat dikelola Admin.');
     final db = await _db;
     return db.rawQuery('''
-      SELECT i.*, p.barcode
+      SELECT i.*, COALESCE(v.barcode,p.barcode) AS barcode
       FROM stock_opname_items i
       LEFT JOIN products p ON p.id=i.product_id
+      LEFT JOIN product_variants v ON v.id=i.variant_id
       WHERE i.session_id=?
       ORDER BY i.product_name COLLATE NOCASE
     ''', [id]);
@@ -121,14 +130,24 @@ class StockOpnameRepository {
       final now = DateTime.now().toIso8601String();
       for (final item in items) {
         final pid = item['product_id'] as int?;
+        final variantId = item['variant_id'] as int?;
         if (pid == null) continue;
-        final product = await txn.query('products',
-          columns: ['stock','purchase_price','track_stock'],
-          where: 'id=?', whereArgs: [pid], limit: 1);
-        if (product.isEmpty || (product.first['track_stock'] as int? ?? 1) != 1) {
-          throw StateError('Produk ${item['product_name']} tidak lagi melacak stok.');
+
+        final isVariant = variantId != null;
+        final stockTable = isVariant ? 'product_variants' : 'products';
+        final stockRows = await txn.query(
+          stockTable,
+          columns: isVariant
+              ? ['stock','purchase_price','track_stock','product_id']
+              : ['stock','purchase_price','track_stock'],
+          where: 'id=?',
+          whereArgs: [isVariant ? variantId : pid],
+          limit: 1,
+        );
+        if (stockRows.isEmpty || (stockRows.first['track_stock'] as int? ?? 1) != 1) {
+          throw StateError('Produk/varian ${item['product_name']} tidak lagi melacak stok.');
         }
-        final before = product.first['stock'] as int? ?? 0;
+        final before = stockRows.first['stock'] as int? ?? 0;
         final snapshotStock = item['system_quantity'] as int? ?? 0;
         if (before != snapshotStock) {
           throw StateError('Stok ${item['product_name']} berubah sejak sesi dibuat (awal $snapshotStock, sekarang $before). Buat sesi opname baru agar transaksi selama penghitungan tidak tertimpa.');
@@ -136,6 +155,7 @@ class StockOpnameRepository {
         final counted = item['counted_quantity'] as int;
         final delta = counted-before;
         if (delta == 0) continue;
+
         if (delta > 0) {
           final costRows = await txn.rawQuery('''
             SELECT
@@ -144,41 +164,60 @@ class StockOpnameRepository {
                 ELSE ?
               END AS average_cost
             FROM inventory_cost_batches
-            WHERE product_id=? AND quantity_remaining>0
-          ''', [product.first['purchase_price'] as int? ?? 0, pid]);
+            WHERE ${isVariant ? 'variant_id' : 'product_id'}=? AND quantity_remaining>0
+          ''', [stockRows.first['purchase_price'] as int? ?? 0, isVariant ? variantId : pid]);
           final averageCost = costRows.first['average_cost'] as int? ?? 0;
           await txn.insert('inventory_cost_batches', {
-            'product_id': pid, 'batch_code': 'OPN-$sessionId-$pid',
-            'quantity_received': delta, 'quantity_remaining': delta,
+            'product_id': pid,
+            'variant_id': variantId,
+            'batch_code': 'OPN-$sessionId-${isVariant ? 'V$variantId' : 'P$pid'}',
+            'quantity_received': delta,
+            'quantity_remaining': delta,
             'unit_cost': averageCost,
             'received_at': now,
             'notes': 'Penyesuaian stok opname; biaya berdasarkan rata-rata batch tersisa (atau harga beli saat ini jika tidak ada saldo batch).',
           });
         } else {
           var remaining = -delta;
-          final batches = await txn.query('inventory_cost_batches',
-            where: 'product_id=? AND quantity_remaining>0', whereArgs: [pid],
-            orderBy: 'received_at ASC,id ASC');
+          final batches = await txn.query(
+            'inventory_cost_batches',
+            where: '${isVariant ? 'variant_id' : 'product_id'}=? AND quantity_remaining>0',
+            whereArgs: [isVariant ? variantId : pid],
+            orderBy: 'received_at ASC,id ASC',
+          );
           for (final batch in batches) {
             if (remaining == 0) break;
             final available = batch['quantity_remaining'] as int? ?? 0;
             final take = available < remaining ? available : remaining;
             if (take <= 0) continue;
-            await txn.update('inventory_cost_batches',
+            await txn.update(
+              'inventory_cost_batches',
               {'quantity_remaining': available-take},
-              where: 'id=?', whereArgs: [batch['id']]);
+              where: 'id=?',
+              whereArgs: [batch['id']],
+            );
             remaining -= take;
           }
           if (remaining > 0) {
             throw StateError('Saldo batch biaya ${item['product_name']} tidak cukup. Penyesuaian dibatalkan agar nilai persediaan tetap konsisten.');
           }
         }
-        await txn.update('products', {'stock': counted,'updated_at': now},
-          where: 'id=?', whereArgs: [pid]);
+
+        await txn.update(
+          stockTable,
+          {'stock': counted,'updated_at': now},
+          where: 'id=?',
+          whereArgs: [isVariant ? variantId : pid],
+        );
         await txn.insert('stock_movements', {
-          'product_id': pid, 'movement_type': delta > 0 ? 'in' : 'out',
-          'quantity': delta.abs(), 'stock_before': before,'stock_after': counted,
-          'reference_type': 'stock_opname','reference_id': sessionId,
+          'product_id': pid,
+          'variant_id': variantId,
+          'movement_type': delta > 0 ? 'in' : 'out',
+          'quantity': delta.abs(),
+          'stock_before': before,
+          'stock_after': counted,
+          'reference_type': 'stock_opname',
+          'reference_id': sessionId,
           'notes': 'Penyesuaian hasil stok opname ${sessions.first['opname_number']}',
         });
       }
