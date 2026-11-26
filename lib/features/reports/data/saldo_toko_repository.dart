@@ -39,7 +39,8 @@ class SaldoTokoRepository {
   String _filterLabel(Map<String, Object?> row, String category, String reference) {
     if (category == 'Modal Awal') return 'Modal Awal';
     if (category == 'Tarik Modal') return 'Uang Keluar';
-    if (reference == 'sale' || reference == 'sale_payment') return 'Penjualan';
+    if (reference == 'sale' || reference == 'sale_payment' ||
+        reference == 'service_order') return 'Penjualan';
     if (reference == 'sale_return' || reference == 'sale_cancel' ||
         reference == 'service_order_cancellation') return 'Refund';
     if (reference == 'purchase_return_refund' ||
