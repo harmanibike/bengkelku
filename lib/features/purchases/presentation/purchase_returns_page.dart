@@ -387,8 +387,9 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                         children: rows.map((item) {
                           final id = item['purchase_item_id'] as int;
                           final bought = item['purchased_quantity'] as int? ?? 0;
+                          final received = item['received_quantity'] as int? ?? 0;
                           final returned = item['returned_quantity'] as int? ?? 0;
-                          final available = bought - returned;
+                          final available = item['returnable_quantity'] as int? ?? 0;
                           final current = quantities[id] ?? 0;
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 5),
@@ -400,7 +401,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                                     children: [
                                       Text(item['product_name'] as String? ?? '-',
                                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                      Text('Beli $bought • Sudah retur $returned • Sisa $available',
+                                      Text('Pesanan $bought • Diterima $received • Sudah retur $returned • Bisa retur $available',
                                         style: const TextStyle(fontSize: 10, color: Colors.grey)),
                                     ],
                                   ),
@@ -439,7 +440,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Retur akan mengurangi stok yang tercatat. Pengembalian uang atau potongan utang pemasok dicatat terpisah setelah dikonfirmasi.',
+                    'Retur hanya bisa dicatat untuk barang yang sudah diterima. Pengembalian uang atau potongan utang pemasok dicatat terpisah setelah dikonfirmasi.',
                     style: TextStyle(fontSize: 10, color: Colors.grey),
                   ),
                 ],
