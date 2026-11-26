@@ -376,3 +376,22 @@ Kondisi kode saat keputusan ini dicatat:
 - Implementasi paket backup lengkap, pemetaan ulang media, dan alur Google Drive masih belum selesai.
 
 Urutan pengerjaan: (1) inventaris seluruh kolom/lokasi media, (2) paket arsip database + media dan validasi, (3) pemulihan aman beserta pemetaan ulang path, (4) penyimpanan lokal dan riwayat backup, (5) integrasi Google Drive dengan izin pengguna, lalu (6) pengujian pemulihan lintas perangkat. Backup lokal harus tetap berfungsi mandiri bila Drive tidak tersedia.
+
+
+## 19. Data contoh pembelian untuk Admin
+
+Keputusan pengguna: sediakan data contoh yang dapat dibuat dan dicoba langsung dari aplikasi, khusus untuk Admin.
+
+Ketentuan:
+- Menu/aksi **Buat Data Contoh Pembelian** hanya dapat diakses Admin.
+- Data contoh tidak dibuat otomatis saat aplikasi dipasang atau dibuka; Admin harus memilih membuatnya.
+- Setiap data contoh wajib memiliki penanda khusus (mis. `is_test_data` atau sumber `test_seed`) yang tersimpan di database, bukan hanya teks pada catatan.
+- Semua nomor faktur, pemasok, pesanan marketplace, pembayaran, mutasi stok, batch HPP, dan transaksi kas yang dibuat oleh seeder harus dapat ditelusuri ke satu kelompok data contoh.
+- Sediakan skenario: pembelian langsung lunas, pembelian online dengan diskon dan rincian ongkir/packing/asuransi/admin/biaya lain, pembelian online dibayar sebagian, serta penerimaan barang sebagian dan lengkap setelah alur penerimaan tersedia.
+- Gunakan pemasok/produk contoh khusus atau data master yang memang dibuat oleh seeder; jangan mengubah harga, stok, atau data master operasional yang sudah ada.
+- Data contoh harus terlihat jelas dengan label **DATA TEST** pada daftar dan detail, serta tidak boleh dianggap transaksi operasional.
+- Sediakan aksi **Hapus Semua Data Contoh** khusus Admin dengan pratinjau jumlah dan dampak. Hapus hanya record yang ditandai sebagai data contoh dan semua relasi turunannya secara atomik; bila ada dependensi yang tidak aman dibalik, batalkan penghapusan dan tampilkan alasannya.
+- Data contoh tidak boleh masuk ke omzet, laba/rugi, utang pemasok operasional, saldo kas fisik, atau laporan transaksi nyata. Filter laporan harus mengecualikan data contoh secara konsisten.
+- Tambahkan tes otomatis untuk hak akses Admin, penanda data contoh, tidak adanya perubahan data operasional, isolasi laporan, dan pembersihan relasi tanpa data yatim.
+
+Urutan implementasi: selesaikan terlebih dahulu alur pembelian dan penerimaan barang agar stok hanya bertambah saat barang benar-benar diterima; setelah itu buat seeder dan pembersihan aman, lalu uji seluruh skenario.
