@@ -122,15 +122,21 @@ Audit ini adalah pemeriksaan statis terhadap struktur repository, halaman, repos
 ## 7. Pembelian dan pemasok
 
 - [x] Data pemasok dan halaman detail pemasok.
-- [x] Pencatatan faktur pembelian dan item pembelian.
-- [x] Penambahan stok serta pencatatan pergerakan stok dari pembelian.
-- [x] Harga beli, diskon, pembayaran awal, pembayaran lanjutan, dan saldo utang pemasok.
-- [x] Retur pembelian kepada pemasok.
+- [x] Pencatatan faktur pembelian langsung maupun kulakan online, termasuk marketplace/toko, nomor pesanan, resi, diskon, ongkir, packing, asuransi, biaya admin marketplace, transfer, dan biaya lainnya.
+- [x] Satu faktur dapat memuat beberapa jenis barang dengan kuantitas dan harga beli masing-masing.
+- [x] Faktur baru berstatus menunggu penerimaan; stok tidak bertambah hanya karena faktur disimpan.
+- [x] Penerimaan barang sebagian maupun penuh; hanya kuantitas yang benar-benar diterima menambah stok, batch biaya, dan mutasi stok.
+- [x] Status penerimaan barang dipisahkan dari status pembayaran faktur.
+- [x] Harga beli, pembayaran awal/lanjutan, dan saldo utang pemasok.
+- [x] Retur pembelian dibatasi pada jumlah yang telah diterima dikurangi retur aktif sebelumnya.
+- [x] Pembatalan pembelian yang diterima sebagian hanya membalik stok yang diterima; pembatalan otomatis ditolak jika batch telah terpakai/berubah, pembayaran belum dibalik, atau retur aktif masih ada.
 - [x] Pencatatan kredit retur, penerapan kredit ke faktur pemasok lain, dan pengembalian uang tunai secara terpisah.
 - [x] Metode pembaruan harga beli: rata-rata tertimbang, harga terakhir, manual, dan per batch (FIFO).
 - [x] Riwayat batch biaya dan perlindungan pembatalan pembelian/retur dengan alasan serta validasi dependensi.
 - [x] Laporan pembelian dan pemasok dasar.
-- [ ] Audit menyeluruh seluruh skenario pembelian lama, stok batch, retur, dan utang pada data nyata.
+- [ ] Audit pembulatan HPP per unit dan rekonsiliasi nilai batch terhadap total biaya faktur, termasuk penerimaan bertahap.
+- [ ] Audit menyeluruh skenario pembelian lama, stok batch, retur, pembayaran, kredit pemasok, dan utang pada data nyata.
+- [ ] Uji langsung alur pembelian dan retur pada perangkat Android fisik.
 
 ## 8. Keuangan dan kas
 
