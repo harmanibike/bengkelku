@@ -14,9 +14,9 @@ class PurchaseRepository {
     return db.rawQuery('''
       SELECT p.*, s.name AS supplier_name
       FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id
-      WHERE ? = '' OR p.invoice_number LIKE ? OR s.name LIKE ?
+      WHERE ? = '' OR p.invoice_number LIKE ? OR s.name LIKE ? OR COALESCE(p.order_number, '') LIKE ? OR COALESCE(p.tracking_number, '') LIKE ?
       ORDER BY p.purchase_date DESC, p.id DESC
-    ''', [term, '%$term%', '%$term%']);
+    ''', [term, '%$term%', '%$term%', '%$term%', '%$term%']);
   }
 
   Future<List<Map<String, Object?>>> getPurchaseItems(int purchaseId) async {
@@ -41,6 +41,16 @@ class PurchaseRepository {
     required int supplierId,
     required List<Map<String, Object?>> items,
     int discount = 0,
+    String purchaseType = 'direct',
+    String? marketplace,
+    String? orderNumber,
+    String? trackingNumber,
+    int shippingFee = 0,
+    int packingFee = 0,
+    int insuranceFee = 0,
+    int marketplaceFee = 0,
+    int transferFee = 0,
+    int otherFee = 0,
     int initialPayment = 0,
     String? paymentMethod,
     String? notes,
@@ -50,7 +60,14 @@ class PurchaseRepository {
     final invoice = invoiceNumber.trim();
     if (invoice.isEmpty) throw ArgumentError('Nomor faktur wajib diisi.');
     if (items.isEmpty) throw ArgumentError('Minimal satu barang harus ditambahkan.');
-    if (discount < 0 || initialPayment < 0) throw ArgumentError('Diskon dan pembayaran tidak boleh negatif.');
+    final fees = [shippingFee, packingFee, insuranceFee, marketplaceFee, transferFee, otherFee];
+    if (!const ['direct', 'online'].contains(purchaseType)) throw ArgumentError('Jenis pembelian tidak valid.');
+    if (discount < 0 || initialPayment < 0 || fees.any((fee) => fee < 0)) {
+      throw ArgumentError('Diskon, biaya tambahan, dan pembayaran tidak boleh negatif.');
+    }
+    if (purchaseType == 'online' && (marketplace?.trim().isEmpty ?? true)) {
+      throw ArgumentError('Nama marketplace/toko online wajib diisi untuk pembelian online.');
+    }
     var subtotal = 0;
     final normalized = <Map<String, Object?>>[];
     for (final item in items) {
@@ -75,7 +92,8 @@ class PurchaseRepository {
       });
     }
     if (discount > subtotal) throw ArgumentError('Diskon pembelian melebihi subtotal.');
-    final total = subtotal - discount;
+    final additionalCosts = fees.fold<int>(0, (sum, fee) => sum + fee);
+    final total = subtotal - discount + additionalCosts;
     if (initialPayment > total) throw ArgumentError('Pembayaran awal melebihi total faktur.');
     final db = await _db;
     return db.transaction((txn) async {
@@ -87,6 +105,16 @@ class PurchaseRepository {
       final purchaseId = await txn.insert('purchases', {
         'invoice_number': invoice, 'supplier_id': supplierId, 'subtotal': subtotal,
         'discount': discount, 'total': total, 'paid': initialPayment,
+        'purchase_type': purchaseType,
+        'marketplace': _nullable(marketplace),
+        'order_number': _nullable(orderNumber),
+        'tracking_number': _nullable(trackingNumber),
+        'shipping_fee': shippingFee,
+        'packing_fee': packingFee,
+        'insurance_fee': insuranceFee,
+        'marketplace_fee': marketplaceFee,
+        'transfer_fee': transferFee,
+        'other_fee': otherFee,
         'payment_status': initialPayment == 0 ? 'unpaid' : initialPayment == total ? 'paid' : 'partial',
         'purchase_date': (purchaseDate ?? DateTime.now()).toIso8601String(), 'notes': _nullable(notes),
       });
@@ -130,7 +158,10 @@ class PurchaseRepository {
           final existingStockValue = batchQuantity == before ? batchValue : before * oldCost;
           final lineTotal = item['subtotal'] as int? ?? 0;
           final allocatedInvoiceDiscount = subtotal > 0 ? (discount * lineTotal / subtotal).round() : 0;
-          final lineNetCost = ((lineTotal - allocatedInvoiceDiscount) / quantity).round();
+          final allocatedAdditionalCost = subtotal > 0
+              ? (additionalCosts * lineTotal / subtotal).round()
+              : 0;
+          final lineNetCost = ((lineTotal - allocatedInvoiceDiscount + allocatedAdditionalCost) / quantity).round();
           int? nextPurchasePrice;
           if (costMethod == 'weighted_average') {
             nextPurchasePrice = after <= 0 ? lineNetCost : ((existingStockValue + quantity * lineNetCost) / after).round();
