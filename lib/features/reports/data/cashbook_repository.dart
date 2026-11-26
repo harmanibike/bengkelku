@@ -121,11 +121,18 @@ class CashbookRepository {
               AND NOT EXISTS (SELECT 1 FROM sale_returns r WHERE r.id = c.reference_id)
               THEN 'Dokumen retur penjualan tidak ditemukan'
             WHEN c.reference_type = 'customer_deposit'
-              AND NOT EXISTS (SELECT 1 FROM customer_wallet_ledger w WHERE w.id = c.reference_id AND w.entry_type = 'deposit')
-              THEN 'Catatan deposit pelanggan tidak ditemukan'
+              AND NOT EXISTS (
+                SELECT 1 FROM customer_wallet_ledger w
+                WHERE w.id = c.reference_id AND w.entry_type = 'deposit'
+                  AND w.amount = c.amount
+              ) THEN 'Catatan deposit pelanggan tidak ditemukan atau nominal tidak cocok'
             WHEN c.reference_type = 'customer_wallet_withdrawal'
-              AND NOT EXISTS (SELECT 1 FROM customer_wallet_ledger w WHERE w.id = c.reference_id AND w.entry_type = 'adjustment')
-              THEN 'Catatan penarikan saldo pelanggan tidak ditemukan'
+              AND NOT EXISTS (
+                SELECT 1 FROM customer_wallet_ledger w
+                WHERE w.id = c.reference_id AND w.entry_type = 'adjustment'
+                  AND w.reference_type = 'customer_wallet_withdrawal'
+                  AND w.amount = c.amount
+              ) THEN 'Catatan penarikan saldo pelanggan tidak ditemukan atau nominal tidak cocok'
             WHEN c.reference_type IN ('tip', 'tip_handover')
               AND NOT EXISTS (SELECT 1 FROM tip_transactions t WHERE t.id = c.reference_id)
               THEN 'Catatan uang tip tidak ditemukan'
