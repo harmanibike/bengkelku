@@ -251,24 +251,24 @@ class ClientConnectionService {
         certificatePem: certificatePem,
       );
       socket.write(
-        'GET /api/v1/health HTTP/1.1\r\\n'
-        'Host: $serverDnsName\r\\n'
-        'Accept: application/json\r\\n'
-        'Connection: close\r\\n\r\\n',
+        'GET /api/v1/health HTTP/1.1\r\n'
+        'Host: $serverDnsName\r\n'
+        'Accept: application/json\r\n'
+        'Connection: close\r\n\r\n',
       );
       final responseText = await utf8.decoder
           .bind(socket)
           .join()
           .timeout(const Duration(seconds: 8));
-      final headerEnd = responseText.indexOf('\r\\n\r\\n');
+      final headerEnd = responseText.indexOf('\r\n\r\n');
       if (headerEnd < 0) {
         throw const FormatException('Respons HTTPS Server tidak lengkap.');
       }
 
       final headerText = responseText.substring(0, headerEnd);
-      final statusLine = headerText.split('\r\\n').first;
+      final statusLine = headerText.split('\r\n').first;
       final statusMatch =
-          RegExp(r'^HTTP/\d(?:\.\d)?\\s+(\d{3})').firstMatch(statusLine);
+          RegExp(r'^HTTP/\d(?:\.\d)?\s+(\d{3})').firstMatch(statusLine);
       if (statusMatch == null) {
         throw const FormatException('Status HTTP Server tidak valid.');
       }
