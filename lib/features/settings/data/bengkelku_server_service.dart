@@ -19,7 +19,12 @@ class BengkelKuServerService {
   static final BengkelKuServerService instance = BengkelKuServerService._();
   static const int _serviceId = 8765;
   static bool _initialized = false;
+  static bool _callbackRegistered = false;
+  static bool _identitySent = false;
   static int? _activePort;
+  static int _bridgeRequestsInFlight = 0;
+  static ServerTlsIdentity? _activeIdentity;
+  static Completer<int>? _startupCompleter;
   static Future<void> _lifecycle = Future<void>.value();
   static final ServerTlsIdentityRepository _identityRepository =
       ServerTlsIdentityRepository(store: FlutterSecureValueStore());
@@ -48,7 +53,94 @@ class BengkelKuServerService {
         stopWithTask: false,
       ),
     );
+    if (!_callbackRegistered) {
+      FlutterForegroundTask.addTaskDataCallback(_onTaskData);
+      _callbackRegistered = true;
+    }
     _initialized = true;
+  }
+
+  static void _onTaskData(Object data) {
+    if (data is! Map) return;
+    final type = data['type'];
+    if (type == 'server_identity_required') {
+      final identity = _activeIdentity;
+      if (identity == null || _identitySent) return;
+      _identitySent = true;
+      FlutterForegroundTask.sendDataToTask({
+        'type': 'start_secure_server',
+        'server_dns_name': identity.dnsName,
+        'certificate_pem': identity.certificatePem,
+        'private_key_pem': identity.privateKeyPem,
+      });
+    } else if (type == 'server_started') {
+      final completer = _startupCompleter;
+      if (completer != null && !completer.isCompleted) {
+        completer.complete(data['port'] as int? ?? LocalApiServer.defaultPort);
+      }
+    } else if (type == 'server_start_failed') {
+      final completer = _startupCompleter;
+      if (completer != null && !completer.isCompleted) {
+        completer.completeError(
+          StateError(data['message']?.toString() ?? 'Gagal memulai Server HTTPS.'),
+        );
+      }
+    } else if (type == 'bridge_request') {
+      unawaited(_respondToBridgeRequest(data));
+    }
+  }
+
+  static Future<void> _respondToBridgeRequest(Map data) async {
+    final requestId = data['request_id'];
+    if (requestId is! String || requestId.isEmpty || requestId.length > 80) {
+      return;
+    }
+    if (_bridgeRequestsInFlight >= 8) {
+      FlutterForegroundTask.sendDataToTask({
+        'type': 'bridge_response',
+        'request_id': requestId,
+        'ok': false,
+        'error': 'busy',
+      });
+      return;
+    }
+    _bridgeRequestsInFlight++;
+    try {
+      if (data['operation'] != 'server_info') {
+        FlutterForegroundTask.sendDataToTask({
+          'type': 'bridge_response',
+          'request_id': requestId,
+          'ok': false,
+          'error': 'operation_not_allowed',
+        });
+        return;
+      }
+      final identity = _activeIdentity;
+      if (identity == null) {
+        FlutterForegroundTask.sendDataToTask({
+          'type': 'bridge_response',
+          'request_id': requestId,
+          'ok': false,
+          'error': 'server_not_ready',
+        });
+        return;
+      }
+      FlutterForegroundTask.sendDataToTask({
+        'type': 'bridge_response',
+        'request_id': requestId,
+        'ok': true,
+        'data': {
+          'server_id': identity.serverId,
+          'server_name': 'Bike POS Server',
+          'app_version': LocalApiServer.appVersion,
+          'api_version': LocalApiServer.apiVersion,
+          'certificate_fingerprint': identity.fingerprint,
+          'read_only': true,
+        },
+      });
+    } finally {
+      _bridgeRequestsInFlight--;
+    }
   }
 
   Future<bool> get isRunning async {
@@ -79,28 +171,10 @@ class BengkelKuServerService {
       await FlutterForegroundTask.stopService();
     }
 
+    _activeIdentity = identity;
+    _identitySent = false;
     final started = Completer<int>();
-    var identitySent = false;
-
-    void onTaskData(Object data) {
-      if (data is! Map) return;
-      if (data['type'] == 'server_identity_required' && !identitySent) {
-        identitySent = true;
-        FlutterForegroundTask.sendDataToTask({
-          'type': 'start_secure_server',
-          'server_dns_name': identity.dnsName,
-          'certificate_pem': identity.certificatePem,
-          'private_key_pem': identity.privateKeyPem,
-        });
-      } else if (data['type'] == 'server_started' && !started.isCompleted) {
-        started.complete(data['port'] as int? ?? LocalApiServer.defaultPort);
-      } else if (data['type'] == 'server_start_failed' &&
-          !started.isCompleted) {
-        started.completeError(
-          StateError(data['message']?.toString() ?? 'Gagal memulai Server HTTPS.'),
-        );
-      }
-    }
+    _startupCompleter = started;
 
     final permission = await FlutterForegroundTask.checkNotificationPermission();
     if (permission != NotificationPermission.granted) {
@@ -113,7 +187,6 @@ class BengkelKuServerService {
       }
     }
 
-    FlutterForegroundTask.addTaskDataCallback(onTaskData);
     try {
       await FlutterForegroundTask.startService(
         serviceId: _serviceId,
@@ -132,12 +205,13 @@ class BengkelKuServerService {
       return port;
     } catch (_) {
       _activePort = null;
+      _activeIdentity = null;
       if (await FlutterForegroundTask.isRunningService) {
         await FlutterForegroundTask.stopService();
       }
       rethrow;
     } finally {
-      FlutterForegroundTask.removeTaskDataCallback(onTaskData);
+      _startupCompleter = null;
     }
   }
 
@@ -182,13 +256,54 @@ class BengkelKuServerTaskHandler extends TaskHandler {
     });
   }
 
+  final Map<String, Completer<Map<String, dynamic>>> _pendingBridgeRequests = {};
+  int _nextBridgeRequestId = 0;
+
   @override
   void onReceiveData(Object data) {
+    if (data is Map && data['type'] == 'bridge_response') {
+      final requestId = data['request_id'];
+      if (requestId is String) {
+        final completer = _pendingBridgeRequests[requestId];
+        if (completer != null && !completer.isCompleted) {
+          if (data['ok'] == true && data['data'] is Map) {
+            completer.complete(Map<String, dynamic>.from(data['data'] as Map));
+          } else {
+            completer.completeError(
+              StateError(data['error']?.toString() ?? 'Permintaan bridge ditolak.'),
+            );
+          }
+        }
+      }
+      return;
+    }
     if (data is! Map || data['type'] != 'start_secure_server' || _starting) {
       return;
     }
     _starting = true;
     unawaited(_startSecureServer(data));
+  }
+
+  Future<Map<String, dynamic>> _requestMainIsolate(String operation) async {
+    if (operation != 'server_info') {
+      throw StateError('Operasi bridge tidak diizinkan.');
+    }
+    if (_pendingBridgeRequests.length >= 8) {
+      throw StateError('Antrean komunikasi Server sedang penuh.');
+    }
+    final requestId = 'rpc-${DateTime.now().microsecondsSinceEpoch}-${_nextBridgeRequestId++}';
+    final completer = Completer<Map<String, dynamic>>();
+    _pendingBridgeRequests[requestId] = completer;
+    try {
+      FlutterForegroundTask.sendDataToMain({
+        'type': 'bridge_request',
+        'request_id': requestId,
+        'operation': operation,
+      });
+      return await completer.future.timeout(const Duration(seconds: 4));
+    } finally {
+      _pendingBridgeRequests.remove(requestId);
+    }
   }
 
   Future<void> _startSecureServer(Map data) async {
@@ -208,6 +323,7 @@ class BengkelKuServerTaskHandler extends TaskHandler {
       final port = await _server.startSecure(
         securityContext: securityContext,
         serverName: 'Bike POS Server',
+        bridgeHandler: _requestMainIsolate,
       );
       FlutterForegroundTask.updateService(
         notificationTitle: 'Bike POS Server aktif',
