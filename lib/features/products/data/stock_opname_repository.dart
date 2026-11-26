@@ -170,7 +170,7 @@ class StockOpnameRepository {
           await txn.insert('inventory_cost_batches', {
             'product_id': pid,
             'variant_id': variantId,
-            'batch_code': 'OPN-$sessionId-${isVariant ? 'V$variantId' : 'P$pid'}',
+            'batch_code': isVariant ? 'OPN-$sessionId-V$variantId' : 'OPN-$sessionId-$pid',
             'quantity_received': delta,
             'quantity_remaining': delta,
             'unit_cost': averageCost,
