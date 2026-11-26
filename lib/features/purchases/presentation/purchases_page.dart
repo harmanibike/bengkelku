@@ -617,7 +617,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Tutup')),
           if (row['status']?.toString() != 'cancelled' &&
-              items.any((item) => (item['quantity_received'] as num?)?.toInt() < (item['quantity'] as num?)?.toInt()))
+              items.any((item) => ((item['quantity_received'] as num?)?.toInt() ?? 0) < ((item['quantity'] as num?)?.toInt() ?? 0)))
             FilledButton.tonal(
               onPressed: () {
                 Navigator.pop(dialogContext);
@@ -854,7 +854,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                           title: Text(row['invoice_number'] as String? ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 3),
-                            child: Text('${row['purchase_type'] == 'online' ? 'Online' : 'Langsung'} • ${row['supplier_name'] ?? 'Pemasok'} • Dibayar ${_money(paid)} • Sisa ${_money(remaining)}',
+                            child: Text('${row['purchase_type'] == 'online' ? 'Online' : 'Langsung'} • ${row['supplier_name'] ?? 'Pemasok'} • Barang: ${row['receiving_status'] == 'received' ? 'Diterima' : row['receiving_status'] == 'partial' ? 'Sebagian' : 'Belum diterima'} • Dibayar ${_money(paid)} • Sisa ${_money(remaining)}',
                               maxLines: 2, style: const TextStyle(fontSize: 11)),
                           ),
                           trailing: Column(
