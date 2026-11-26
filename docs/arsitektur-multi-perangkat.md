@@ -281,11 +281,12 @@ Pemeriksaan kode aktual memperjelas bahwa **jembatan pesan ke isolate utama adal
 - main() membuka AppDatabase.instance.database pada isolate utama.
 - AuthSession.instance juga merupakan singleton lokal isolate utama dan menyimpan akun yang sedang login.
 - BengkelKuServerTaskHandler menjalankan listener HTTPS pada isolate task foreground yang terpisah.
-- LocalApiServer hanya memiliki endpoint health-check; handler request belum memiliki dispatcher database.
-- Callback FlutterForegroundTask.addTaskDataCallback di BengkelKuServerService.startServer() saat ini hanya dipasang selama proses handshake awal Server, lalu dilepas setelah listener menyatakan aktif.
-- DevicePairingRepository langsung memakai AppDatabase.instance dan beberapa operasi administratif memakai AuthSession.instance. Memanggil repository ini dari task isolate tidak akan memakai singleton atau sesi yang sama dengan UI.
+- LocalApiServer saat ini menyediakan health-check dan endpoint metadata read-only `/api/v1/server-info`; belum ada endpoint transaksi, produk, pelanggan, stok, atau akses database.
+- `FlutterForegroundTask.addTaskDataCallback` dipasang satu kali oleh `BengkelKuServerService.initialize()` dan dipertahankan untuk menerima pesan selama proses aplikasi hidup. Callback meneruskan permintaan `server_info` dari task isolate ke isolate utama.
+- Bridge yang ada masih sangat terbatas: hanya operasi `server_info`, maksimum delapan permintaan tertunda pada sisi task, timeout empat detik, dan respons metadata statis dari identitas TLS. Belum ada dispatcher repository/database, autentikasi token perangkat, otorisasi akun, rate limit pairing, atau pengujian lifecycle Android background.
+- `DevicePairingRepository` langsung memakai `AppDatabase.instance` dan beberapa operasi administratif memakai `AuthSession.instance`. Memanggil repository ini dari task isolate tidak akan memakai singleton atau sesi yang sama dengan UI.
 
-Kesimpulan: **jangan memanggil DevicePairingRepository, AppDatabase, atau AuthSession langsung dari LocalApiServer/task isolate.** Status Server aktif saat ini hanya membuktikan listener HTTPS hidup, bukan bahwa database dapat diakses dengan benar.
+Kesimpulan: **jangan memanggil DevicePairingRepository, AppDatabase, atau AuthSession langsung dari LocalApiServer/task isolate.** Bridge `server_info` saat ini hanya membuktikan jalur pesan metadata dua arah berfungsi pada implementasi, bukan bahwa database atau otorisasi bisnis sudah dapat diakses dengan benar.
 
 ### Rancangan jembatan yang akan diprototipekan
 
@@ -332,4 +333,4 @@ Batas PoC yang harus ditentukan dan diuji:
 4. Tambahkan pairing jaringan setelah rate limit percobaan gagal dipanggil secara nyata dan diuji terhadap percobaan paralel.
 5. Baru rancang operasi tulis transaksi dengan idempotensi dan transaksi database atomik.
 
-**Status:** ini keputusan arah prototipe, bukan implementasi jembatan yang sudah tersedia. Sampai seluruh langkah dan tes di atas lulus, listener tetap hanya menyediakan health-check dan Mode Client tetap nonaktif.
+**Status per 26 November 2026:** prototipe bridge terbatas untuk metadata `server_info` sudah ada dan tes CI untuk endpoint, kegagalan saat bridge tidak tersedia, serta penolakan sertifikat berbeda telah lulus. Ini belum merupakan bridge database generik dan belum membuka pairing jaringan. Listener hanya menyediakan health-check dan metadata read-only; Mode Client tetap nonaktif sampai autentikasi perangkat, pairing jaringan, pemulihan koneksi, uji background Android, serta pembatasan akses data dibuktikan.
