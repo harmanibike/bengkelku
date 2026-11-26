@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../business/data/business_profile_repository.dart';
+import '../data/business_story_repository.dart';
 
 class BusinessStoryPage extends StatefulWidget {
   const BusinessStoryPage({super.key});
@@ -33,6 +34,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
   String _businessContact = '';
   String _businessLogoPath = '';
   bool _sharing = false;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -86,6 +88,100 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
             'Nikmati promo spesial untuk kebutuhan sepeda Anda. Silakan hubungi kami untuk informasi lebih lanjut.';
       }
     });
+  }
+
+
+  Future<void> _saveStory() async {
+    if (_saving) return;
+    if (_titleController.text.trim().isEmpty || _messageController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Judul dan isi pengumuman wajib diisi.')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await BusinessStoryRepository().save(
+        kind: _kind,
+        title: _titleController.text,
+        message: _messageController.text,
+        dateLabel: _dateController.text,
+        returnDateLabel: _returnDateController.text,
+        template: _template,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pengumuman tersimpan di riwayat.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan pengumuman: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _showHistory() async {
+    try {
+      final items = await BusinessStoryRepository().getAll();
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(sheetContext).size.height * 0.72,
+            child: Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('Riwayat Pengumuman', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                ),
+                Expanded(
+                  child: items.isEmpty
+                      ? const Center(child: Text('Belum ada pengumuman tersimpan.'))
+                      : ListView.separated(
+                          itemCount: items.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final item = items[index];
+                            final kind = item['kind']?.toString() ?? 'libur';
+                            final label = kind == 'libur' ? 'Libur' : kind == 'jam' ? 'Jam operasional' : 'Promo';
+                            return ListTile(
+                              leading: const Icon(Icons.campaign_outlined),
+                              title: Text(item['title']?.toString() ?? 'Pengumuman'),
+                              subtitle: Text('$label • ${item['created_at'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                              onTap: () {
+                                setState(() {
+                                  _kind = kind;
+                                  _titleController.text = item['title']?.toString() ?? '';
+                                  _messageController.text = item['message']?.toString() ?? '';
+                                  _dateController.text = item['date_label']?.toString() ?? '';
+                                  _returnDateController.text = item['return_date_label']?.toString() ?? '';
+                                  _template = item['template']?.toString() ?? 'biru';
+                                });
+                                Navigator.pop(sheetContext);
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal membuka riwayat: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _shareStory() async {
@@ -307,6 +403,20 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           const SizedBox(height: 10),
           Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 300), child: _poster())),
           const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: _saving ? null : _saveStory,
+            icon: _saving
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.bookmark_add_outlined),
+            label: Text(_saving ? 'Menyimpan…' : 'Simpan ke Riwayat'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _showHistory,
+            icon: const Icon(Icons.history_rounded),
+            label: const Text('Buka Riwayat Pengumuman'),
+          ),
+          const SizedBox(height: 8),
           FilledButton.icon(
             onPressed: _sharing ? null : _shareStory,
             icon: _sharing
