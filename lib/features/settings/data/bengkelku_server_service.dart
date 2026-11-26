@@ -343,7 +343,12 @@ class BengkelKuServerTaskHandler extends TaskHandler {
   }
 
   Future<Map<String, dynamic>> _requestMainIsolate(LocalApiBridgeRequest request) async {
-    if (request.operation != 'server_info' || request.payload.isNotEmpty) {
+    final isServerInfo = request.operation == 'server_info' && request.payload.isEmpty;
+    final isPairing = request.operation == 'pair_device' &&
+        request.payload.keys.toSet().difference({'code', 'device_name'}).isEmpty &&
+        request.payload['code'] is String &&
+        request.payload['device_name'] is String;
+    if (!isServerInfo && !isPairing) {
       throw StateError('Operasi bridge tidak diizinkan.');
     }
     if (_pendingBridgeRequests.length >= 8) {
@@ -358,6 +363,7 @@ class BengkelKuServerTaskHandler extends TaskHandler {
         'request_id': requestId,
         'operation': request.operation,
         'remote_address': request.remoteAddress,
+        'payload': request.payload,
       });
       return await completer.future.timeout(const Duration(seconds: 4));
     } finally {
