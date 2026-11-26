@@ -262,7 +262,7 @@ class LocalApiServer {
     try {
       await for (final chunk in request) {
         if (bytes.length + chunk.length > _maxPairingBodyBytes) {
-          request.response.statusCode = HttpStatus.payloadTooLarge;
+          request.response.statusCode = 413;
           request.response.write(jsonEncode({
             'app': 'bengkelku_pos',
             'status': 'payload_too_large',
