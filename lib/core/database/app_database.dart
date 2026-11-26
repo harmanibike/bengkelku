@@ -889,45 +889,6 @@ class AppDatabase {
       ON stock_movements(product_id)
     ''');
 
-    batch.execute('''
-      CREATE TABLE equipment_assets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        asset_code TEXT NOT NULL COLLATE NOCASE UNIQUE,
-        name TEXT NOT NULL,
-        category TEXT,
-        brand TEXT,
-        model TEXT,
-        serial_number TEXT,
-        purchase_date TEXT,
-        supplier_name TEXT,
-        purchase_cost INTEGER NOT NULL DEFAULT 0 CHECK(purchase_cost >= 0),
-        condition_label TEXT NOT NULL DEFAULT 'Baik',
-        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'repair', 'damaged', 'retired')),
-        location TEXT,
-        responsible_person TEXT,
-        warranty_until TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT
-      )
-    ''');
-    batch.execute('CREATE INDEX idx_equipment_assets_status ON equipment_assets(status, name)');
-    batch.execute('''
-      CREATE TABLE equipment_maintenance_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        asset_id INTEGER NOT NULL,
-        maintenance_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        maintenance_type TEXT NOT NULL,
-        description TEXT NOT NULL,
-        cost INTEGER NOT NULL DEFAULT 0 CHECK(cost >= 0),
-        performed_by TEXT,
-        next_due_date TEXT,
-        notes TEXT,
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (asset_id) REFERENCES equipment_assets(id) ON DELETE RESTRICT
-      )
-    ''');
-    batch.execute('CREATE INDEX idx_equipment_maintenance_asset ON equipment_maintenance_logs(asset_id, maintenance_date DESC, id DESC)');
 
     await batch.commit(noResult: true);
     await db.execute('''
@@ -1009,50 +970,6 @@ class AppDatabase {
         }
         await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_opname_items_variant ON stock_opname_items(variant_id)');
       }
-    }
-
-    // Register inventaris peralatan bengkel; migrasi aditif dan tidak mengubah stok/transaksi.
-    if (oldVersion < 42) {
-      await db.execute('''
-        CREATE TABLE equipment_assets (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          asset_code TEXT NOT NULL COLLATE NOCASE UNIQUE,
-          name TEXT NOT NULL,
-          category TEXT,
-          brand TEXT,
-          model TEXT,
-          serial_number TEXT,
-          purchase_date TEXT,
-          supplier_name TEXT,
-          purchase_cost INTEGER NOT NULL DEFAULT 0 CHECK(purchase_cost >= 0),
-          condition_label TEXT NOT NULL DEFAULT 'Baik',
-          status TEXT NOT NULL DEFAULT 'active'
-            CHECK(status IN ('active', 'repair', 'damaged', 'retired')),
-          location TEXT,
-          responsible_person TEXT,
-          warranty_until TEXT,
-          notes TEXT,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT
-        )
-      ''');
-      await db.execute('CREATE INDEX idx_equipment_assets_status ON equipment_assets(status, name)');
-      await db.execute('''
-        CREATE TABLE equipment_maintenance_logs (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          asset_id INTEGER NOT NULL,
-          maintenance_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          maintenance_type TEXT NOT NULL,
-          description TEXT NOT NULL,
-          cost INTEGER NOT NULL DEFAULT 0 CHECK(cost >= 0),
-          performed_by TEXT,
-          next_due_date TEXT,
-          notes TEXT,
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (asset_id) REFERENCES equipment_assets(id) ON DELETE RESTRICT
-        )
-      ''');
-      await db.execute('CREATE INDEX idx_equipment_maintenance_asset ON equipment_maintenance_logs(asset_id, maintenance_date DESC, id DESC)');
     }
 
     if (oldVersion < 41) {
