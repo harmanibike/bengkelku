@@ -172,11 +172,19 @@ void main() {
 
 
   test('server-info endpoint fails closed when the main-isolate bridge errors', () async {
-    final port = await server.start(
+    final identity = await ServerTlsIdentityRepository(
+      store: _MemoryTlsStore(),
+    ).loadOrCreate();
+    final context = SecurityContext(withTrustedRoots: false)
+      ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
+      ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
+    final port = await server.startSecure(
+      securityContext: context,
       port: 0,
       bridgeHandler: (_) async => throw StateError('bridge failure'),
     );
-    final client = HttpClient();
+    final client = HttpClient()
+      ..badCertificateCallback = (certificate, host, port) => true;
     try {
       final request = await client.get(
         InternetAddress.loopbackIPv4.address,
@@ -194,11 +202,19 @@ void main() {
   });
 
   test('server-info endpoint rejects non-GET methods', () async {
-    final port = await server.start(
+    final identity = await ServerTlsIdentityRepository(
+      store: _MemoryTlsStore(),
+    ).loadOrCreate();
+    final context = SecurityContext(withTrustedRoots: false)
+      ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
+      ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
+    final port = await server.startSecure(
+      securityContext: context,
       port: 0,
       bridgeHandler: (_) async => {'read_only': true},
     );
-    final client = HttpClient();
+    final client = HttpClient()
+      ..badCertificateCallback = (certificate, host, port) => true;
     try {
       final request = await client.post(
         InternetAddress.loopbackIPv4.address,
