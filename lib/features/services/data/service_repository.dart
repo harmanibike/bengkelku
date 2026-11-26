@@ -1184,7 +1184,8 @@ class ServiceRepository {
       // Saat Admin/Kasir menyelesaikan servis, gunakan deposit pelanggan
       // otomatis untuk mengurangi sisa tagihan. Akun mekanik tidak menjalankan
       // mutasi keuangan ketika hanya memperbarui status pekerjaan.
-      if (!session.isMechanic && (status == 'completed' || status == 'delivered')) {
+      // Deposit otomatis dipakai saat pekerjaan dinyatakan selesai, bukan saat sepeda hanya diambil.
+      if (!session.isMechanic && status == 'completed') {
         final customerId = rows.first['customer_id'] as int?;
         final remaining = (rows.first['remaining_payment'] as num?)?.toInt() ?? 0;
         if (customerId != null && remaining > 0) {
