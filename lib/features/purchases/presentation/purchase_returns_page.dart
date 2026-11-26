@@ -308,8 +308,8 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
     try {
       await _repository.settleReturn(
         returnId: row['id'] as int,
-        creditApplied: result['credit']!,
-        refundReceived: result['refund']!,
+        creditApplied: result['credit'] as int? ?? 0,
+        refundReceived: result['refund'] as int? ?? 0,
         refundPaymentMethod: result['method'] as String? ?? 'cash',
       );
       await _reload();
