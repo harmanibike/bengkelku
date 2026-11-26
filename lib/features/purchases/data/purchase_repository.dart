@@ -102,6 +102,11 @@ class PurchaseRepository {
       final configuredMethod = settingRows.isEmpty ? 'weighted_average' : settingRows.first['setting_value']?.toString();
       final costMethod = const ['weighted_average', 'last_cost', 'manual', 'per_batch'].contains(configuredMethod) ? configuredMethod! : 'weighted_average';
       if (supplier.isEmpty) throw StateError('Pemasok tidak ditemukan.');
+      final lineCosts = _allocatePurchaseLineCosts(
+        normalized.map((item) => item['subtotal'] as int).toList(),
+        discount: discount,
+        additionalCosts: additionalCosts,
+      );
       final purchaseId = await txn.insert('purchases', {
         'invoice_number': invoice, 'supplier_id': supplierId, 'subtotal': subtotal,
         'discount': discount, 'total': total, 'paid': initialPayment,
@@ -116,76 +121,34 @@ class PurchaseRepository {
         'transfer_fee': transferFee,
         'other_fee': otherFee,
         'payment_status': initialPayment == 0 ? 'unpaid' : initialPayment == total ? 'paid' : 'partial',
+        'receiving_status': 'pending',
         'purchase_date': (purchaseDate ?? DateTime.now()).toIso8601String(), 'notes': _nullable(notes),
       });
-      for (final item in normalized) {
+      for (var index = 0; index < normalized.length; index++) {
+        final item = normalized[index];
         final productId = item['product_id'] as int?;
         final variantId = item['variant_id'] as int?;
-        final purchaseItemId = await txn.insert('purchase_items', {...item, 'purchase_id': purchaseId});
-        if (productId == null) continue;
-        final products = await txn.query('products',
-          columns: ['stock', 'track_stock', 'is_active', 'purchase_price', 'name'],
-          where: 'id = ?', whereArgs: [productId], limit: 1);
-        if (products.isEmpty || (products.first['is_active'] as int? ?? 0) != 1) {
-          throw StateError('Produk pembelian tidak ditemukan atau tidak aktif.');
-        }
-        Map<String, Object?> stockOwner = products.first;
-        var stockTable = 'products';
-        var stockWhere = 'id = ?';
-        List<Object?> stockWhereArgs = [productId];
-        if (variantId != null) {
-          final variants = await txn.query('product_variants',
-            where: 'id = ? AND product_id = ? AND is_active = 1',
-            whereArgs: [variantId, productId], limit: 1);
-          if (variants.isEmpty) throw StateError('Varian pembelian tidak ditemukan, tidak aktif, atau bukan milik produk tersebut.');
-          stockOwner = variants.first;
-          stockTable = 'product_variants';
-          stockWhereArgs = [variantId];
-        }
-        if ((stockOwner['track_stock'] as int? ?? 1) == 1) {
-          final before = stockOwner['stock'] as int? ?? 0;
-          final quantity = item['quantity'] as int;
-          final after = before + quantity;
-          final oldCost = stockOwner['purchase_price'] as int? ?? 0;
-          final batchTotals = await txn.rawQuery('''
-            SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
-              COALESCE(SUM(quantity_remaining * unit_cost), 0) AS value
-            FROM inventory_cost_batches
-            WHERE product_id = ? AND ${variantId == null ? 'variant_id IS NULL' : 'variant_id = ?'} AND quantity_remaining > 0
-          ''', variantId == null ? [productId] : [productId, variantId]);
-          final batchQuantity = (batchTotals.first['quantity'] as num?)?.toInt() ?? 0;
-          final batchValue = (batchTotals.first['value'] as num?)?.toInt() ?? 0;
-          final existingStockValue = batchQuantity == before ? batchValue : before * oldCost;
-          final lineTotal = item['subtotal'] as int? ?? 0;
-          final allocatedInvoiceDiscount = subtotal > 0 ? (discount * lineTotal / subtotal).round() : 0;
-          final allocatedAdditionalCost = subtotal > 0
-              ? (additionalCosts * lineTotal / subtotal).round()
-              : 0;
-          final lineNetCost = ((lineTotal - allocatedInvoiceDiscount + allocatedAdditionalCost) / quantity).round();
-          int? nextPurchasePrice;
-          if (costMethod == 'weighted_average') {
-            nextPurchasePrice = after <= 0 ? lineNetCost : ((existingStockValue + quantity * lineNetCost) / after).round();
-          } else if (costMethod == 'last_cost') {
-            nextPurchasePrice = lineNetCost;
+        final quantity = item['quantity'] as int;
+        final allocatedUnitCost = (lineCosts[index] / quantity).round();
+        if (productId != null) {
+          final products = await txn.query('products',
+            columns: ['is_active'], where: 'id = ?', whereArgs: [productId], limit: 1);
+          if (products.isEmpty || (products.first['is_active'] as int? ?? 0) != 1) {
+            throw StateError('Produk pembelian tidak ditemukan atau tidak aktif.');
           }
-          await txn.update(stockTable, {
-            'stock': after,
-            if (nextPurchasePrice != null) 'purchase_price': nextPurchasePrice,
-            'updated_at': DateTime.now().toIso8601String(),
-          }, where: stockWhere, whereArgs: stockWhereArgs);
-          await txn.insert('inventory_cost_batches', {
-            'product_id': productId, 'variant_id': variantId, 'purchase_id': purchaseId,
-            'purchase_item_id': purchaseItemId, 'batch_code': invoice,
-            'quantity_received': quantity, 'quantity_remaining': quantity,
-            'unit_cost': lineNetCost, 'received_at': (purchaseDate ?? DateTime.now()).toIso8601String(),
-            'notes': 'Pembelian $invoice',
-          });
-          await txn.insert('stock_movements', {
-            'product_id': productId, 'variant_id': variantId, 'movement_type': 'in',
-            'quantity': quantity, 'stock_before': before, 'stock_after': after,
-            'reference_type': 'purchase', 'reference_id': purchaseId, 'notes': 'Pembelian $invoice',
-          });
+          if (variantId != null) {
+            final variants = await txn.query('product_variants',
+              where: 'id = ? AND product_id = ? AND is_active = 1',
+              whereArgs: [variantId, productId], limit: 1);
+            if (variants.isEmpty) throw StateError('Varian pembelian tidak ditemukan, tidak aktif, atau bukan milik produk tersebut.');
+          }
         }
+        await txn.insert('purchase_items', {
+          ...item,
+          'purchase_id': purchaseId,
+          'quantity_received': 0,
+          'allocated_unit_cost': allocatedUnitCost,
+        });
       }
       if (initialPayment > 0) {
         final paymentAt = DateTime.now().toIso8601String();
@@ -206,6 +169,176 @@ class PurchaseRepository {
         description: 'Mencatat pembelian faktur $invoice dari ${supplier.first['name']} senilai Rp$total.',
         entityType: 'purchase', entityId: purchaseId);
       return purchaseId;
+    });
+  }
+
+
+  /// Membagi diskon faktur dan biaya perolehan secara proporsional.
+  /// Metode sisa terbesar memastikan seluruh rupiah teralokasi tanpa selisih pembulatan.
+  List<int> _allocatePurchaseLineCosts(
+    List<int> lineSubtotals, {
+    required int discount,
+    required int additionalCosts,
+  }) {
+    final subtotal = lineSubtotals.fold<int>(0, (sum, value) => sum + value);
+    if (subtotal <= 0) return List<int>.filled(lineSubtotals.length, 0);
+    List<int> allocate(int amount) {
+      final bases = <int>[];
+      final remainders = <int>[];
+      var allocated = 0;
+      for (final value in lineSubtotals) {
+        final numerator = amount * value;
+        final base = numerator ~/ subtotal;
+        bases.add(base);
+        remainders.add(numerator % subtotal);
+        allocated += base;
+      }
+      final order = List<int>.generate(lineSubtotals.length, (i) => i)
+        ..sort((a, b) => remainders[b].compareTo(remainders[a]));
+      for (var i = 0; i < amount - allocated; i++) {
+        bases[order[i % order.length]]++;
+      }
+      return bases;
+    }
+    final discounts = allocate(discount);
+    final fees = allocate(additionalCosts);
+    return List<int>.generate(
+      lineSubtotals.length,
+      (i) => lineSubtotals[i] - discounts[i] + fees[i],
+    );
+  }
+
+  Future<void> receivePurchaseItems({
+    required int purchaseId,
+    required Map<int, int> receivedQuantities,
+    DateTime? receivedAt,
+  }) async {
+    AuthSession.instance.requireAdmin('Penerimaan pembelian hanya dapat dilakukan Admin.');
+    if (receivedQuantities.isEmpty || receivedQuantities.values.any((quantity) => quantity <= 0)) {
+      throw ArgumentError('Masukkan jumlah barang diterima yang lebih dari nol.');
+    }
+    final db = await _db;
+    await db.transaction((txn) async {
+      final purchases = await txn.query(
+        'purchases',
+        columns: ['invoice_number', 'status', 'receiving_status'],
+        where: 'id = ?',
+        whereArgs: [purchaseId],
+        limit: 1,
+      );
+      if (purchases.isEmpty) throw StateError('Faktur pembelian tidak ditemukan.');
+      final purchase = purchases.first;
+      if (purchase['status']?.toString() == 'cancelled') {
+        throw StateError('Faktur yang dibatalkan tidak dapat menerima barang.');
+      }
+      final items = await txn.query(
+        'purchase_items',
+        where: 'purchase_id = ?',
+        whereArgs: [purchaseId],
+        orderBy: 'id ASC',
+      );
+      final byId = {for (final item in items) (item['id'] as num).toInt(): item};
+      for (final entry in receivedQuantities.entries) {
+        final item = byId[entry.key];
+        if (item == null) throw ArgumentError('Rincian barang bukan bagian dari faktur ini.');
+        final ordered = (item['quantity'] as num?)?.toInt() ?? 0;
+        final received = (item['quantity_received'] as num?)?.toInt() ?? 0;
+        final nextReceived = received + entry.value;
+        if (nextReceived > ordered) {
+          throw StateError('Jumlah diterima melebihi pesanan untuk ${item['product_name']}. Sisa: ${ordered - received}.');
+        }
+      }
+      final timestamp = (receivedAt ?? DateTime.now()).toIso8601String();
+      final settingRows = await txn.query('app_settings',
+        columns: ['setting_value'], where: 'setting_key = ?',
+        whereArgs: ['purchase_cost_method'], limit: 1);
+      final configuredMethod = settingRows.isEmpty ? 'weighted_average' : settingRows.first['setting_value']?.toString();
+      final costMethod = const ['weighted_average', 'last_cost', 'manual', 'per_batch'].contains(configuredMethod)
+          ? configuredMethod! : 'weighted_average';
+      for (final entry in receivedQuantities.entries) {
+        final item = byId[entry.key]!;
+        final productId = (item['product_id'] as num?)?.toInt();
+        final variantId = (item['variant_id'] as num?)?.toInt();
+        final quantity = entry.value;
+        final nextReceived = ((item['quantity_received'] as num?)?.toInt() ?? 0) + quantity;
+        await txn.update('purchase_items', {'quantity_received': nextReceived},
+          where: 'id = ?', whereArgs: [entry.key]);
+        if (productId == null) continue;
+        final products = await txn.query('products',
+          columns: ['stock', 'track_stock', 'purchase_price', 'is_active'],
+          where: 'id = ?', whereArgs: [productId], limit: 1);
+        if (products.isEmpty || (products.first['is_active'] as num?)?.toInt() != 1) {
+          throw StateError('Produk penerimaan tidak ditemukan atau tidak aktif.');
+        }
+        var owner = products.first;
+        var table = 'products';
+        var ownerId = productId;
+        if (variantId != null) {
+          final variants = await txn.query('product_variants',
+            columns: ['stock', 'track_stock', 'purchase_price', 'is_active'],
+            where: 'id = ? AND product_id = ? AND is_active = 1',
+            whereArgs: [variantId, productId], limit: 1);
+          if (variants.isEmpty) throw StateError('Varian penerimaan tidak ditemukan atau tidak aktif.');
+          owner = variants.first;
+          table = 'product_variants';
+          ownerId = variantId;
+        }
+        if ((owner['track_stock'] as num?)?.toInt() != 1) continue;
+        final before = (owner['stock'] as num?)?.toInt() ?? 0;
+        final after = before + quantity;
+        final unitCost = (item['allocated_unit_cost'] as num?)?.toInt() ??
+            (item['unit_cost'] as num?)?.toInt() ?? 0;
+        final oldCost = (owner['purchase_price'] as num?)?.toInt() ?? 0;
+        final batchTotals = await txn.rawQuery('''
+          SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
+            COALESCE(SUM(quantity_remaining * unit_cost), 0) AS value
+          FROM inventory_cost_batches
+          WHERE product_id = ? AND ${variantId == null ? 'variant_id IS NULL' : 'variant_id = ?'} AND quantity_remaining > 0
+        ''', variantId == null ? [productId] : [productId, variantId]);
+        final batchQuantity = (batchTotals.first['quantity'] as num?)?.toInt() ?? 0;
+        final batchValue = (batchTotals.first['value'] as num?)?.toInt() ?? 0;
+        final existingStockValue = batchQuantity == before ? batchValue : before * oldCost;
+        int? nextPurchasePrice;
+        if (costMethod == 'weighted_average') {
+          nextPurchasePrice = after <= 0 ? unitCost : ((existingStockValue + quantity * unitCost) / after).round();
+        } else if (costMethod == 'last_cost') {
+          nextPurchasePrice = unitCost;
+        }
+        await txn.update(table, {
+          'stock': after,
+          if (nextPurchasePrice != null) 'purchase_price': nextPurchasePrice,
+          'updated_at': timestamp,
+        }, where: 'id = ?', whereArgs: [ownerId]);
+        await txn.insert('inventory_cost_batches', {
+          'product_id': productId, 'variant_id': variantId, 'purchase_id': purchaseId,
+          'purchase_item_id': entry.key, 'batch_code': purchase['invoice_number'],
+          'quantity_received': quantity, 'quantity_remaining': quantity,
+          'unit_cost': unitCost, 'received_at': timestamp,
+          'notes': 'Penerimaan pembelian ${purchase['invoice_number']}',
+        });
+        await txn.insert('stock_movements', {
+          'product_id': productId, 'variant_id': variantId, 'movement_type': 'in',
+          'quantity': quantity, 'stock_before': before, 'stock_after': after,
+          'reference_type': 'purchase', 'reference_id': purchaseId,
+          'notes': 'Penerimaan pembelian ${purchase['invoice_number']}',
+          'created_at': timestamp,
+        });
+      }
+      final allItems = await txn.query('purchase_items',
+        columns: ['quantity', 'quantity_received'], where: 'purchase_id = ?', whereArgs: [purchaseId]);
+      final allReceived = allItems.every((item) =>
+        (item['quantity_received'] as num?)?.toInt() == (item['quantity'] as num?)?.toInt());
+      final anyReceived = allItems.any((item) => (item['quantity_received'] as num?)?.toInt() > 0);
+      await txn.update('purchases', {
+        'receiving_status': allReceived ? 'received' : anyReceived ? 'partial' : 'pending',
+      }, where: 'id = ?', whereArgs: [purchaseId]);
+      await ActivityLogRepository.record(
+        txn,
+        action: 'purchase_items_received',
+        description: 'Mencatat penerimaan barang faktur ${purchase['invoice_number']}.',
+        entityType: 'purchase',
+        entityId: purchaseId,
+      );
     });
   }
 
