@@ -183,7 +183,7 @@ Sebelum keputusan final, buat proof-of-concept terisolasi yang membuktikan selur
 1. Sertifikat dan private key dibuat sekali pada Server, disimpan di direktori privat aplikasi, tidak pernah masuk backup umum/log/QR, dan tetap dapat dimuat setelah aplikasi dimulai ulang.
 2. Server dapat menjalankan HTTPS melalui `HttpServer.bindSecure` di isolate foreground yang sekarang digunakan.
 3. Client dapat memverifikasi identitas sertifikat yang diperoleh melalui proses pairing lokal, menolak pin yang salah, sertifikat yang diganti, sertifikat kedaluwarsa, dan koneksi tanpa TLS.
-4. Pengujian dilakukan pada Android API 23 dan 24 serta ABI perangkat Sunmi yang benar-benar digunakan.
+4. Pengujian dilakukan pada API Android minimum yang didukung proyek dan ABI perangkat Android yang benar-benar digunakan.
 5. Mekanisme rotasi sertifikat dan pairing ulang dirancang agar perubahan sertifikat tidak diterima diam-diam.
 6. Private key tidak dikirim ke Client; QR hanya memuat informasi publik/fingerprint dan kode pairing sekali pakai.
 
@@ -260,7 +260,7 @@ Dokumentasi Dart menyatakan `connectionFactory` menerima URL yang diminta dan me
 
 - Flutter 3.35 mengubah minimum Android yang didukung template/tooling menjadi API 24 (Android 7).
 - Workflow Bike POS saat ini memakai `channel: stable` tanpa pin versi Flutter, dan menghasilkan folder Android dari template SDK yang sedang terpasang. Akibatnya, build yang dibuat dengan Flutter 3.35 atau lebih baru tidak dapat dijanjikan kompatibel dengan Android 6/API 23.
-- Android 7/API 24 atau lebih baru menjadi baseline yang masuk akal untuk workflow stable saat ini, tetapi harus diverifikasi pada Sunmi V2 fisik.
+- Android 7/API 24 atau lebih baru menjadi baseline yang masuk akal untuk workflow stable saat ini, tetapi tetap harus diverifikasi pada perangkat Android fisik yang menjadi target.
 - Jika Android 6/API 23 benar-benar wajib, perlu evaluasi pin Flutter ke rilis sebelum 3.35 dan audit seluruh plugin/dependensi agar minSdk, Gradle, dan API Android tidak melampaui 23. Jangan sekadar memaksa `minSdk 23` pada template Flutter 3.35+.
 
 ### Gerbang PoC
