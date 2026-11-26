@@ -14,6 +14,7 @@ import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
 import '../reports/presentation/cashbook_page.dart';
 import '../reports/presentation/saldo_toko_page.dart';
+import '../reports/presentation/expenses_page.dart';
 import '../sales/presentation/cashier_page.dart';
 import '../sales/presentation/sales_history_page.dart';
 import '../sales/presentation/sale_returns_page.dart';
@@ -118,7 +119,7 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const CashbookPage()));
   }
 
-  void _openSaldoToko() {
+  void _openExpenses() {\n    Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesPage()));\n  }\n\n  void _openSaldoToko() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const SaldoTokoPage()));
   }
 
@@ -524,7 +525,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _menuTile(title: 'Laporan', icon: Icons.analytics_rounded, colors: const [Color(0xFF8E24AA), Color(0xFFBA68C8)], onTap: _openReports),
         _menuTile(title: 'Saldo Toko', icon: Icons.account_balance_wallet_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openSaldoToko),
         _menuTile(title: 'Buku Kas', icon: Icons.menu_book_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openCashbook),
-        _menuTile(title: 'Pengeluaran', icon: Icons.money_off_rounded, colors: const [Color(0xFFE64A19), Color(0xFFFF8A65)], onTap: _openReports),
+        _menuTile(title: 'Pengeluaran', icon: Icons.money_off_rounded, colors: const [Color(0xFFE64A19), Color(0xFFFF8A65)], onTap: _openExpenses),
         _menuTile(title: 'Pembelian', icon: Icons.add_shopping_cart_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openPurchases),
         _menuTile(title: 'Pengaturan', icon: Icons.settings_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openSettings),
       ],
