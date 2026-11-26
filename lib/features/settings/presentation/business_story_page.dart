@@ -28,6 +28,9 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
 
   String _kind = 'libur';
   String _businessName = 'Bengkel & Toko Sepeda';
+  String _businessAddress = '';
+  String _businessContact = '';
+  String _businessLogoPath = '';
   bool _sharing = false;
 
   @override
@@ -40,8 +43,15 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
     try {
       final profile = await BusinessProfileRepository().getProfile();
       final name = profile['business_name']?.trim();
-      if (mounted && name != null && name.isNotEmpty) {
-        setState(() => _businessName = name);
+      if (mounted) {
+        setState(() {
+          if (name != null && name.isNotEmpty) _businessName = name;
+          _businessAddress = profile['business_address']?.trim() ?? '';
+          _businessContact = (profile['business_whatsapp']?.trim().isNotEmpty == true
+                  ? profile['business_whatsapp']!.trim()
+                  : profile['business_phone']?.trim()) ?? '';
+          _businessLogoPath = profile['business_logo_path']?.trim() ?? '';
+        });
       }
     } catch (_) {
       // Poster tetap dapat dibuat bila profil usaha belum diisi.
@@ -136,7 +146,16 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.pedal_bike_rounded, color: Colors.white, size: 38),
+              if (_businessLogoPath.isNotEmpty && File(_businessLogoPath).existsSync())
+                Container(
+                  width: 66,
+                  height: 66,
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                  child: Image.file(File(_businessLogoPath), fit: BoxFit.contain),
+                )
+              else
+                const Icon(Icons.pedal_bike_rounded, color: Colors.white, size: 38),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -195,10 +214,18 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
                 style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 5),
-              const Text(
-                'Terima kasih atas kepercayaan Anda',
-                style: TextStyle(color: Colors.white70, fontSize: 10),
-              ),
+              if (_businessAddress.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(_businessAddress, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white70, fontSize: 9)),
+              ],
+              if (_businessContact.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text('WhatsApp: $_businessContact', style: const TextStyle(color: Colors.white, fontSize: 10)),
+              ],
+              const SizedBox(height: 5),
+              const Text('Terima kasih atas kepercayaan Anda',
+                  style: TextStyle(color: Colors.white70, fontSize: 10)),
             ],
           ),
         ),
