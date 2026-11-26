@@ -325,7 +325,7 @@ class PurchaseRepository {
         columns: ['quantity', 'quantity_received'], where: 'purchase_id = ?', whereArgs: [purchaseId]);
       final allReceived = allItems.every((item) =>
         (item['quantity_received'] as num?)?.toInt() == (item['quantity'] as num?)?.toInt());
-      final anyReceived = allItems.any((item) => (item['quantity_received'] as num?)?.toInt() > 0);
+      final anyReceived = allItems.any((item) => ((item['quantity_received'] as num?)?.toInt() ?? 0) > 0);
       await txn.update('purchases', {
         'receiving_status': allReceived ? 'received' : anyReceived ? 'partial' : 'pending',
       }, where: 'id = ?', whereArgs: [purchaseId]);
