@@ -382,16 +382,54 @@ class SaleReturnRepository {
           });
         }
         if (cashRefund > 0) {
-          await txn.insert('cash_transactions', {
-            'transaction_type': 'expense',
-            'category': 'Pengembalian Retur Penjualan',
-            'description': 'Pengembalian uang retur $returnNumber untuk nota ${sale['invoice_number']}',
-            'amount': cashRefund,
-            'reference_type': 'sale_return',
-            'reference_id': returnId,
-            'transaction_date': now.toIso8601String(),
-            'created_at': now.toIso8601String(),
-          });
+          // Kembalikan dana ke metode pembayaran asal, bukan selalu dianggap tunai.
+          final originalPayments = await txn.rawQuery('''
+            SELECT LOWER(COALESCE(payment_method, 'cash')) AS payment_method,
+              COALESCE(SUM(amount), 0) AS total
+            FROM cash_transactions
+            WHERE reference_id = ? AND reference_type IN ('sale', 'sale_payment')
+              AND transaction_type = 'income'
+            GROUP BY LOWER(COALESCE(payment_method, 'cash'))
+            ORDER BY MIN(id) ASC
+          ''', [saleId]);
+          final priorRefunds = await txn.rawQuery('''
+            SELECT LOWER(COALESCE(ct.payment_method, 'cash')) AS payment_method,
+              COALESCE(SUM(ct.amount), 0) AS total
+            FROM cash_transactions ct
+            JOIN sale_returns sr ON sr.id = ct.reference_id
+            WHERE sr.sale_id = ? AND ct.reference_type = 'sale_return'
+              AND ct.transaction_type = 'expense'
+            GROUP BY LOWER(COALESCE(ct.payment_method, 'cash'))
+          ''', [saleId]);
+          final refundedByMethod = <String, int>{
+            for (final row in priorRefunds)
+              row['payment_method'].toString(): (row['total'] as num?)?.toInt() ?? 0,
+          };
+          var remainingRefund = cashRefund;
+          for (final payment in originalPayments) {
+            if (remainingRefund <= 0) break;
+            final method = payment['payment_method']?.toString() ?? 'cash';
+            final original = (payment['total'] as num?)?.toInt() ?? 0;
+            final alreadyRefunded = refundedByMethod[method] ?? 0;
+            final available = (original - alreadyRefunded).clamp(0, 1 << 62).toInt();
+            if (available <= 0) continue;
+            final portion = remainingRefund < available ? remainingRefund : available;
+            await txn.insert('cash_transactions', {
+              'transaction_type': 'expense',
+              'category': 'Pengembalian Retur Penjualan',
+              'description': 'Pengembalian uang retur $returnNumber untuk nota ${sale['invoice_number']}',
+              'amount': portion,
+              'reference_type': 'sale_return',
+              'reference_id': returnId,
+              'payment_method': method,
+              'transaction_date': now.toIso8601String(),
+              'created_at': now.toIso8601String(),
+            });
+            remainingRefund -= portion;
+          }
+          if (remainingRefund > 0) {
+            throw StateError('Metode pembayaran asal tidak mencukupi untuk pengembalian dana. Sisa Rp$remainingRefund.');
+          }
         }
       }
 
