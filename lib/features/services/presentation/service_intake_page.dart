@@ -62,6 +62,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   int _customerSearchToken = 0;
 
   List<Map<String, Object?>> _bicycles = [];
+  bool _loadingBicycles = false;
   List<Map<String, Object?>> _serviceCatalog = [];
   List<Map<String, Object?>> _mechanics = [];
   final _partSearchController = TextEditingController();
@@ -164,6 +165,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       _selectedCustomerId = id;
       _selectedBicycleId = null;
       _bicycles = [];
+      _loadingBicycles = true;
       _customerSearchResults = [];
     });
     _loadBicycles(id);
@@ -178,9 +180,11 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       setState(() {
         _bicycles = bicycles;
         _selectedBicycleId = null;
+        _loadingBicycles = false;
       });
     } catch (error) {
       if (!mounted) return;
+      setState(() => _loadingBicycles = false);
       _showMessage('Gagal memuat sepeda: $error');
     }
   }
@@ -243,7 +247,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     try {
       final customerId = await _customerRepository.addCustomer(
         name: details['name']!,
-        phone: details['phone'],
+        phone: details['phone']!.trim().isEmpty ? null : details['phone'],
       );
       if (!mounted) return;
       _customerSearchController.text = details['name']!;
@@ -385,6 +389,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       setState(() {
         _bicycles = bicycles;
         _selectedBicycleId = bicycleId;
+        _loadingBicycles = false;
       });
       _showMessage('Sepeda berhasil ditambahkan dan dipilih untuk servis.');
     } catch (error) {
@@ -979,6 +984,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                                       _selectedCustomerId = null;
                                       _selectedBicycleId = null;
                                       _bicycles = [];
+                                      _loadingBicycles = false;
                                       _customerSearchResults = [];
                                     });
                                   },
@@ -1006,6 +1012,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                                 _selectedCustomerId = null;
                                 _selectedBicycleId = null;
                                 _bicycles = [];
+                                _loadingBicycles = false;
                                 _customerSearchController.clear();
                               }),
                               child: const Text('Ganti'),
@@ -1083,7 +1090,14 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         validator: (value) =>
                             value == null ? 'Pilih sepeda' : null,
                       ),
-                      if (_selectedCustomerId != null && _bicycles.isEmpty)
+                      if (_selectedCustomerId != null && _loadingBicycles)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: LinearProgressIndicator(),
+                        ),
+                      if (_selectedCustomerId != null &&
+                          !_loadingBicycles &&
+                          _bicycles.isEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Column(
