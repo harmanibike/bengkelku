@@ -160,6 +160,20 @@ class AccountRepository {
     };
   }
 
+  /// Memulihkan sesi hanya untuk akun yang masih aktif.
+  /// PIN tidak disimpan; profil dan peran dibaca ulang dari database.
+  Future<Map<String, Object?>?> getActiveAccountById(int id) async {
+    final db = await _db;
+    final rows = await db.query(
+      'app_users',
+      columns: ['id', 'display_name', 'username', 'role', 'phone', 'profile_photo_path'],
+      where: 'id = ? AND is_active = 1',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
   Future<Map<String, Object?>> getCurrentProfile() async {
     final id = AuthSession.instance.userId;
     if (id == null) throw StateError('Tidak ada akun yang sedang login.');
