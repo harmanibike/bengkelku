@@ -126,7 +126,7 @@ class PurchaseRepository {
         final productId = item['product_id'] as int?;
         final variantId = item['variant_id'] as int?;
         final quantity = item['quantity'] as int;
-        final allocatedUnitCost = (lineCosts[index] / quantity).round();
+        final allocatedUnitCost = lineCosts[index] ~/ quantity;
         if (productId != null) {
           final products = await txn.query('products',
             columns: ['is_active'], where: 'id = ?', whereArgs: [productId], limit: 1);
@@ -145,6 +145,8 @@ class PurchaseRepository {
           'purchase_id': purchaseId,
           'quantity_received': 0,
           'allocated_unit_cost': allocatedUnitCost,
+          'allocated_landed_total': lineCosts[index],
+          'received_cost_total': 0,
         });
       }
       if (initialPayment > 0) {
@@ -258,7 +260,9 @@ class PurchaseRepository {
         final variantId = (item['variant_id'] as num?)?.toInt();
         final quantity = entry.value;
         final nextReceived = ((item['quantity_received'] as num?)?.toInt() ?? 0) + quantity;
-        await txn.update('purchase_items', {'quantity_received': nextReceived},
+        await txn.update('purchase_items', {
+          'quantity_received': nextReceived,
+          'received_cost_total': cumulativeCost,
           where: 'id = ?', whereArgs: [entry.key]);
         if (productId == null) continue;
         final products = await txn.query('products',
@@ -283,8 +287,18 @@ class PurchaseRepository {
         if ((owner['track_stock'] as num?)?.toInt() != 1) continue;
         final before = (owner['stock'] as num?)?.toInt() ?? 0;
         final after = before + quantity;
-        final unitCost = (item['allocated_unit_cost'] as num?)?.toInt() ??
-            (item['unit_cost'] as num?)?.toInt() ?? 0;
+        final allocatedTotal = (item['allocated_landed_total'] as num?)?.toInt() ??
+            ((item['allocated_unit_cost'] as num?)?.toInt() ??
+                (item['unit_cost'] as num?)?.toInt() ?? 0) *
+                ((item['quantity'] as num?)?.toInt() ?? 0);
+        final previousReceived = (item['quantity_received'] as num?)?.toInt() ?? 0;
+        final previousCost = (item['received_cost_total'] as num?)?.toInt() ??
+            previousReceived * ((item['allocated_unit_cost'] as num?)?.toInt() ?? 0);
+        final orderedQuantity = (item['quantity'] as num?)?.toInt() ?? 1;
+        final cumulativeCost = (allocatedTotal * nextReceived / orderedQuantity).round();
+        final receiptCost = cumulativeCost - previousCost;
+        final unitCost = receiptCost ~/ quantity;
+        final higherCostUnits = receiptCost % quantity;
         final oldCost = (owner['purchase_price'] as num?)?.toInt() ?? 0;
         final batchTotals = await txn.rawQuery('''
           SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
@@ -297,7 +311,7 @@ class PurchaseRepository {
         final existingStockValue = batchQuantity == before ? batchValue : before * oldCost;
         int? nextPurchasePrice;
         if (costMethod == 'weighted_average') {
-          nextPurchasePrice = after <= 0 ? unitCost : ((existingStockValue + quantity * unitCost) / after).round();
+          nextPurchasePrice = after <= 0 ? unitCost : ((existingStockValue + receiptCost) / after).round();
         } else if (costMethod == 'last_cost') {
           nextPurchasePrice = unitCost;
         }
@@ -306,13 +320,26 @@ class PurchaseRepository {
           if (nextPurchasePrice != null) 'purchase_price': nextPurchasePrice,
           'updated_at': timestamp,
         }, where: 'id = ?', whereArgs: [ownerId]);
-        await txn.insert('inventory_cost_batches', {
-          'product_id': productId, 'variant_id': variantId, 'purchase_id': purchaseId,
-          'purchase_item_id': entry.key, 'batch_code': purchase['invoice_number'],
-          'quantity_received': quantity, 'quantity_remaining': quantity,
-          'unit_cost': unitCost, 'received_at': timestamp,
-          'notes': 'Penerimaan pembelian ${purchase['invoice_number']}',
-        });
+        // Pecah sisa pembulatan ke batch unit-cost +1 agar total biaya tepat.
+        final baseUnits = quantity - higherCostUnits;
+        if (baseUnits > 0) {
+          await txn.insert('inventory_cost_batches', {
+            'product_id': productId, 'variant_id': variantId, 'purchase_id': purchaseId,
+            'purchase_item_id': entry.key, 'batch_code': purchase['invoice_number'],
+            'quantity_received': baseUnits, 'quantity_remaining': baseUnits,
+            'unit_cost': unitCost, 'received_at': timestamp,
+            'notes': 'Penerimaan pembelian ${purchase['invoice_number']}',
+          });
+        }
+        if (higherCostUnits > 0) {
+          await txn.insert('inventory_cost_batches', {
+            'product_id': productId, 'variant_id': variantId, 'purchase_id': purchaseId,
+            'purchase_item_id': entry.key, 'batch_code': purchase['invoice_number'],
+            'quantity_received': higherCostUnits, 'quantity_remaining': higherCostUnits,
+            'unit_cost': unitCost + 1, 'received_at': timestamp,
+            'notes': 'Penyesuaian pembulatan HPP ${purchase['invoice_number']}',
+          });
+        }
         await txn.insert('stock_movements', {
           'product_id': productId, 'variant_id': variantId, 'movement_type': 'in',
           'quantity': quantity, 'stock_before': before, 'stock_after': after,
