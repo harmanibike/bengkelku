@@ -227,9 +227,11 @@ class _CashbookPageState extends State<CashbookPage> {
                       const Divider(height: 12),
                       ...supplierMismatches.take(8).map((raw) {
                         final item = raw as Map<String, Object?>;
+                        final storedPaid = (item['stored_paid_total'] as num?)?.toInt() ?? 0;
                         final history = (item['payment_history_total'] as num?)?.toInt() ?? 0;
                         final cash = (item['cash_out_total'] as num?)?.toInt() ?? 0;
                         final difference = (item['difference'] as num?)?.toInt() ?? 0;
+                        final storedDifference = (item['stored_paid_difference'] as num?)?.toInt() ?? 0;
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Column(
@@ -237,9 +239,11 @@ class _CashbookPageState extends State<CashbookPage> {
                             children: [
                               Text('${item['invoice_number'] ?? 'Faktur'} • ${item['supplier_name'] ?? 'Pemasok'}',
                                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                              Text('Riwayat: ${_money(history)}  |  Kas keluar: ${_money(cash)}',
+                              Text('Faktur: ${_money(storedPaid)}  |  Riwayat: ${_money(history)}',
                                 style: const TextStyle(fontSize: 10)),
-                              Text('Selisih: ${_money(difference)}',
+                              Text('Kas keluar: ${_money(cash)}  |  Selisih faktur-riwayat: ${_money(storedDifference)}',
+                                style: const TextStyle(fontSize: 10)),
+                              Text('Selisih riwayat-kas: ${_money(difference)}',
                                 style: const TextStyle(fontSize: 10, color: Colors.deepOrange)),
                             ],
                           ),
