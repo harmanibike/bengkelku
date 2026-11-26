@@ -1037,7 +1037,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                               );
                             },
                           ),
-                        )
+                        ),
                       if (_customerSearchController.text.trim().isNotEmpty &&
                           _selectedCustomerId == null && !_searchingCustomers)
                         Padding(
