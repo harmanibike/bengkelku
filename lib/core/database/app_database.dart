@@ -708,6 +708,7 @@ class AppDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         session_id INTEGER NOT NULL,
         product_id INTEGER,
+        variant_id INTEGER,
         product_name TEXT NOT NULL,
         sku TEXT,
         unit TEXT NOT NULL DEFAULT 'pcs',
