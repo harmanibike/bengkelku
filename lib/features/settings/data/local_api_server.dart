@@ -2,8 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// API jaringan lokal tahap awal. Endpoint ini hanya untuk health-check;
+/// API jaringan lokal tahap awal. Hanya health-check dan metadata Server;
 /// belum menyediakan akses transaksi atau database untuk perangkat Client.
+typedef LocalApiBridgeHandler = Future<Map<String, dynamic>> Function(
+  String operation,
+);
+
 class LocalApiServer {
   static const int apiVersion = 1;
   static const String appVersion = String.fromEnvironment(
@@ -20,6 +24,7 @@ class LocalApiServer {
   HttpServer? _server;
   Future<int>? _startFuture;
   Future<void>? _stopFuture;
+  LocalApiBridgeHandler? _bridgeHandler;
 
   bool get isRunning => _server != null;
   int? get port => _server?.port;
@@ -39,16 +44,19 @@ class LocalApiServer {
     required SecurityContext securityContext,
     int port = defaultPort,
     String serverName = 'BengkelKu Server',
+    LocalApiBridgeHandler? bridgeHandler,
   }) => _start(
         port: port,
         serverName: serverName,
         securityContext: securityContext,
+        bridgeHandler: bridgeHandler,
       );
 
   Future<int> _start({
     required int port,
     required String serverName,
     SecurityContext? securityContext,
+    LocalApiBridgeHandler? bridgeHandler,
   }) {
     final runningServer = _server;
     if (runningServer != null) return Future<int>.value(runningServer.port);
@@ -61,6 +69,7 @@ class LocalApiServer {
           port: port,
           serverName: serverName,
           securityContext: securityContext,
+          bridgeHandler: bridgeHandler,
         ),
       );
     }
@@ -72,6 +81,7 @@ class LocalApiServer {
       port: port,
       serverName: serverName,
       securityContext: securityContext,
+      bridgeHandler: bridgeHandler,
     );
     _startFuture = future;
     return future.whenComplete(() {
@@ -83,6 +93,7 @@ class LocalApiServer {
     required int port,
     required String serverName,
     SecurityContext? securityContext,
+    LocalApiBridgeHandler? bridgeHandler,
   }) async {
     if (port < 0 || port > 65535) {
       throw ArgumentError.value(port, 'port', 'Port harus 0 sampai 65535.');
@@ -101,6 +112,7 @@ class LocalApiServer {
             shared: true,
           );
     _server = server;
+    _bridgeHandler = bridgeHandler;
     unawaited(_handleRequests(server, serverName));
     return server.port;
   }
@@ -128,7 +140,38 @@ class LocalApiServer {
             });
             request.response.contentLength = utf8.encode(payload).length;
             request.response.write(payload);
-          } else if (request.uri.path == '/api/v1/health') {
+          } else if (request.method == 'GET' &&
+              request.uri.path == '/api/v1/server-info') {
+            final handler = _bridgeHandler;
+            if (handler == null) {
+              request.response.statusCode = HttpStatus.serviceUnavailable;
+              request.response.write(jsonEncode({
+                'app': 'bengkelku_pos',
+                'status': 'bridge_unavailable',
+              }));
+            } else {
+              try {
+                // This allowlisted, read-only operation is executed by the
+                // main isolate through the foreground-task message bridge.
+                final data = await handler('server_info');
+                final payload = jsonEncode({
+                  'app': 'bengkelku_pos',
+                  'status': 'ok',
+                  'data': data,
+                });
+                request.response.statusCode = HttpStatus.ok;
+                request.response.contentLength = utf8.encode(payload).length;
+                request.response.write(payload);
+              } on Object {
+                request.response.statusCode = HttpStatus.serviceUnavailable;
+                request.response.write(jsonEncode({
+                  'app': 'bengkelku_pos',
+                  'status': 'bridge_timeout_or_error',
+                }));
+              }
+            }
+          } else if (request.uri.path == '/api/v1/health' ||
+              request.uri.path == '/api/v1/server-info') {
             request.response.statusCode = HttpStatus.methodNotAllowed;
             request.response.headers.set(HttpHeaders.allowHeader, 'GET');
             request.response.write(jsonEncode({
@@ -181,6 +224,7 @@ class LocalApiServer {
     }
     final server = _server;
     _server = null;
+    _bridgeHandler = null;
     await server?.close(force: true);
   }
 }
