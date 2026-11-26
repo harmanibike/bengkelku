@@ -1830,6 +1830,63 @@ void main() {
     expect(second['refund_received'], 0);
   });
 
+
+  test('cancelling partially received purchase reverses only received stock', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Batal Parsial'});
+    final productId = await db.insert('products', {
+      'name': 'Ban Batal Parsial',
+      'purchase_price': 10000,
+      'stock': 0,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-BATAL-PARSIAL',
+      supplierId: supplierId,
+      items: [
+        {
+          'product_id': productId,
+          'product_name': 'Ban Batal Parsial',
+          'quantity': 5,
+          'unit_cost': 20000,
+          'discount': 0,
+        },
+      ],
+    );
+    final item = (await db.query(
+      'purchase_items',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    )).single;
+    await purchases.receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {item['id'] as int: 2},
+    );
+    var product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    expect(product['stock'], 2);
+
+    await purchases.cancelPurchase(
+      purchaseId: purchaseId,
+      reason: 'Pemasok membatalkan sisa pesanan',
+    );
+    product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    final purchase = (await db.query('purchases', where: 'id = ?', whereArgs: [purchaseId])).single;
+    final movements = await db.query(
+      'stock_movements',
+      where: 'reference_id = ? AND reference_type IN (?, ?)',
+      whereArgs: [purchaseId, 'purchase', 'purchase_cancel'],
+      orderBy: 'id',
+    );
+    expect(product['stock'], 0);
+    expect(purchase['status'], 'cancelled');
+    expect(movements, hasLength(2));
+    expect(movements[0]['quantity'], 2);
+    expect(movements[1]['quantity'], 2);
+    expect(movements[1]['stock_after'], 0);
+  });
+
   test('purchase return cancellation restores stock and original cost batch', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {
