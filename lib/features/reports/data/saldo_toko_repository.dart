@@ -42,7 +42,11 @@ class SaldoTokoRepository {
     if (reference == 'sale' || reference == 'sale_payment') return 'Penjualan';
     if (reference == 'sale_return' || reference == 'sale_cancel' ||
         reference == 'service_order_cancellation') return 'Refund';
-    if (reference == 'purchase_payment' || category.toLowerCase().contains('pembelian')) return 'Pembelian';
+    if (reference == 'purchase_return_refund' ||
+        reference == 'purchase_payment' ||
+        category.toLowerCase().contains('pembelian')) return 'Pembelian';
+    if (reference.contains('adjustment') ||
+        category.toLowerCase().contains('penyesuaian')) return 'Penyesuaian';
     if (category.toLowerCase().contains('pengeluaran') ||
         category.toLowerCase().contains('operasional')) return 'Pengeluaran';
     return row['transaction_type'] == 'income' ? 'Uang Masuk' : 'Uang Keluar';
