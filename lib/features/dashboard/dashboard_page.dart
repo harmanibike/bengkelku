@@ -187,8 +187,10 @@ class _DashboardPageState extends State<DashboardPage> {
             const SizedBox(width: 4),
             IconButton(
               tooltip: 'Keluar',
-              onPressed: () {
+              onPressed: () async {
+                await clearRememberedLogin();
                 AuthSession.instance.signOut();
+                if (!mounted) return;
                 Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginPage()), (route) => false);
               },
               icon: const Icon(Icons.logout_rounded, color: Colors.white),
