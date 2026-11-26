@@ -279,6 +279,8 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
                 _titleController.text.trim().isEmpty
                     ? 'Pengumuman'
                     : _titleController.text.trim(),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 30,
@@ -289,6 +291,8 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
               const SizedBox(height: 18),
               Text(
                 _messageController.text.trim(),
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
               ),
               if (date.isNotEmpty) ...[
@@ -347,6 +351,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
+            key: ValueKey('story-kind-$_kind'),
             initialValue: _kind,
             decoration: const InputDecoration(
               labelText: 'Jenis pengumuman',
@@ -362,6 +367,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
+            key: ValueKey('story-template-$_template'),
             initialValue: _template,
             decoration: const InputDecoration(labelText: 'Desain poster', border: OutlineInputBorder(), isDense: true),
             items: const [
