@@ -235,6 +235,17 @@ class LocalApiServer {
   static const int _maxPairingBodyBytes = 4096;
 
   Future<void> _handlePairingRequest(HttpRequest request) async {
+    // Tolak HTTP sebelum membaca body agar endpoint tidak memproses data
+    // pairing atau menghabiskan resource untuk permintaan plaintext.
+    if (!_isSecure) {
+      request.response.statusCode = HttpStatus.upgradeRequired;
+      request.response.write(jsonEncode({
+        'app': 'bengkelku_pos',
+        'status': 'https_required',
+      }));
+      return;
+    }
+
     final handler = _bridgeHandler;
     if (handler == null) {
       request.response.statusCode = HttpStatus.serviceUnavailable;
@@ -285,16 +296,6 @@ class LocalApiServer {
       final deviceName = (decoded['device_name'] as String).trim();
       if (deviceName.isEmpty || deviceName.length > 60) {
         throw const FormatException('Invalid pairing fields.');
-      }
-
-      // Pairing returns a bearer token, so it must never run over plaintext.
-      if (!_isSecure) {
-        request.response.statusCode = HttpStatus.upgradeRequired;
-        request.response.write(jsonEncode({
-          'app': 'bengkelku_pos',
-          'status': 'https_required',
-        }));
-        return;
       }
 
       final result = await handler(LocalApiBridgeRequest(
