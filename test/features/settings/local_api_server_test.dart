@@ -119,9 +119,9 @@ void main() {
     );
     try {
       socket.write(
-        'GET /api/v1/server-info HTTP/1.1\\r\\n'
-        'Host: ${identity.dnsName}\\r\\n'
-        'Connection: close\\r\\n\\r\\n',
+        'GET /api/v1/server-info HTTP/1.1\r\n'
+        'Host: ${identity.dnsName}\r\n'
+        'Connection: close\r\n\r\n',
       );
       final response = await utf8.decoder
           .bind(socket)
@@ -155,9 +155,9 @@ void main() {
     );
     try {
       socket.write(
-        'GET /api/v1/server-info HTTP/1.1\\r\\n'
-        'Host: ${identity.dnsName}\\r\\n'
-        'Connection: close\\r\\n\\r\\n',
+        'GET /api/v1/server-info HTTP/1.1\r\n'
+        'Host: ${identity.dnsName}\r\n'
+        'Connection: close\r\n\r\n',
       );
       final response = await utf8.decoder
           .bind(socket)
