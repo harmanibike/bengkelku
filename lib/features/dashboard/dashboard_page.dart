@@ -9,6 +9,7 @@ import '../settings/presentation/account_profile_page.dart';
 import '../bicycles/presentation/bicycle_list_page.dart';
 import '../customers/presentation/customer_list_page.dart';
 import '../products/presentation/product_list_page.dart';
+import '../inventory/presentation/inventory_page.dart';
 import '../purchases/presentation/purchases_page.dart';
 import '../settings/presentation/settings_page.dart';
 import '../reports/data/report_repository.dart';
@@ -96,6 +97,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _openProducts() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductListPage()));
+  }
+
+  void _openInventory() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryPage()));
   }
 
   void _openCashier() {
@@ -516,7 +521,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _menuTile(title: 'Riwayat', icon: Icons.receipt_long_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openSalesHistory),
         _menuTile(title: 'Retur', icon: Icons.assignment_return_rounded, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: _openSaleReturns),
         if (AuthSession.instance.isAdmin) ...[
-          _menuTile(title: 'Produk', icon: Icons.inventory_2_rounded, colors: const [Color(0xFFEF8D32), Color(0xFFFFB74D)], onTap: _openProducts),
+          _menuTile(title: 'Inventory', icon: Icons.inventory_2_rounded, colors: const [Color(0xFFEF8D32), Color(0xFFFFB74D)], onTap: _openInventory),
         ],
         _menuTile(title: 'Pelanggan', icon: Icons.people_alt_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openCustomers),
         _menuTile(title: 'Sepeda', icon: Icons.pedal_bike_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openBicycles),
