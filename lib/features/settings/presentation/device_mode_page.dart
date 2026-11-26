@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import '../data/client_connection_service.dart';
 import '../data/device_pairing_repository.dart';
 import '../../../core/auth/auth_session.dart';
 import '../data/bengkelku_server_service.dart';
@@ -18,8 +17,6 @@ class DeviceModePage extends StatefulWidget {
 
 class _DeviceModePageState extends State<DeviceModePage> {
   final DeviceModeRepository _repository = DeviceModeRepository();
-  final ClientConnectionService _clientConnectionService =
-      ClientConnectionService();
   final DevicePairingRepository _pairingRepository = DevicePairingRepository();
   late Future<List<PairedDeviceInfo>> _pairedDevicesFuture;
   DevicePairingCode? _activePairingCode;
@@ -27,7 +24,6 @@ class _DeviceModePageState extends State<DeviceModePage> {
   late Future<String> _modeFuture;
   bool _saving = false;
   bool _savingClient = false;
-  bool _testingClient = false;
   bool _startingServer = false;
   bool _serverRunning = false;
   String? _serverMessage;
@@ -145,37 +141,6 @@ class _DeviceModePageState extends State<DeviceModePage> {
       });
     } finally {
       if (mounted) setState(() => _savingClient = false);
-    }
-  }
-
-  Future<void> _testClientConnection() async {
-    final host = _hostController.text.trim();
-    final port = int.tryParse(_portController.text.trim());
-    if (host.isEmpty || port == null || port < 1 || port > 65535) {
-      setState(() {
-        _connectionOk = false;
-        _connectionMessage = 'Isi alamat Server dan port yang valid terlebih dahulu.';
-      });
-      return;
-    }
-
-    setState(() {
-      _testingClient = true;
-      _connectionMessage = 'Memeriksa koneksi jaringan...';
-      _connectionOk = null;
-    });
-    try {
-      final result = await _clientConnectionService.checkServer(
-        host: host,
-        port: port,
-      );
-      if (!mounted) return;
-      setState(() {
-        _connectionOk = result.isApiReady;
-        _connectionMessage = result.message;
-      });
-    } finally {
-      if (mounted) setState(() => _testingClient = false);
     }
   }
 
@@ -530,11 +495,11 @@ class _DeviceModePageState extends State<DeviceModePage> {
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: _savingClient || _testingClient
-                                  ? null
-                                  : _saveClientConfig,
-                              icon: const Icon(Icons.save_outlined),
-                              label: Text(_savingClient ? 'Menyimpan...' : 'Simpan Alamat'),
+                              onPressed: null,
+                              icon: const Icon(Icons.lock_outline),
+                              label: const Text(
+                                'Tes TLS belum tersedia (menunggu pairing aman)',
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
