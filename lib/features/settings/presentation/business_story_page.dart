@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:cross_file/cross_file.dart';
 import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
@@ -238,7 +237,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
         aspectRatio: 9 / 16,
         child: Container(
           padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: colors,
               begin: Alignment.topLeft,
@@ -348,7 +347,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: _kind,
+            initialValue: _kind,
             decoration: const InputDecoration(
               labelText: 'Jenis pengumuman',
               border: OutlineInputBorder(),
@@ -363,7 +362,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            value: _template,
+            initialValue: _template,
             decoration: const InputDecoration(labelText: 'Desain poster', border: OutlineInputBorder(), isDense: true),
             items: const [
               DropdownMenuItem(value: 'biru', child: Text('Biru profesional')),
