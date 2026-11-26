@@ -257,6 +257,16 @@ class AppDatabase {
         cancel_reason TEXT,
         purchase_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         notes TEXT,
+        purchase_type TEXT NOT NULL DEFAULT 'direct',
+        marketplace TEXT,
+        order_number TEXT,
+        tracking_number TEXT,
+        shipping_fee INTEGER NOT NULL DEFAULT 0,
+        packing_fee INTEGER NOT NULL DEFAULT 0,
+        insurance_fee INTEGER NOT NULL DEFAULT 0,
+        marketplace_fee INTEGER NOT NULL DEFAULT 0,
+        transfer_fee INTEGER NOT NULL DEFAULT 0,
+        other_fee INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
       )
