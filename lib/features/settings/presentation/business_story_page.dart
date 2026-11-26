@@ -27,6 +27,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
   final _returnDateController = TextEditingController();
 
   String _kind = 'libur';
+  String _template = 'biru';
   String _businessName = 'Bengkel & Toko Sepeda';
   String _businessAddress = '';
   String _businessContact = '';
@@ -128,6 +129,11 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
   }
 
   Widget _poster() {
+    final colors = _template == 'hangat'
+        ? const [Color(0xFF8C351C), Color(0xFFE58A32)]
+        : _template == 'hijau'
+            ? const [Color(0xFF075B50), Color(0xFF27A58A)]
+            : const [Color(0xFF104B91), Color(0xFF168B9B)];
     final date = _dateController.text.trim();
     final returnDate = _returnDateController.text.trim();
     return RepaintBoundary(
@@ -138,7 +144,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF104B91), Color(0xFF168B9B)],
+              colors: colors,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -258,6 +264,17 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
               DropdownMenuItem(value: 'promo', child: Text('Promosi / diskon')),
             ],
             onChanged: _selectKind,
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _template,
+            decoration: const InputDecoration(labelText: 'Desain poster', border: OutlineInputBorder(), isDense: true),
+            items: const [
+              DropdownMenuItem(value: 'biru', child: Text('Biru profesional')),
+              DropdownMenuItem(value: 'hijau', child: Text('Hijau segar')),
+              DropdownMenuItem(value: 'hangat', child: Text('Oranye promo')),
+            ],
+            onChanged: (value) { if (value != null) setState(() => _template = value); },
           ),
           const SizedBox(height: 10),
           TextField(
