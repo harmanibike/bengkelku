@@ -187,6 +187,16 @@ class LocalApiServer {
                 }));
               }
             }
+          } else if (request.method == 'POST' &&
+              request.uri.path == '/api/v1/pair') {
+            await _handlePairingRequest(request);
+          } else if (request.uri.path == '/api/v1/pair') {
+            request.response.statusCode = HttpStatus.methodNotAllowed;
+            request.response.headers.set(HttpHeaders.allowHeader, 'POST');
+            request.response.write(jsonEncode({
+              'app': 'bengkelku_pos',
+              'status': 'method_not_allowed',
+            }));
           } else if (request.uri.path == '/api/v1/health' ||
               request.uri.path == '/api/v1/server-info') {
             request.response.statusCode = HttpStatus.methodNotAllowed;
@@ -214,6 +224,142 @@ class LocalApiServer {
       // Server mungkin sedang dihentikan saat koneksi terputus.
     } on SocketException {
       // Abaikan koneksi yang terputus dari perangkat Client.
+    }
+  }
+
+  static const int _maxPairingBodyBytes = 4096;
+
+  Future<void> _handlePairingRequest(HttpRequest request) async {
+    final handler = _bridgeHandler;
+    if (handler == null) {
+      request.response.statusCode = HttpStatus.serviceUnavailable;
+      request.response.write(jsonEncode({
+        'app': 'bengkelku_pos',
+        'status': 'bridge_unavailable',
+      }));
+      return;
+    }
+    if (request.headers.contentType?.mimeType != 'application/json') {
+      request.response.statusCode = HttpStatus.unsupportedMediaType;
+      request.response.write(jsonEncode({
+        'app': 'bengkelku_pos',
+        'status': 'json_required',
+      }));
+      return;
+    }
+    if (request.contentLength > _maxPairingBodyBytes) {
+      request.response.statusCode = HttpStatus.payloadTooLarge;
+      request.response.write(jsonEncode({
+        'app': 'bengkelku_pos',
+        'status': 'payload_too_large',
+      }));
+      return;
+    }
+
+    final bytes = <int>[];
+    try {
+      await for (final chunk in request) {
+        if (bytes.length + chunk.length > _maxPairingBodyBytes) {
+          request.response.statusCode = HttpStatus.payloadTooLarge;
+          request.response.write(jsonEncode({
+            'app': 'bengkelku_pos',
+            'status': 'payload_too_large',
+          }));
+          return;
+        }
+        bytes.addAll(chunk);
+      }
+      final decoded = jsonDecode(utf8.decode(bytes));
+      if (decoded is! Map<String, dynamic> ||
+          decoded.keys.toSet().difference({'code', 'device_name'}).isNotEmpty ||
+          decoded['code'] is! String ||
+          decoded['device_name'] is! String) {
+        throw const FormatException('Invalid pairing body.');
+      }
+      final code = (decoded['code'] as String).trim();
+      final deviceName = (decoded['device_name'] as String).trim();
+      if (!RegExp(r'^\\d{10}
+    final pendingStop = _stopFuture;
+    if (pendingStop != null) return pendingStop;
+
+    final future = _stopInternal();
+    _stopFuture = future;
+    return future.whenComplete(() {
+      if (identical(_stopFuture, future)) _stopFuture = null;
+    });
+  }
+
+  Future<void> _stopInternal() async {
+    // Bila Stop ditekan ketika bind masih berlangsung, tunggu hasilnya agar
+    // server tidak tertinggal aktif tanpa kendali UI.
+    final pendingStart = _startFuture;
+    if (pendingStart != null) {
+      try {
+        await pendingStart;
+      } catch (_) {
+        return;
+      }
+    }
+    final server = _server;
+    _server = null;
+    _bridgeHandler = null;
+    await server?.close(force: true);
+  }
+}
+).hasMatch(code) ||
+          deviceName.isEmpty || deviceName.length > 60) {
+        throw const FormatException('Invalid pairing fields.');
+      }
+
+      final result = await handler(LocalApiBridgeRequest(
+        requestId: 'pair-' + DateTime.now().microsecondsSinceEpoch.toString() + '-' + (_nextBridgeRequestId++).toString(),
+        operation: 'pair_device',
+        remoteAddress: request.connectionInfo?.remoteAddress.address ?? 'unknown',
+        payload: {'code': code, 'device_name': deviceName},
+      ));
+      final status = result['status'];
+      if (status == 'paired') {
+        final payload = jsonEncode({
+          'app': 'bengkelku_pos',
+          'status': 'paired',
+          'device_id': result['device_id'],
+          'device_name': result['device_name'],
+          'token': result['token'],
+        });
+        request.response.statusCode = HttpStatus.created;
+        request.response.contentLength = utf8.encode(payload).length;
+        request.response.write(payload);
+      } else if (status == 'rate_limited') {
+        request.response.statusCode = HttpStatus.tooManyRequests;
+        request.response.write(jsonEncode({
+          'app': 'bengkelku_pos',
+          'status': 'rate_limited',
+        }));
+      } else if (status == 'invalid_code') {
+        request.response.statusCode = HttpStatus.unauthorized;
+        request.response.write(jsonEncode({
+          'app': 'bengkelku_pos',
+          'status': 'pairing_rejected',
+        }));
+      } else {
+        request.response.statusCode = HttpStatus.serviceUnavailable;
+        request.response.write(jsonEncode({
+          'app': 'bengkelku_pos',
+          'status': 'pairing_unavailable',
+        }));
+      }
+    } on FormatException {
+      request.response.statusCode = HttpStatus.badRequest;
+      request.response.write(jsonEncode({
+        'app': 'bengkelku_pos',
+        'status': 'invalid_request',
+      }));
+    } on Object {
+      request.response.statusCode = HttpStatus.serviceUnavailable;
+      request.response.write(jsonEncode({
+        'app': 'bengkelku_pos',
+        'status': 'pairing_unavailable',
+      }));
     }
   }
 
