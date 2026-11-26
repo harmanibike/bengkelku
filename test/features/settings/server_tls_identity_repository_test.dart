@@ -24,6 +24,19 @@ class _MemorySecureValueStore implements SecureValueStore {
   }
 }
 
+class _CountingGenerator implements ServerTlsIdentityMaterialGenerator {
+  _CountingGenerator();
+
+  int calls = 0;
+
+  @override
+  Future<ServerTlsIdentityMaterial> generate({required String dnsName}) async {
+    calls++;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    return SelfSignedServerTlsIdentityGenerator().generate(dnsName: dnsName);
+  }
+}
+
 class _FailingGenerator implements ServerTlsIdentityMaterialGenerator {
   @override
   Future<ServerTlsIdentityMaterial> generate({required String dnsName}) {
@@ -55,6 +68,29 @@ void main() {
       expect(restored.fingerprint, first.fingerprint);
       expect(restored.certificatePem, first.certificatePem);
       expect(restored.privateKeyPem, first.privateKeyPem);
+    });
+
+    test('concurrent starts share one generated TLS identity', () async {
+      final generator = _CountingGenerator();
+      final repository = ServerTlsIdentityRepository(
+        store: _MemorySecureValueStore(),
+        generator: generator,
+        random: Random(13),
+      );
+
+      final identities = await Future.wait(
+        List.generate(8, (_) => repository.loadOrCreate()),
+      );
+
+      expect(generator.calls, 1);
+      expect(
+        identities.map((identity) => identity.fingerprint).toSet(),
+        hasLength(1),
+      );
+      expect(
+        identities.map((identity) => identity.serverId).toSet(),
+        hasLength(1),
+      );
     });
 
     test('fails closed when stored identity is incomplete', () async {
