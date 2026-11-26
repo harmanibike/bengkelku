@@ -1673,6 +1673,10 @@ void main() {
       whereArgs: [purchaseId],
       limit: 1,
     )).single;
+    await PurchaseRepository().receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {purchaseItem['id'] as int: 1},
+    );
     final returns = PurchaseReturnRepository();
     final returnId = await returns.createReturn(
       purchaseId: purchaseId,
@@ -1702,6 +1706,61 @@ void main() {
     ), isEmpty);
   });
 
+
+  test('purchase return cannot exceed quantities physically received', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Belum Kirim'});
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-RETUR-BELUM-DITERIMA',
+      supplierId: supplierId,
+      items: [
+        {
+          'product_id': null,
+          'product_name': 'Barang Belum Diterima',
+          'quantity': 3,
+          'unit_cost': 10000,
+          'discount': 0,
+        },
+      ],
+    );
+    final item = (await db.query(
+      'purchase_items',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    )).single;
+
+    await expectLater(
+      PurchaseReturnRepository().createReturn(
+        purchaseId: purchaseId,
+        returnNumber: 'PR-BELUM-DITERIMA',
+        quantities: {item['id'] as int: 1},
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(await db.query('purchase_returns'), isEmpty);
+
+    await purchases.receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {item['id'] as int: 2},
+    );
+    final returnId = await PurchaseReturnRepository().createReturn(
+      purchaseId: purchaseId,
+      returnNumber: 'PR-SEBAGIAN-DITERIMA',
+      quantities: {item['id'] as int: 2},
+    );
+    expect(returnId, greaterThan(0));
+    await expectLater(
+      PurchaseReturnRepository().createReturn(
+        purchaseId: purchaseId,
+        returnNumber: 'PR-MELEBIHI-PENERIMAAN',
+        quantities: {item['id'] as int: 1},
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(await db.query('purchase_returns'), hasLength(1));
+  });
+
   test('purchase return cash refunds across multiple returns cannot exceed total paid', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Pemasok Refund Bertahap'});
@@ -1727,6 +1786,10 @@ void main() {
       whereArgs: [purchaseId],
       limit: 1,
     )).single;
+    await PurchaseRepository().receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {item['id'] as int: 2},
+    );
     final returns = PurchaseReturnRepository();
     final firstReturn = await returns.createReturn(
       purchaseId: purchaseId,
@@ -1790,6 +1853,8 @@ void main() {
       'product_id': productId,
       'product_name': 'Pedal Uji',
       'quantity': 3,
+      'quantity_received': 3,
+      'allocated_unit_cost': 25000,
       'unit_cost': 25000,
       'subtotal': 75000,
     });
@@ -1879,6 +1944,8 @@ void main() {
       'product_id': productId,
       'product_name': 'Sadel Uji',
       'quantity': 2,
+      'quantity_received': 2,
+      'allocated_unit_cost': 15000,
       'unit_cost': 15000,
       'subtotal': 30000,
     });
