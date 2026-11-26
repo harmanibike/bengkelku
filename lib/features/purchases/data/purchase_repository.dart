@@ -260,10 +260,22 @@ class PurchaseRepository {
         final variantId = (item['variant_id'] as num?)?.toInt();
         final quantity = entry.value;
         final nextReceived = ((item['quantity_received'] as num?)?.toInt() ?? 0) + quantity;
+        final allocatedTotal = (item['allocated_landed_total'] as num?)?.toInt() ??
+            ((item['allocated_unit_cost'] as num?)?.toInt() ??
+                (item['unit_cost'] as num?)?.toInt() ?? 0) *
+                ((item['quantity'] as num?)?.toInt() ?? 0);
+        final previousReceived = (item['quantity_received'] as num?)?.toInt() ?? 0;
+        final previousCost = (item['received_cost_total'] as num?)?.toInt() ??
+            previousReceived * ((item['allocated_unit_cost'] as num?)?.toInt() ?? 0);
+        final orderedQuantity = (item['quantity'] as num?)?.toInt() ?? 1;
+        final cumulativeCost = (allocatedTotal * nextReceived + orderedQuantity ~/ 2) ~/ orderedQuantity;
+        final receiptCost = cumulativeCost - previousCost;
+        final unitCost = receiptCost ~/ quantity;
+        final higherCostUnits = receiptCost % quantity;
         await txn.update('purchase_items', {
           'quantity_received': nextReceived,
           'received_cost_total': cumulativeCost,
-          where: 'id = ?', whereArgs: [entry.key]);
+        }, where: 'id = ?', whereArgs: [entry.key]);
         if (productId == null) continue;
         final products = await txn.query('products',
           columns: ['stock', 'track_stock', 'purchase_price', 'is_active'],
@@ -287,18 +299,6 @@ class PurchaseRepository {
         if ((owner['track_stock'] as num?)?.toInt() != 1) continue;
         final before = (owner['stock'] as num?)?.toInt() ?? 0;
         final after = before + quantity;
-        final allocatedTotal = (item['allocated_landed_total'] as num?)?.toInt() ??
-            ((item['allocated_unit_cost'] as num?)?.toInt() ??
-                (item['unit_cost'] as num?)?.toInt() ?? 0) *
-                ((item['quantity'] as num?)?.toInt() ?? 0);
-        final previousReceived = (item['quantity_received'] as num?)?.toInt() ?? 0;
-        final previousCost = (item['received_cost_total'] as num?)?.toInt() ??
-            previousReceived * ((item['allocated_unit_cost'] as num?)?.toInt() ?? 0);
-        final orderedQuantity = (item['quantity'] as num?)?.toInt() ?? 1;
-        final cumulativeCost = (allocatedTotal * nextReceived + orderedQuantity ~/ 2) ~/ orderedQuantity;
-        final receiptCost = cumulativeCost - previousCost;
-        final unitCost = receiptCost ~/ quantity;
-        final higherCostUnits = receiptCost % quantity;
         final oldCost = (owner['purchase_price'] as num?)?.toInt() ?? 0;
         final batchTotals = await txn.rawQuery('''
           SELECT COALESCE(SUM(quantity_remaining), 0) AS quantity,
