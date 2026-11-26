@@ -598,6 +598,80 @@ void main() {
     expect(cancelMovement['stock_after'], 0);
   });
 
+
+  test('purchase receipt supports partial deliveries and rejects over-receipt', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Kirim Bertahap'});
+    final productId = await db.insert('products', {
+      'name': 'Rantai Kirim Bertahap',
+      'purchase_price': 0,
+      'stock': 0,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-PENERIMAAN-BERTAHAP',
+      supplierId: supplierId,
+      items: [
+        {
+          'product_id': productId,
+          'product_name': 'Rantai Kirim Bertahap',
+          'quantity': 5,
+          'unit_cost': 20000,
+          'discount': 0,
+        },
+      ],
+    );
+    final item = (await db.query(
+      'purchase_items',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    )).single;
+    final itemId = item['id'] as int;
+
+    await purchases.receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {itemId: 2},
+    );
+    var product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    var purchase = (await db.query('purchases', where: 'id = ?', whereArgs: [purchaseId])).single;
+    var receivedItem = (await db.query('purchase_items', where: 'id = ?', whereArgs: [itemId])).single;
+    expect(product['stock'], 2);
+    expect(receivedItem['quantity_received'], 2);
+    expect(purchase['receiving_status'], 'partial');
+    expect(await db.query('inventory_cost_batches', where: 'purchase_id = ?', whereArgs: [purchaseId]), hasLength(1));
+
+    await expectLater(
+      purchases.receivePurchaseItems(
+        purchaseId: purchaseId,
+        receivedQuantities: {itemId: 4},
+      ),
+      throwsA(isA<StateError>()),
+    );
+    product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    receivedItem = (await db.query('purchase_items', where: 'id = ?', whereArgs: [itemId])).single;
+    expect(product['stock'], 2);
+    expect(receivedItem['quantity_received'], 2);
+
+    await purchases.receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {itemId: 3},
+    );
+    product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    purchase = (await db.query('purchases', where: 'id = ?', whereArgs: [purchaseId])).single;
+    receivedItem = (await db.query('purchase_items', where: 'id = ?', whereArgs: [itemId])).single;
+    expect(product['stock'], 5);
+    expect(receivedItem['quantity_received'], 5);
+    expect(purchase['receiving_status'], 'received');
+    expect(await db.query('inventory_cost_batches', where: 'purchase_id = ?', whereArgs: [purchaseId]), hasLength(2));
+    expect(await db.query(
+      'stock_movements',
+      where: "reference_type = 'purchase' AND reference_id = ?",
+      whereArgs: [purchaseId],
+    ), hasLength(2));
+  });
+
   test('stock opname applies surplus with average remaining batch cost', () async {
     final db = await AppDatabase.instance.database;
     final productId = await db.insert('products', {
