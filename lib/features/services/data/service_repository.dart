@@ -1237,8 +1237,6 @@ class ServiceRepository {
           ''',
           [id],
         );
-        final refund = paidRows.fold<int>(
-          0, (sum, row) => sum + ((row['total_paid'] as num?)?.toInt() ?? 0));
         final walletPayments = await txn.rawQuery('''
           SELECT COALESCE(SUM(amount), 0) AS total
           FROM customer_wallet_ledger
