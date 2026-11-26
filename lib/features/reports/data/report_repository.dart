@@ -401,4 +401,61 @@ class ReportRepository {
       'latest': latest,
     };
   }
+
+
+  /// Valuasi persediaan saat ini, tidak mengikuti filter periode laporan.
+  /// HPP memakai sisa nilai batch aktual; stok lama tanpa batch memakai harga pokok master.
+  Future<Map<String, int>> getCurrentStockValuation() async {
+    AuthSession.instance.requireCashierOrAdmin('Laporan stok hanya dapat diakses Admin dan Kasir.');
+    final db = await _db;
+    final products = await db.rawQuery('''
+      SELECT
+        COALESCE(SUM(
+          CASE WHEN COALESCE(b.batch_qty, 0) < p.stock
+            THEN COALESCE(b.batch_value, 0) + (p.stock - COALESCE(b.batch_qty, 0)) * p.purchase_price
+            ELSE COALESCE(b.batch_value, 0) END
+        ), 0) AS cost_value,
+        COALESCE(SUM(p.stock * p.selling_price), 0) AS selling_value,
+        COALESCE(SUM(p.stock), 0) AS stock_quantity,
+        COUNT(*) AS item_count
+      FROM products p
+      LEFT JOIN (
+        SELECT product_id, SUM(quantity_remaining) AS batch_qty,
+          SUM(quantity_remaining * unit_cost) AS batch_value
+        FROM inventory_cost_batches
+        WHERE quantity_remaining > 0 AND variant_id IS NULL
+        GROUP BY product_id
+      ) b ON b.product_id = p.id
+      WHERE p.is_active = 1 AND p.track_stock = 1 AND p.stock > 0
+    ''');
+    final variants = await db.rawQuery('''
+      SELECT
+        COALESCE(SUM(
+          CASE WHEN COALESCE(b.batch_qty, 0) < v.stock
+            THEN COALESCE(b.batch_value, 0) + (v.stock - COALESCE(b.batch_qty, 0)) * v.purchase_price
+            ELSE COALESCE(b.batch_value, 0) END
+        ), 0) AS cost_value,
+        COALESCE(SUM(v.stock * v.selling_price), 0) AS selling_value,
+        COALESCE(SUM(v.stock), 0) AS stock_quantity,
+        COUNT(*) AS item_count
+      FROM product_variants v
+      JOIN products p ON p.id = v.product_id
+      LEFT JOIN (
+        SELECT variant_id, SUM(quantity_remaining) AS batch_qty,
+          SUM(quantity_remaining * unit_cost) AS batch_value
+        FROM inventory_cost_batches
+        WHERE quantity_remaining > 0 AND variant_id IS NOT NULL
+        GROUP BY variant_id
+      ) b ON b.variant_id = v.id
+      WHERE p.is_active = 1 AND v.is_active = 1 AND v.track_stock = 1 AND v.stock > 0
+    ''');
+    int value(Map<String, Object?> row, String key) =>
+        (row[key] as num?)?.toInt() ?? 0;
+    return {
+      'cost_value': value(products.first, 'cost_value') + value(variants.first, 'cost_value'),
+      'selling_value': value(products.first, 'selling_value') + value(variants.first, 'selling_value'),
+      'stock_quantity': value(products.first, 'stock_quantity') + value(variants.first, 'stock_quantity'),
+      'item_count': value(products.first, 'item_count') + value(variants.first, 'item_count'),
+    };
+  }
 }
