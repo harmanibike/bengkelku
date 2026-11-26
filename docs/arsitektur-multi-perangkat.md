@@ -144,7 +144,7 @@ Tahap 1 belum dianggap selesai hanya karena pilihan mode tampil. Server baru din
 8. QR pairing tidak boleh menjadi pengganti persetujuan Admin. Admin membuat kode dari sesi Admin aktif dan harus dapat melihat serta mencabut perangkat yang berhasil dipasangkan.
 
 ### Kompatibilitas perangkat lama
-- BengkelKu menargetkan perangkat Sunmi V2 yang dapat memakai Android 6/7. Pilihan pustaka TLS/pinning wajib diuji pada API level Android 23 dan 24, bukan hanya Android terbaru.
+- Kompatibilitas Android harus diuji pada versi minimum yang benar-benar dipilih proyek dan satu versi Android yang lebih baru. Jangan mengikat rancangan jaringan ke merek atau model perangkat tertentu.
 - Paket pinning yang hanya mendukung Android API 24+ tidak boleh dijadikan satu-satunya jalur verifikasi karena Android 6 dapat berada pada API 23.
 - Implementasi awal perlu menguji fingerprint sertifikat leaf secara eksplisit di `HttpClient` pada perangkat API 23, termasuk kegagalan saat pin salah, sertifikat berubah, dan masa berlaku sertifikat habis.
 - TLS harus menolak koneksi yang tidak cocok; tidak boleh ada fallback diam-diam ke HTTP untuk pairing atau transaksi.
@@ -216,7 +216,7 @@ Referensi: [rk_pki di pub.dev](https://pub.dev/packages/rk_pki).
 - API `SelfSignedCertificate.generate` membuat sertifikat ECDSA P-256 dan mengekspos `certificatePem`, `privateKeyPem`, serta fingerprint SHA-256. Sertifikat yang sudah dibuat dapat dimuat kembali melalui konstruktornya.
 - API generator yang didokumentasikan menerima `commonName`, `dnsNames`, dan masa berlaku; tidak menyediakan parameter `ipAddresses` untuk Subject Alternative Name bertipe IP.
 - Client Bike POS direncanakan terhubung ke alamat IP LAN yang dapat berubah. Mengisi alamat IP sebagai DNS SAN bukan pengganti IP SAN. Karena itu sertifikat dari generator ini belum memenuhi rancangan verifikasi hostname/IP secara normal untuk koneksi ke alamat IP.
-- Dokumentasi paket menyatakan generator dapat digunakan di Android/iOS, tetapi matriks CI yang dipublikasikan untuk paket FTP menyebut macOS, Linux, dan Windows. Klaim tersebut belum membuktikan pengujian generator pada Android API 23/24 dan ABI Sunmi sasaran.
+- Dokumentasi paket menyatakan generator dapat digunakan di Android/iOS, tetapi matriks CI yang dipublikasikan untuk paket FTP menyebut macOS, Linux, dan Windows. Klaim tersebut belum membuktikan pengujian generator pada versi Android minimum dan ABI perangkat sasaran.
 - Paket FTP tidak perlu dimasukkan ke aplikasi hanya untuk mengambil generator sertifikat. Jika source generator dipertimbangkan untuk diadaptasi, audit implementasi kriptografi, dependency, SAN, lisensi, dan pengujian Android tetap wajib dilakukan terlebih dahulu.
 
 Referensi: [API SelfSignedCertificate](https://pub.dev/documentation/ftp_server/latest/self_signed_certificate/SelfSignedCertificate-class.html), [dokumentasi ftp_server](https://pub.dev/packages/ftp_server).
@@ -342,3 +342,24 @@ Batas PoC yang harus ditentukan dan diuji:
 - Isolate utama tetap menjadi satu-satunya pemilik jalur repository/database untuk pekerjaan berikutnya. Task isolate tidak membuka SQLite.
 - Operasi selain server_info dan payload non-kosong tetap ditolak pada bridge.
 - Perubahan ini hanya menyiapkan bentuk pesan yang dapat diaudit; belum mengaktifkan pairing, autentikasi perangkat, endpoint bisnis, atau Mode Client.
+
+
+## Audit repositori setelah penghapusan integrasi perangkat khusus — 26 November 2026
+
+Pemeriksaan ulang repository pada branch `main` menunjukkan pola akses data saat ini:
+
+- `AppDatabase.instance.database` menjadi sumber SQLite lokal tunggal dan skema saat ini berada pada versi 41.
+- Repository produk dan pelanggan masih mengambil koneksi langsung melalui getter lokal `_db`; pola serupa perlu diaudit pada modul transaksi, pembelian, servis, pembayaran, dan laporan sebelum satu abstraksi akses data dapat dipakai lintas aplikasi.
+- Karena pemanggilan database tersebar di repository, memindahkan Client ke API dengan mengganti satu provider saja belum cukup. Perlu pemetaan setiap operasi baca/tulis dan dependensinya agar tidak ada modul yang diam-diam tetap membaca database lokal Client.
+- Endpoint jaringan yang ada tetap terbatas pada health-check dan metadata server. Tidak ada endpoint produk, stok, pelanggan, penjualan, pembelian, servis, pembayaran, atau laporan yang boleh dianggap tersedia.
+- Mode Lokal tetap menjadi perilaku aman bawaan. Perubahan arsitektur berikutnya harus mempertahankan repository lokal sebagai implementasi default dan tidak mengubah skema SQLite versi 41 tanpa migrasi teruji.
+
+### Langkah implementasi berikutnya
+
+1. Inventarisasi repository dan seluruh akses langsung ke `AppDatabase.instance.database`, dikelompokkan per modul serta operasi baca/tulis.
+2. Tentukan kontrak repository/use-case per domain; jangan membuat abstraksi generik yang memungkinkan SQL atau nama tabel dikirim dari Client.
+3. Implementasikan satu domain baca sebagai proof-of-concept end-to-end (produk aktif dan kategori), melalui bridge terautentikasi dan otorisasi sisi Server.
+4. Uji bahwa Mode Lokal masih memakai SQLite yang sama dan tidak memerlukan migrasi atau impor data.
+5. Baru setelah uji tersebut lulus, perluas ke pelanggan, stok, lalu operasi tulis yang memiliki idempotensi.
+
+Catatan audit ini bukan klaim bahwa API bisnis sudah dibuat atau bahwa Mode Client telah berfungsi.
