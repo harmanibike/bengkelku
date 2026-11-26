@@ -229,9 +229,9 @@ class _ReportsPageState extends State<ReportsPage> {
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     children: [
-                      _metric('Kas Masuk', _rupiah(income), Icons.trending_up, Colors.green),
-                      _metric('Kas Keluar', _rupiah(expense), Icons.trending_down, Colors.red),
-                      _metric('Arus Kas Bersih', _rupiah((_summary['net_cash_flow'] as num?)?.toInt() ?? (income - expense)), Icons.account_balance, (income - expense) >= 0 ? Colors.green : Colors.red),
+                      _metric('Dana Masuk', _rupiah(income), Icons.trending_up, Colors.green),
+                      _metric('Dana Keluar', _rupiah(expense), Icons.trending_down, Colors.red),
+                      _metric('Arus Dana Bersih', _rupiah((_summary['net_cash_flow'] as num?)?.toInt() ?? (income - expense)), Icons.account_balance, (income - expense) >= 0 ? Colors.green : Colors.red),
                       _metric('Titipan Deposit Pelanggan', _rupiah((_summary['customer_wallet_balance'] as num?)?.toInt() ?? 0), Icons.account_balance_wallet_outlined, Colors.blue),
                       _metric('Penjualan Bersih', _rupiah((_summary['net_sales_amount'] as num?)?.toInt() ?? 0), Icons.shopping_cart, Colors.orange),
                       _metric('Retur Penjualan', _rupiah((_summary['sales_return_amount'] as num?)?.toInt() ?? 0), Icons.assignment_return, Colors.deepOrange),
@@ -415,7 +415,7 @@ class _ReportsPageState extends State<ReportsPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Saldo kas awal', style: TextStyle(fontSize: 12)),
+                              const Text('Saldo tunai awal', style: TextStyle(fontSize: 12)),
                               Text(_rupiah((_summary['opening_cash_balance'] as num?)?.toInt() ?? 0), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                             ],
                           ),
@@ -423,8 +423,8 @@ class _ReportsPageState extends State<ReportsPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Saldo kas akhir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                              Text(_rupiah((_summary['closing_cash_balance'] as num?)?.toInt() ?? (income - expense)), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                              const Text('Saldo tunai akhir', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                              Text(_rupiah((_summary['closing_cash_balance'] as num?)?.toInt() ?? 0), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ],
@@ -434,7 +434,7 @@ class _ReportsPageState extends State<ReportsPage> {
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Text(
-                      'Arus kas menunjukkan uang yang benar-benar masuk dan keluar, bukan laba. Pendapatan servis dihitung dari nota selesai/diambil berdasarkan tanggal selesai. Laba kotor servis mengurangi biaya modal sparepart dan biaya langsung lain yang diinput manual. Sisa setelah beban tercatat mengurangi total laba kotor dengan pengeluaran manual dari Buku Kas; pembayaran pembelian pemasok tidak dikurangkan lagi karena HPP barang sudah dihitung saat penjualan. Ini belum merupakan laba bersih final: pajak, penyusutan, biaya yang belum dicatat, dan beban lain mungkin belum tercakup. Jangan masukkan biaya yang sama sekaligus sebagai biaya langsung servis dan pengeluaran manual Buku Kas agar tidak terhitung dua kali. DP/pelunasan hanya dihitung pada arus kas. Deposit pelanggan tetap terlihat pada arus kas karena merupakan titipan yang benar-benar diterima, tetapi bukan omzet (lihat metrik saldo deposit). Uang tip tidak dimasukkan ke Buku Kas maupun arus kas dan hanya ditampilkan pada Laporan Uang Tip. Saldo piutang dan utang pemasok adalah posisi berjalan saat ini, tidak dibatasi periode laporan.',
+                      'Dana masuk dan dana keluar mencakup transaksi tunai serta non-tunai (transfer bank/QRIS). Saldo tunai awal dan akhir hanya menghitung uang fisik Cash di laci, tidak termasuk transfer bank/QRIS. Arus dana bukan laba. Pendapatan servis dihitung dari nota selesai/diambil berdasarkan tanggal selesai. Laba kotor servis mengurangi biaya modal sparepart dan biaya langsung lain yang diinput manual. Sisa setelah beban tercatat mengurangi total laba kotor dengan pengeluaran manual dari Buku Kas; pembayaran pembelian pemasok tidak dikurangkan lagi karena HPP barang sudah dihitung saat penjualan. Ini belum merupakan laba bersih final: pajak, penyusutan, biaya yang belum dicatat, dan beban lain mungkin belum tercakup. Jangan masukkan biaya yang sama sekaligus sebagai biaya langsung servis dan pengeluaran manual Buku Kas agar tidak terhitung dua kali. DP/pelunasan hanya dihitung pada arus kas. Deposit pelanggan tetap terlihat pada arus kas karena merupakan titipan yang benar-benar diterima, tetapi bukan omzet (lihat metrik saldo deposit). Uang tip tidak dimasukkan ke Buku Kas maupun arus kas dan hanya ditampilkan pada Laporan Uang Tip. Saldo piutang dan utang pemasok adalah posisi berjalan saat ini, tidak dibatasi periode laporan.',
                       style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ),
@@ -473,7 +473,7 @@ class _ReportsPageState extends State<ReportsPage> {
                       );
                     }),
                   const SizedBox(height: 8),
-                  Text('Saldo bersih: ${_rupiah(income - expense)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Arus dana bersih: ${_rupiah(income - expense)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
