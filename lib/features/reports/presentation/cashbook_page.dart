@@ -1,7 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 
-import '../../../core/formatters/currency_input_formatter.dart';
-
 import '../data/cashbook_repository.dart';
 
 class CashbookPage extends StatefulWidget {
@@ -78,79 +76,10 @@ class _CashbookPageState extends State<CashbookPage> {
     return id == null || id.isEmpty ? 'Sumber: $source' : 'Sumber: $source • ID $id';
   }
 
-  Future<void> _addEntry() async {
-    final formKey=GlobalKey<FormState>();
-    final description=TextEditingController();
-    final amount=TextEditingController();
-    var type='expense';
-    var paymentMethod='cash';
-    const expenseCategories=['Operasional','Gaji Karyawan','Komisi Mekanik','Transportasi','Listrik dan Air','Sewa Tempat','Perawatan Peralatan','Perlengkapan','Biaya Lainnya'];
-    const incomeCategories=['Pendapatan Lainnya','Modal Tambahan','Pengembalian Dana','Pemasukan Lainnya'];
-    var selectedCategory=expenseCategories.first;
-    final saved=await showDialog<bool>(context:context,builder:(dialogContext)=>StatefulBuilder(
-      builder:(context,setDialogState)=>AlertDialog(
-        title:const Text('Catat transaksi kas'),
-        content:SingleChildScrollView(child:Form(
-          key:formKey,
-          child:Column(mainAxisSize:MainAxisSize.min,children:[
-            DropdownButtonFormField<String>(
-              initialValue:type,
-              decoration:const InputDecoration(labelText:'Jenis transaksi'),
-              items:const [
-                DropdownMenuItem(value:'income',child:Text('Kas masuk')),
-                DropdownMenuItem(value:'expense',child:Text('Kas keluar')),
-              ],
-              onChanged:(v){if(v!=null)setDialogState((){type=v;selectedCategory=v=='expense'?expenseCategories.first:incomeCategories.first;});},
-            ),
-            DropdownButtonFormField<String>(
-              initialValue:paymentMethod,
-              decoration:const InputDecoration(labelText:'Metode pembayaran'),
-              items:const [
-                DropdownMenuItem(value:'cash',child:Text('Tunai')),
-                DropdownMenuItem(value:'bank_transfer',child:Text('Transfer Bank')),
-                DropdownMenuItem(value:'qris',child:Text('QRIS')),
-                DropdownMenuItem(value:'other_non_cash',child:Text('Nontunai lainnya')),
-              ],
-              onChanged:(value){if(value!=null)setDialogState(()=>paymentMethod=value);},
-            ),
-            DropdownButtonFormField<String>(
-              initialValue:selectedCategory,
-              decoration:const InputDecoration(labelText:'Kategori'),
-              items:(type=='expense'?expenseCategories:incomeCategories)
-                  .map((value)=>DropdownMenuItem(value:value,child:Text(value))).toList(),
-              onChanged:(value){if(value!=null)setDialogState(()=>selectedCategory=value);},
-            ),
-            TextFormField(controller:description,decoration:const InputDecoration(labelText:'Keterangan'),validator:(v)=>v==null||v.trim().isEmpty?'Wajib diisi':null),
-            TextFormField(controller:amount,keyboardType:TextInputType.number,inputFormatters:const [CurrencyInputFormatter()],decoration:const InputDecoration(labelText:'Nominal (Rp)'),validator:(v){final n=parseCurrencyInput(v);return n<=0?'Nominal tidak valid':null;}),
-          ]),
-        )),
-        actions:[
-          TextButton(onPressed:()=>Navigator.pop(dialogContext,false),child:const Text('Batal')),
-          FilledButton(onPressed:(){
-            if(formKey.currentState?.validate()??false) Navigator.pop(dialogContext,true);
-          },child:const Text('Simpan')),
-        ],
-      ),
-    ));
-    if(saved==true) {
-      try {
-        await _repo.addManualTransaction(
-          type:type,category:selectedCategory,description:description.text,
-          amount:parseCurrencyInput(amount.text),paymentMethod:paymentMethod);
-        _refresh();
-        if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Transaksi kas disimpan.')));
-      } catch(e) {
-        if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));
-      }
-    }
-    description.dispose(); amount.dispose();
-  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar:AppBar(title:const Text('Buku Kas')),
-    floatingActionButton:FloatingActionButton.extended(
-      onPressed:_addEntry,icon:const Icon(Icons.add),label:const Text('Catat Kas')),
     body:FutureBuilder<Map<String,Object?>>(
       future:_future,
       builder:(context,snapshot) {
