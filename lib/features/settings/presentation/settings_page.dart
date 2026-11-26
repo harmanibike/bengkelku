@@ -15,6 +15,7 @@ import 'printer_settings_page.dart';
 import 'loyalty_settings_page.dart';
 import '../../customers/presentation/loyalty_rewards_page.dart';
 import 'stock_reminder_settings_page.dart';
+import 'business_story_page.dart';
 import '../../../core/auth/auth_session.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -194,6 +195,19 @@ class SettingsPage extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
+          if (AuthSession.instance.isAdmin) ...[
+            const Text('Komunikasi Pelanggan', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 8),
+            _item(
+              context: context,
+              icon: Icons.campaign_rounded,
+              color: const Color(0xFF00897B),
+              title: 'Pengumuman & Story WhatsApp',
+              subtitle: 'Buat poster libur, jam operasional, dan promosi',
+              page: const BusinessStoryPage(),
+            ),
+            const SizedBox(height: 10),
+          ],
           const Text('Informasi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 8),
           _item(
