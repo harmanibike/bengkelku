@@ -156,7 +156,7 @@ void main() {
     expect(detail['payments'], hasLength(3));
   });
 
-  test('online purchase fees are included in invoice total and product landed cost', () async {
+  test('online purchase fees are stored and stock is added only after receipt', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Toko Online Uji'});
     final productId = await db.insert('products', {
@@ -187,15 +187,24 @@ void main() {
     );
     final purchase = (await db.query('purchases', where: 'id = ?', whereArgs: [purchaseId])).single;
     final product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
-    final batch = (await db.query('inventory_cost_batches', where: 'purchase_id = ?', whereArgs: [purchaseId])).single;
     expect(purchase['purchase_type'], 'online');
     expect(purchase['marketplace'], 'Marketplace Uji');
     expect(purchase['order_number'], 'ORD-001');
     expect(purchase['tracking_number'], 'RESI-001');
     expect(purchase['total'], 530000);
+    expect(purchase['receiving_status'], 'pending');
+    expect(product['purchase_price'], 0);
+    expect(product['stock'], 0);
+    expect(await db.query('inventory_cost_batches', where: 'purchase_id = ?', whereArgs: [purchaseId]), isEmpty);
+    final item = (await db.query('purchase_items', where: 'purchase_id = ?', whereArgs: [purchaseId])).single;
+    await PurchaseRepository().receivePurchaseItems(purchaseId: purchaseId, receivedQuantities: {item['id'] as int: 1});
+    final receivedProduct = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    final batch = (await db.query('inventory_cost_batches', where: 'purchase_id = ?', whereArgs: [purchaseId])).single;
+    final receivedPurchase = (await db.query('purchases', where: 'id = ?', whereArgs: [purchaseId])).single;
     expect(batch['unit_cost'], 530000);
-    expect(product['purchase_price'], 530000);
-    expect(product['stock'], 1);
+    expect(receivedProduct['purchase_price'], 530000);
+    expect(receivedProduct['stock'], 1);
+    expect(receivedPurchase['receiving_status'], 'received');
   });
 
   test('supplier payment history and cashbook stay synchronized', () async {
@@ -510,7 +519,7 @@ void main() {
     expect(detected.single['difference'], 1000);
   });
 
-  test('purchase updates variant stock, batch cost and stock movement atomically', () async {
+  test('purchase receipt updates variant stock, batch cost and movement atomically', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Pemasok Varian Uji'});
     final productId = await db.insert('products', {
@@ -552,12 +561,17 @@ void main() {
     final variant = (await db.query('product_variants',
       columns: ['stock', 'purchase_price'], where: 'id = ?', whereArgs: [variantId])).single;
     expect(parent['stock'], 0);
-    expect(variant['stock'], 4);
-    expect(variant['purchase_price'], 15000);
-
+    expect(variant['stock'], 0);
+    expect(variant['purchase_price'], 12000);
+    expect(await db.query('inventory_cost_batches', where: 'purchase_id = ?', whereArgs: [purchaseId]), isEmpty);
     final purchaseItem = (await db.query('purchase_items',
       where: 'purchase_id = ?', whereArgs: [purchaseId])).single;
     expect(purchaseItem['variant_id'], variantId);
+    await purchases.receivePurchaseItems(purchaseId: purchaseId, receivedQuantities: {purchaseItem['id'] as int: 4});
+    final receivedVariant = (await db.query('product_variants',
+      columns: ['stock', 'purchase_price'], where: 'id = ?', whereArgs: [variantId])).single;
+    expect(receivedVariant['stock'], 4);
+    expect(receivedVariant['purchase_price'], 15000);
     final batch = (await db.query('inventory_cost_batches',
       where: 'purchase_id = ?', whereArgs: [purchaseId])).single;
     expect(batch['variant_id'], variantId);
