@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../data/report_repository.dart';
 import '../../purchases/presentation/purchase_reports_page.dart';
 import 'tip_report_page.dart';
+import 'inventory_valuation_page.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key});
@@ -128,6 +129,21 @@ class _ReportsPageState extends State<ReportsPage> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const TipReportPage()),
+                      ),
+                    ),
+                  ),
+                  Card(
+                    child: ListTile(
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0xFFE3F2FD),
+                        child: Icon(Icons.inventory_2_outlined, color: Color(0xFF1565C0)),
+                      ),
+                      title: const Text('Rincian Nilai Persediaan', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Daftar barang, stok, harga pokok, dan nilai modal per barang'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const InventoryValuationPage()),
                       ),
                     ),
                   ),
