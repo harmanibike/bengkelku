@@ -16,6 +16,7 @@ class _ReportsPageState extends State<ReportsPage> {
   String _period = 'today';
   bool _loading = true;
   Map<String, Object?> _summary = {};
+  Map<String, int> _stockValuation = {};
 
   @override
   void initState() {
@@ -50,9 +51,11 @@ class _ReportsPageState extends State<ReportsPage> {
     }
     try {
       final data = await _repository.getSummary(start: start, end: end);
+      final stock = await _repository.getCurrentStockValuation();
       if (!mounted) return;
       setState(() {
         _summary = data;
+        _stockValuation = stock;
         _loading = false;
       });
     } catch (error) {
@@ -125,6 +128,62 @@ class _ReportsPageState extends State<ReportsPage> {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const TipReportPage()),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Nilai Persediaan Saat Ini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.inventory_2_outlined, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              const Expanded(child: Text('Total nilai stok harga pokok')),
+                              Text(_rupiah(_stockValuation['cost_value'] ?? 0),
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const Divider(height: 18),
+                          Row(
+                            children: [
+                              const Icon(Icons.sell_outlined, color: Colors.green),
+                              const SizedBox(width: 8),
+                              const Expanded(child: Text('Total nilai stok harga jual')),
+                              Text(_rupiah(_stockValuation['selling_value'] ?? 0),
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const Divider(height: 18),
+                          Row(
+                            children: [
+                              const Expanded(child: Text('Selisih potensi laba kotor')),
+                              Text(_rupiah((_stockValuation['selling_value'] ?? 0) -
+                                  (_stockValuation['cost_value'] ?? 0)),
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '${_stockValuation['item_count'] ?? 0} jenis barang • ${_stockValuation['stock_quantity'] ?? 0} total unit stok',
+                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Nilai harga pokok dihitung dari sisa batch biaya. Stok lama yang belum memiliki batch memakai harga pokok pada data produk. Nilai harga jual memakai harga jual reguler, belum memperhitungkan diskon atau harga grosir.',
+                              style: TextStyle(fontSize: 10, color: Colors.grey),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
