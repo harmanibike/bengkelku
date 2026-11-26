@@ -473,10 +473,37 @@ class PurchaseRepository {
       final batches = await txn.query(
         'inventory_cost_batches', where: 'purchase_id = ?', whereArgs: [purchaseId],
         orderBy: 'product_id ASC, variant_id ASC, id ASC');
-      final stockMovements = await txn.query('stock_movements',
-        columns: ['id'], where: "reference_type = 'purchase' AND reference_id = ?", whereArgs: [purchaseId]);
-      if (stockMovements.length != batches.length) {
-        throw StateError('Faktur ini berasal dari pencatatan stok versi lama atau batch tidak lengkap. Audit stok manual diperlukan sebelum pembatalan.');
+      final stockMovements = await txn.query(
+        'stock_movements',
+        columns: ['product_id', 'variant_id', 'quantity'],
+        where: "reference_type = 'purchase' AND reference_id = ? AND movement_type = 'in'",
+        whereArgs: [purchaseId],
+      );
+      // Satu penerimaan dapat memiliki dua batch biaya karena pembagian
+      // sisa pembulatan HPP. Cocokkan total kuantitas per produk/varian,
+      // bukan jumlah baris batch dengan jumlah baris mutasi stok.
+      final movementQuantities = <String, int>{};
+      for (final movement in stockMovements) {
+        final productId = (movement['product_id'] as num?)?.toInt();
+        final variantId = (movement['variant_id'] as num?)?.toInt();
+        if (productId == null) continue;
+        final key = '$productId:${variantId ?? 'product'}';
+        movementQuantities[key] = (movementQuantities[key] ?? 0) +
+            ((movement['quantity'] as num?)?.toInt() ?? 0);
+      }
+      final batchQuantities = <String, int>{};
+      for (final batch in batches) {
+        final productId = (batch['product_id'] as num?)?.toInt();
+        final variantId = (batch['variant_id'] as num?)?.toInt();
+        if (productId == null) continue;
+        final key = '$productId:${variantId ?? 'product'}';
+        batchQuantities[key] = (batchQuantities[key] ?? 0) +
+            ((batch['quantity_received'] as num?)?.toInt() ?? 0);
+      }
+      if (movementQuantities.isEmpty && batchQuantities.isNotEmpty ||
+          movementQuantities.length != batchQuantities.length ||
+          movementQuantities.entries.any((entry) => batchQuantities[entry.key] != entry.value)) {
+        throw StateError('Riwayat mutasi stok dan batch biaya tidak cocok. Audit stok manual diperlukan sebelum pembatalan.');
       }
       final grouped = <String, Map<String, Object?>>{};
       for (final batch in batches) {
