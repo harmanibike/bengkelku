@@ -19,6 +19,8 @@ class BengkelKuServerService {
   static final BengkelKuServerService instance = BengkelKuServerService._();
   static const int _serviceId = 8765;
   static bool _initialized = false;
+  static final ServerTlsIdentityRepository _identityRepository =
+      ServerTlsIdentityRepository(store: FlutterSecureValueStore());
 
   static void initialize() {
     if (_initialized) return;
@@ -62,9 +64,7 @@ class BengkelKuServerService {
     // Load/create the identity on the main isolate where secure storage is
     // initialized. The foreground isolate must not open the business database
     // or independently generate a second server identity.
-    final identity = await ServerTlsIdentityRepository(
-      store: FlutterSecureValueStore(),
-    ).loadOrCreate();
+    final identity = await _identityRepository.loadOrCreate();
 
     // Replace an older listener from a previous app version. This ensures an
     // already-running plaintext health listener cannot be mistaken for TLS.
