@@ -70,6 +70,15 @@ class _PurchasesPageState extends State<PurchasesPage> {
     }
     final invoice = TextEditingController(text: 'PB-${DateTime.now().millisecondsSinceEpoch}');
     final discount = TextEditingController(text: '0');
+    final shipping = TextEditingController(text: '0');
+    final packing = TextEditingController(text: '0');
+    final insurance = TextEditingController(text: '0');
+    final marketplaceFee = TextEditingController(text: '0');
+    final transferFee = TextEditingController(text: '0');
+    final otherFee = TextEditingController(text: '0');
+    final marketplace = TextEditingController();
+    final orderNumber = TextEditingController();
+    final trackingNumber = TextEditingController();
     final payment = TextEditingController(text: '0');
     final notes = TextEditingController();
     int? supplierId = suppliers.first['id'] as int;
@@ -79,6 +88,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final qty = TextEditingController(text: '1');
     final cost = TextEditingController(text: formatCurrencyInput(variants.isEmpty ? products.first['purchase_price'] ?? 0 : variants.first['purchase_price'] ?? 0));
     final items = <Map<String, Object?>>[];
+    String purchaseType = 'direct';
+    String paymentMethod = 'Tunai';
     String? errorText;
 
     final saved = await showDialog<bool>(
@@ -86,7 +97,9 @@ class _PurchasesPageState extends State<PurchasesPage> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
           final totalItems = items.fold<int>(0, (sum, item) => sum + (item['subtotal'] as int));
-          final grandTotal = totalItems - parseCurrencyInput(discount.text);
+          final totalFees = [shipping, packing, insurance, marketplaceFee, transferFee, otherFee]
+              .fold<int>(0, (sum, controller) => sum + parseCurrencyInput(controller.text));
+          final grandTotal = totalItems - parseCurrencyInput(discount.text) + totalFees;
           return AlertDialog(
             title: const Text('Pembelian Baru'),
             content: SizedBox(
@@ -96,6 +109,24 @@ class _PurchasesPageState extends State<PurchasesPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: purchaseType,
+                      decoration: const InputDecoration(labelText: 'Jenis pembelian', border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'direct', child: Text('Pembelian langsung')),
+                        DropdownMenuItem(value: 'online', child: Text('Pembelian online')),
+                      ],
+                      onChanged: (value) => setDialogState(() => purchaseType = value ?? 'direct'),
+                    ),
+                    const SizedBox(height: 8),
+                    if (purchaseType == 'online') ...[
+                      TextField(controller: marketplace, decoration: const InputDecoration(labelText: 'Marketplace / nama toko online *', border: OutlineInputBorder())),
+                      const SizedBox(height: 8),
+                      TextField(controller: orderNumber, decoration: const InputDecoration(labelText: 'Nomor pesanan', border: OutlineInputBorder())),
+                      const SizedBox(height: 8),
+                      TextField(controller: trackingNumber, decoration: const InputDecoration(labelText: 'Nomor resi / tracking', border: OutlineInputBorder())),
+                      const SizedBox(height: 8),
+                    ],
                     TextField(controller: invoice, decoration: const InputDecoration(labelText: 'Nomor faktur *', border: const OutlineInputBorder())),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<int>(
@@ -225,10 +256,35 @@ class _PurchasesPageState extends State<PurchasesPage> {
                       }),
                     ],
                     const Divider(),
+                    const Text('Biaya tambahan pembelian', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 6),
+                    for (final entry in <MapEntry<String, TextEditingController>>[
+                      MapEntry('Ongkos kirim', shipping),
+                      MapEntry('Packing', packing),
+                      MapEntry('Asuransi', insurance),
+                      MapEntry('Admin marketplace', marketplaceFee),
+                      MapEntry('Biaya transfer', transferFee),
+                      MapEntry('Biaya lainnya', otherFee),
+                    ]) ...[
+                      TextField(controller: entry.value, keyboardType: TextInputType.number,
+                        inputFormatters: const [CurrencyInputFormatter()],
+                        decoration: InputDecoration(labelText: entry.key, border: const OutlineInputBorder(), isDense: true)),
+                      const SizedBox(height: 6),
+                    ],
                     TextField(controller: discount, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
                       decoration: const InputDecoration(labelText: 'Diskon pembelian', border: const OutlineInputBorder())),
                     const SizedBox(height: 8),
-                    Text('Total: ${_money(grandTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('Total termasuk biaya tambahan: ${_money(grandTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      initialValue: paymentMethod,
+                      decoration: const InputDecoration(labelText: 'Metode pembayaran', border: OutlineInputBorder()),
+                      items: const [
+                        DropdownMenuItem(value: 'Tunai', child: Text('Tunai')),
+                        DropdownMenuItem(value: 'Transfer Bank', child: Text('Transfer Bank')),
+                      ],
+                      onChanged: (value) => setDialogState(() => paymentMethod = value ?? 'Tunai'),
+                    ),
                     const SizedBox(height: 8),
                     TextField(controller: payment, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()],
                       decoration: const InputDecoration(labelText: 'Pembayaran awal', border: const OutlineInputBorder())),
@@ -249,7 +305,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
                   final d = discount.text.trim().isEmpty ? -1 : parseCurrencyInput(discount.text);
                   final paid = payment.text.trim().isEmpty ? -1 : parseCurrencyInput(payment.text);
                   if (invoice.text.trim().isEmpty || supplierId == null || items.isEmpty ||
-                      d < 0 || paid < 0 || d > totalItems || paid > totalItems - d) {
+                      (purchaseType == 'online' && marketplace.text.trim().isEmpty) ||
+                      d < 0 || paid < 0 || d > totalItems || paid > totalItems - d + totalFees) {
                     setDialogState(() => errorText = 'Periksa faktur, barang, diskon, dan pembayaran.');
                     return;
                   }
@@ -269,9 +326,19 @@ class _PurchasesPageState extends State<PurchasesPage> {
           invoiceNumber: invoice.text,
           supplierId: supplierId!,
           items: items,
-          discount: int.parse(discount.text),
+          discount: parseCurrencyInput(discount.text),
+          purchaseType: purchaseType,
+          marketplace: marketplace.text,
+          orderNumber: orderNumber.text,
+          trackingNumber: trackingNumber.text,
+          shippingFee: parseCurrencyInput(shipping.text),
+          packingFee: parseCurrencyInput(packing.text),
+          insuranceFee: parseCurrencyInput(insurance.text),
+          marketplaceFee: parseCurrencyInput(marketplaceFee.text),
+          transferFee: parseCurrencyInput(transferFee.text),
+          otherFee: parseCurrencyInput(otherFee.text),
           initialPayment: int.parse(payment.text),
-          paymentMethod: 'Tunai',
+          paymentMethod: paymentMethod,
           notes: notes.text,
         );
         await _reload();
@@ -286,6 +353,15 @@ class _PurchasesPageState extends State<PurchasesPage> {
     }
     invoice.dispose();
     discount.dispose();
+    shipping.dispose();
+    packing.dispose();
+    insurance.dispose();
+    marketplaceFee.dispose();
+    transferFee.dispose();
+    otherFee.dispose();
+    marketplace.dispose();
+    orderNumber.dispose();
+    trackingNumber.dispose();
     payment.dispose();
     notes.dispose();
     qty.dispose();
@@ -377,6 +453,12 @@ class _PurchasesPageState extends State<PurchasesPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text('Pemasok: ${row['supplier_name'] ?? '-'}'),
+                Text('Jenis: ${row['purchase_type'] == 'online' ? 'Online' : 'Langsung'}'),
+                if (row['purchase_type'] == 'online') ...[
+                  Text('Marketplace: ${row['marketplace'] ?? '-'}'),
+                  Text('Nomor pesanan: ${row['order_number'] ?? '-'}'),
+                  Text('Resi: ${row['tracking_number'] ?? '-'}'),
+                ],
                 if (row['status']?.toString() == 'cancelled')
                   Text('DIBATALKAN • ${row['cancel_reason'] ?? '-'}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 11)),
                 const SizedBox(height: 8),
@@ -393,6 +475,12 @@ class _PurchasesPageState extends State<PurchasesPage> {
                 const Divider(),
                 _detailRow('Subtotal', row['subtotal']),
                 _detailRow('Diskon', row['discount']),
+                _detailRow('Ongkos kirim', row['shipping_fee']),
+                _detailRow('Packing', row['packing_fee']),
+                _detailRow('Asuransi', row['insurance_fee']),
+                _detailRow('Admin marketplace', row['marketplace_fee']),
+                _detailRow('Biaya transfer', row['transfer_fee']),
+                _detailRow('Biaya lainnya', row['other_fee']),
                 _detailRow('Total', row['total']),
                 _detailRow('Dibayar', row['paid']),
                 _detailRow('Kredit retur', row['return_credit']),
@@ -646,7 +734,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                           title: Text(row['invoice_number'] as String? ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 3),
-                            child: Text('${row['supplier_name'] ?? 'Pemasok'} • Dibayar ${_money(paid)} • Sisa ${_money(remaining)}',
+                            child: Text('${row['purchase_type'] == 'online' ? 'Online' : 'Langsung'} • ${row['supplier_name'] ?? 'Pemasok'} • Dibayar ${_money(paid)} • Sisa ${_money(remaining)}',
                               maxLines: 2, style: const TextStyle(fontSize: 11)),
                           ),
                           trailing: Column(
