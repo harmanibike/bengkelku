@@ -16,6 +16,12 @@ class ReportRepository {
       SELECT
         COALESCE(SUM(CASE WHEN transaction_type = 'income' THEN amount ELSE 0 END), 0) AS income,
         COALESCE(SUM(CASE WHEN transaction_type = 'expense' THEN amount ELSE 0 END), 0) AS expense,
+        COALESCE(SUM(CASE WHEN transaction_type = 'income'
+          AND LOWER(COALESCE(payment_method, 'cash')) IN ('cash', 'tunai')
+          THEN amount ELSE 0 END), 0) AS physical_cash_income,
+        COALESCE(SUM(CASE WHEN transaction_type = 'expense'
+          AND LOWER(COALESCE(payment_method, 'cash')) IN ('cash', 'tunai')
+          THEN amount ELSE 0 END), 0) AS physical_cash_expense,
         COUNT(*) AS transaction_count
       FROM cash_transactions
       WHERE COALESCE(reference_type, '') NOT IN ('tip', 'tip_handover')
@@ -32,6 +38,7 @@ class ReportRepository {
       ), 0) AS balance
       FROM cash_transactions
       WHERE COALESCE(reference_type, '') NOT IN ('tip', 'tip_handover')
+        AND LOWER(COALESCE(payment_method, 'cash')) IN ('cash', 'tunai')
         AND datetime(transaction_date) < datetime(?)
     ''', [from]);
 
@@ -361,8 +368,8 @@ class ReportRepository {
       'income': cash.first['income'] as int? ?? 0,
       'net_cash_flow': (cash.first['income'] as int? ?? 0) - (cash.first['expense'] as int? ?? 0),
       'closing_cash_balance': (cashOpeningRows.first['balance'] as int? ?? 0)
-          + (cash.first['income'] as int? ?? 0)
-          - (cash.first['expense'] as int? ?? 0),
+          + (cash.first['physical_cash_income'] as int? ?? 0)
+          - (cash.first['physical_cash_expense'] as int? ?? 0),
       'expense': cash.first['expense'] as int? ?? 0,
       'transaction_count': cash.first['transaction_count'] as int? ?? 0,
       'sales_count': sales.first['total'] as int? ?? 0,
