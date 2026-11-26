@@ -57,178 +57,22 @@ class ClientConnectionService {
     return 0;
   }
 
+  /// Legacy plaintext connectivity checks are deliberately disabled.
+  ///
+  /// Client connections must use [checkSecureServer] with the certificate
+  /// identity obtained from the trusted pairing flow. This method remains
+  /// temporarily to provide a clear failure to older callers; it never opens
+  /// an HTTP socket and never falls back from TLS.
+  @Deprecated('Use checkSecureServer with a paired TLS identity.')
   Future<ClientConnectionResult> checkServer({
     required String host,
     required int port,
   }) async {
-    final normalizedHost = host.trim();
-    if (normalizedHost.isEmpty) {
-      return const ClientConnectionResult(
-        isApiReady: false,
-        message: 'Alamat Server belum diisi.',
-      );
-    }
-    if (port < 1 || port > 65535) {
-      return const ClientConnectionResult(
-        isApiReady: false,
-        message: 'Port Server tidak valid.',
-      );
-    }
-
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 4)
-      ..idleTimeout = const Duration(seconds: 4);
-
-    try {
-      final uri = Uri(
-        scheme: 'http',
-        host: normalizedHost,
-        port: port,
-        path: '/api/v1/health',
-      );
-      final request = await client.getUrl(uri).timeout(
-            const Duration(seconds: 5),
-          );
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final response = await request.close().timeout(
-            const Duration(seconds: 5),
-          );
-      final body = await utf8.decoder.bind(response).join().timeout(
-            const Duration(seconds: 3),
-          );
-
-      if (response.statusCode == HttpStatus.notFound) {
-        return const ClientConnectionResult(
-          isApiReady: false,
-          message:
-              'HP dapat dijangkau, tetapi API BengkelKu Server belum tersedia pada alamat tersebut.',
-        );
-      }
-      if (response.statusCode != HttpStatus.ok) {
-        return ClientConnectionResult(
-          isApiReady: false,
-          message:
-              'Server merespons, tetapi mengembalikan HTTP ${response.statusCode}.',
-        );
-      }
-
-      final decoded = jsonDecode(body);
-      if (decoded is! Map<String, dynamic>) {
-        return const ClientConnectionResult(
-          isApiReady: false,
-          message: 'Respons Server tidak sesuai format BengkelKu.',
-        );
-      }
-
-      final appId = decoded['app']?.toString();
-      final apiVersion = decoded['api_version'];
-      final status = decoded['status']?.toString();
-      final serverName = decoded['server_name']?.toString();
-      final serverAppVersion = decoded['app_version']?.toString();
-
-      if (appId != expectedApplicationId || status != 'ok') {
-        return const ClientConnectionResult(
-          isApiReady: false,
-          message:
-              'Alamat merespons, tetapi bukan layanan BengkelKu Server yang valid.',
-        );
-      }
-      if (apiVersion is! num ||
-          apiVersion.toInt() != supportedApiVersion) {
-        return ClientConnectionResult(
-          isApiReady: false,
-          message:
-              'Versi API Server tidak cocok. Client mendukung API versi $supportedApiVersion.',
-          serverName: serverName,
-          serverAppVersion: serverAppVersion,
-          apiVersion: apiVersion is num ? apiVersion.toInt() : null,
-        );
-      }
-
-      final minClientVersion = decoded['min_client_version']?.toString();
-      final maxClientVersion = decoded['max_client_version']?.toString();
-      final hasVersionPolicy =
-          minClientVersion != null || maxClientVersion != null;
-
-      if (hasVersionPolicy) {
-        try {
-          if (minClientVersion != null &&
-              _compareVersions(clientAppVersion, minClientVersion) < 0) {
-            return ClientConnectionResult(
-              isApiReady: false,
-              message:
-                  'Client terlalu lama (v$clientAppVersion). Server mensyaratkan minimal v$minClientVersion. Perbarui APK Client.',
-              serverName: serverName,
-              serverAppVersion: serverAppVersion,
-              apiVersion: apiVersion.toInt(),
-              versionCompatibilityKnown: true,
-            );
-          }
-          if (maxClientVersion != null &&
-              _compareVersions(clientAppVersion, maxClientVersion) > 0) {
-            return ClientConnectionResult(
-              isApiReady: false,
-              message:
-                  'Versi Client v$clientAppVersion lebih baru dari batas Server (maksimal v$maxClientVersion). Perbarui APK Server.',
-              serverName: serverName,
-              serverAppVersion: serverAppVersion,
-              apiVersion: apiVersion.toInt(),
-              versionCompatibilityKnown: true,
-            );
-          }
-        } on FormatException {
-          return ClientConnectionResult(
-            isApiReady: false,
-            message:
-                'Server mengirim aturan kompatibilitas versi APK yang tidak valid.',
-            serverName: serverName,
-            serverAppVersion: serverAppVersion,
-            apiVersion: apiVersion.toInt(),
-            versionCompatibilityKnown: false,
-          );
-        }
-      }
-
-      return ClientConnectionResult(
-        isApiReady: true,
-        message: hasVersionPolicy
-            ? 'Terhubung. APK Client v$clientAppVersion kompatibel dengan Server'
-                '${serverAppVersion == null ? '' : ' v$serverAppVersion'}.'
-            : 'API BengkelKu Server siap. Versi APK belum dilaporkan Server; kompatibilitas penuh akan diperiksa setelah Server mendukung info versi.',
-        serverName: serverName,
-        serverAppVersion: serverAppVersion,
-        apiVersion: apiVersion.toInt(),
-        versionCompatibilityKnown: hasVersionPolicy,
-      );
-    } on SocketException {
-      return const ClientConnectionResult(
-        isApiReady: false,
-        message:
-            'Tidak dapat menjangkau Server. Periksa Wi-Fi, alamat IP, port, dan pastikan layanan Server aktif.',
-      );
-    } on HttpException {
-      return const ClientConnectionResult(
-        isApiReady: false,
-        message: 'Respons jaringan Server tidak dapat dibaca.',
-      );
-    } on FormatException {
-      return const ClientConnectionResult(
-        isApiReady: false,
-        message: 'Server mengirim data yang bukan JSON valid.',
-      );
-    } on HandshakeException {
-      return const ClientConnectionResult(
-        isApiReady: false,
-        message: 'Koneksi ke Server gagal saat negosiasi jaringan.',
-      );
-    } catch (error) {
-      return ClientConnectionResult(
-        isApiReady: false,
-        message: 'Gagal memeriksa Server: $error',
-      );
-    } finally {
-      client.close(force: true);
-    }
+    return const ClientConnectionResult(
+      isApiReady: false,
+      message:
+          'Koneksi HTTP tanpa enkripsi dinonaktifkan. Pasangkan perangkat dan gunakan koneksi HTTPS terverifikasi.',
+    );
   }
 
   /// Checks the health endpoint through certificate-pinned TLS.
