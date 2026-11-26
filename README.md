@@ -139,6 +139,13 @@ Audit ini adalah pemeriksaan statis terhadap struktur repository, halaman, repos
 - [x] DP dan pembayaran servis masuk ke transaksi kas.
 - [x] Pengeluaran pembelian dan pembayaran pemasok dicatat pada alur pembelian.
 - [x] Buku kas terpadu dengan saldo awal, saldo berjalan, ringkasan masuk/keluar, filter periode/jenis, dan transaksi manual.
+- [x] Menu Pengeluaran khusus untuk biaya manual dengan filter Hari Ini/Bulan Ini/Semua Waktu, kategori, keterangan, nominal, dan metode Cash atau Transfer Bank (Admin).
+- [x] Pengeluaran Cash mengurangi Saldo Toko; Transfer Bank tercatat sebagai transaksi non-tunai dan tidak mengubah saldo fisik laci.
+- [x] Saldo Toko adalah saldo uang tunai fisik di laci kasir, bukan omzet, laba, saldo bank, atau seluruh aset bisnis.
+- [x] Tanam Modal dan Tarik Modal dicatat manual oleh Admin; metode Cash memengaruhi saldo laci, sedangkan Transfer Bank hanya menjadi catatan non-tunai.
+- [x] Penjualan, pembayaran servis, pembelian tunai, refund, dan pengeluaran terkait dicatat otomatis dari transaksi sumber; tidak boleh diinput ulang secara manual.
+- [x] QRIS, transfer bank, dan metode non-tunai lain tidak menambah/mengurangi saldo fisik laci. Refund mengikuti metode pembayaran asal.
+- [x] Riwayat Saldo Toko memiliki saldo berjalan dan filter Modal Awal, Uang Masuk, Uang Keluar, Penjualan, Refund, Pengeluaran, Pembelian, dan Penyesuaian.
 - [ ] Kategori pemasukan/pengeluaran yang dapat dikelola.
 - [x] Pencatatan manual biaya operasional, gaji, dan komisi sebagai kas keluar; belum ada payroll atau perhitungan komisi otomatis.
 - [x] Ringkasan pengeluaran manual Buku Kas dan sisa laba setelah beban yang tercatat; bukan laba bersih final dan perlu menghindari pencatatan biaya langsung yang sama dua kali.
