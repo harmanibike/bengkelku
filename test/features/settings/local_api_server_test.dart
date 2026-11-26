@@ -383,12 +383,12 @@ void main() {
     }
   });
 
-  test('pair endpoint sends bounded request metadata to the main-isolate bridge', () async {
-    LocalApiBridgeRequest? received;
+  test('pair endpoint refuses to expose a token over plaintext HTTP', () async {
+    var invoked = false;
     final port = await server.start(
       port: 0,
-      bridgeHandler: (request) async {
-        received = request;
+      bridgeHandler: (_) async {
+        invoked = true;
         return {
           'status': 'paired',
           'device_id': 7,
@@ -411,15 +411,64 @@ void main() {
       final body = jsonDecode(await response.transform(utf8.decoder).join())
           as Map<String, dynamic>;
 
-      expect(response.statusCode, HttpStatus.created);
-      expect(body['status'], 'paired');
-      expect(body['token'], 'a' * 64);
+      expect(response.statusCode, HttpStatus.upgradeRequired);
+      expect(body['status'], 'https_required');
+      expect(body.containsKey('token'), isFalse);
+      expect(invoked, isFalse);
+    } finally {
+      client.close(force: true);
+    }
+  });
+
+  test('pair endpoint sends bounded request metadata over pinned HTTPS', () async {
+    final identity = await ServerTlsIdentityRepository(
+      store: _MemoryTlsStore(),
+    ).loadOrCreate();
+    final context = SecurityContext(withTrustedRoots: false)
+      ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
+      ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
+    LocalApiBridgeRequest? received;
+    final port = await server.startSecure(
+      securityContext: context,
+      port: 0,
+      bridgeHandler: (request) async {
+        received = request;
+        return {
+          'status': 'paired',
+          'device_id': 7,
+          'device_name': 'HP Client',
+          'token': 'a' * 64,
+        };
+      },
+    );
+    final socket = await const PinnedLanTlsConnector().connect(
+      address: InternetAddress.loopbackIPv4.address,
+      port: port,
+      serverDnsName: identity.dnsName,
+      certificatePem: identity.certificatePem,
+    );
+    try {
+      socket.write(
+        'POST /api/v1/pair HTTP/1.1\\r\\n'
+        'Host: ${identity.dnsName}\\r\\n'
+        'Content-Type: application/json\\r\\n'
+        'Content-Length: ${utf8.encode(jsonEncode({'code': '1234567890', 'device_name': 'HP Client'})).length}\\r\\n'
+        'Connection: close\\r\\n\\r\\n'
+        '${jsonEncode({'code': '1234567890', 'device_name': 'HP Client'})}',
+      );
+      final response = await utf8.decoder
+          .bind(socket)
+          .join()
+          .timeout(const Duration(seconds: 5));
+      expect(response, contains('201 Created'));
+      expect(response, contains('"status":"paired"'));
+      expect(response, contains('"token":"${'a' * 64}"'));
       expect(received?.operation, 'pair_device');
       expect(received?.remoteAddress, InternetAddress.loopbackIPv4.address);
       expect(received?.payload['code'], '1234567890');
       expect(received?.payload['device_name'], 'HP Client');
     } finally {
-      client.close(force: true);
+      await socket.close();
     }
   });
 
