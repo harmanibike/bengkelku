@@ -160,7 +160,7 @@ class _PurchaseReportsPageState extends State<PurchaseReportsPage> {
                           _row('Jumlah faktur pembelian', '${_report['purchase_count'] ?? 0}'),
                           _row('Jumlah transaksi pembayaran', '${_report['payment_count'] ?? 0}'),
                           _row('Jumlah retur', '${_report['return_count'] ?? 0}'),
-                          _row('Jumlah pemasok aktif pada periode', '${suppliers.length}'),
+                          _row('Jumlah pemasok aktif pada periode', '${_report['supplier_count'] ?? 0}'),
                         ],
                       ),
                     ),
