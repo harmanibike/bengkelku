@@ -6,6 +6,8 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
 import 'local_api_server.dart';
 import 'server_tls_identity_repository.dart';
+import 'device_pairing_repository.dart';
+import 'device_pairing_rate_limiter.dart';
 
 /// Controls the Android foreground service that owns the LAN HTTPS listener.
 ///
@@ -106,7 +108,34 @@ class BengkelKuServerService {
     }
     _bridgeRequestsInFlight++;
     try {
-      if (data['operation'] != 'server_info') {
+      final operation = data['operation'];
+      if (operation == 'server_info') {
+        final identity = _activeIdentity;
+        if (identity == null) {
+          FlutterForegroundTask.sendDataToTask({
+            'type': 'bridge_response',
+            'request_id': requestId,
+            'ok': false,
+            'error': 'server_not_ready',
+          });
+          return;
+        }
+        FlutterForegroundTask.sendDataToTask({
+          'type': 'bridge_response',
+          'request_id': requestId,
+          'ok': true,
+          'data': {
+            'server_id': identity.serverId,
+            'server_name': 'Bike POS Server',
+            'app_version': LocalApiServer.appVersion,
+            'api_version': LocalApiServer.apiVersion,
+            'certificate_fingerprint': identity.fingerprint,
+            'read_only': true,
+          },
+        });
+        return;
+      }
+      if (operation != 'pair_device') {
         FlutterForegroundTask.sendDataToTask({
           'type': 'bridge_response',
           'request_id': requestId,
@@ -115,29 +144,58 @@ class BengkelKuServerService {
         });
         return;
       }
-      final identity = _activeIdentity;
-      if (identity == null) {
+
+      // Database dan rate limiter hanya diakses dari main isolate.
+      final remoteAddress = data['remote_address']?.toString() ?? '';
+      final payload = data['payload'];
+      if (payload is! Map ||
+          payload.keys.toSet().difference({'code', 'device_name'}).isNotEmpty ||
+          payload['code'] is! String ||
+          payload['device_name'] is! String) {
         FlutterForegroundTask.sendDataToTask({
           'type': 'bridge_response',
           'request_id': requestId,
-          'ok': false,
-          'error': 'server_not_ready',
+          'ok': true,
+          'data': {'status': 'invalid_code'},
         });
         return;
       }
-      FlutterForegroundTask.sendDataToTask({
-        'type': 'bridge_response',
-        'request_id': requestId,
-        'ok': true,
-        'data': {
-          'server_id': identity.serverId,
-          'server_name': 'Bike POS Server',
-          'app_version': LocalApiServer.appVersion,
-          'api_version': LocalApiServer.apiVersion,
-          'certificate_fingerprint': identity.fingerprint,
-          'read_only': true,
-        },
-      });
+      final limiter = DevicePairingRateLimiter();
+      if (!await limiter.isAllowed(remoteAddress)) {
+        FlutterForegroundTask.sendDataToTask({
+          'type': 'bridge_response',
+          'request_id': requestId,
+          'ok': true,
+          'data': {'status': 'rate_limited'},
+        });
+        return;
+      }
+      try {
+        final credential = await DevicePairingRepository().pairDevice(
+          code: payload['code'] as String,
+          deviceName: payload['device_name'] as String,
+        );
+        await limiter.clearAfterSuccess(remoteAddress);
+        FlutterForegroundTask.sendDataToTask({
+          'type': 'bridge_response',
+          'request_id': requestId,
+          'ok': true,
+          'data': {
+            'status': 'paired',
+            'device_id': credential.deviceId,
+            'device_name': credential.deviceName,
+            'token': credential.token,
+          },
+        });
+      } on Object {
+        await limiter.recordFailure(remoteAddress);
+        FlutterForegroundTask.sendDataToTask({
+          'type': 'bridge_response',
+          'request_id': requestId,
+          'ok': true,
+          'data': {'status': 'invalid_code'},
+        });
+      }
     } finally {
       _bridgeRequestsInFlight--;
     }
