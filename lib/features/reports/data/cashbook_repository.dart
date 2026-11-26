@@ -117,6 +117,21 @@ class CashbookRepository {
             WHEN c.reference_type = 'purchase_return_refund'
               AND NOT EXISTS (SELECT 1 FROM purchase_returns r WHERE r.id = c.reference_id)
               THEN 'Dokumen retur pembelian tidak ditemukan'
+            WHEN c.reference_type = 'purchase_return_refund'
+              AND c.transaction_type != 'income'
+              THEN 'Pengembalian uang retur seharusnya kas masuk'
+            WHEN c.reference_type = 'purchase_return_refund'
+              AND COALESCE((
+                SELECT SUM(refund.amount)
+                FROM cash_transactions refund
+                WHERE refund.reference_type = 'purchase_return_refund'
+                  AND refund.reference_id = c.reference_id
+                  AND refund.transaction_type = 'income'
+              ), 0) != COALESCE((
+                SELECT r.refund_received FROM purchase_returns r
+                WHERE r.id = c.reference_id
+              ), 0)
+              THEN 'Total refund kas tidak cocok dengan catatan penyelesaian retur'
             WHEN c.reference_type = 'sale_return'
               AND NOT EXISTS (SELECT 1 FROM sale_returns r WHERE r.id = c.reference_id)
               THEN 'Dokumen retur penjualan tidak ditemukan'
@@ -164,8 +179,10 @@ class CashbookRepository {
     final db = await _db;
     return db.rawQuery('''
       SELECT p.id AS purchase_id, p.invoice_number, s.name AS supplier_name,
+        COALESCE(p.paid, 0) AS stored_paid_total,
         COALESCE(pay.payment_total, 0) AS payment_history_total,
         COALESCE(cash.cash_total, 0) AS cash_out_total,
+        COALESCE(p.paid, 0) - COALESCE(pay.payment_total, 0) AS stored_paid_difference,
         COALESCE(pay.payment_total, 0) - COALESCE(cash.cash_total, 0) AS difference
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
@@ -183,6 +200,7 @@ class CashbookRepository {
       ) cash ON cash.purchase_id = p.id
       WHERE (
         COALESCE(pay.payment_total, 0) != COALESCE(cash.cash_total, 0)
+        OR COALESCE(p.paid, 0) != COALESCE(pay.payment_total, 0)
       )
       AND (
         EXISTS (
