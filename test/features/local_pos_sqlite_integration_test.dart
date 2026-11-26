@@ -19,6 +19,7 @@ import 'package:bengkelku_pos/features/sales/data/sale_return_repository.dart';
 import 'package:bengkelku_pos/features/purchases/data/purchase_return_repository.dart';
 import 'package:bengkelku_pos/features/purchases/data/purchase_repository.dart';
 import 'package:bengkelku_pos/features/reports/data/cashbook_repository.dart';
+import 'package:bengkelku_pos/features/reports/data/report_repository.dart';
 import 'package:bengkelku_pos/features/receivables/data/receivable_repository.dart';
 import 'package:bengkelku_pos/features/products/data/stock_opname_repository.dart';
 
@@ -1836,6 +1837,74 @@ void main() {
     expect(incomeOnly['income'], 5000);
     expect(incomeOnly['expense'], 2000);
     expect(incomeOnly['closing_balance'], 13000);
+  });
+
+  test('financial report separates total fund flow from physical cash balance', () async {
+    final db = await AppDatabase.instance.database;
+    Future<void> addCash({
+      required String type,
+      required int amount,
+      required String method,
+      required String date,
+    }) async {
+      await db.insert('cash_transactions', {
+        'transaction_type': type,
+        'category': 'Uji laporan',
+        'description': 'Uji pemisahan kas dan non-tunai',
+        'amount': amount,
+        'reference_type': 'manual_cash',
+        'payment_method': method,
+        'transaction_date': date,
+      });
+    }
+
+    await addCash(
+      type: 'income',
+      amount: 10000,
+      method: 'cash',
+      date: '2026-01-01T09:00:00.000',
+    );
+    await addCash(
+      type: 'income',
+      amount: 20000,
+      method: 'transfer',
+      date: '2026-01-01T09:05:00.000',
+    );
+    await addCash(
+      type: 'income',
+      amount: 5000,
+      method: 'cash',
+      date: '2026-01-02T09:00:00.000',
+    );
+    await addCash(
+      type: 'income',
+      amount: 7000,
+      method: 'transfer',
+      date: '2026-01-02T09:05:00.000',
+    );
+    await addCash(
+      type: 'expense',
+      amount: 2000,
+      method: 'cash',
+      date: '2026-01-02T10:00:00.000',
+    );
+    await addCash(
+      type: 'expense',
+      amount: 3000,
+      method: 'transfer',
+      date: '2026-01-02T10:05:00.000',
+    );
+
+    final summary = await ReportRepository().getSummary(
+      start: DateTime(2026, 1, 2),
+      end: DateTime(2026, 1, 3),
+    );
+
+    expect(summary['opening_cash_balance'], 10000);
+    expect(summary['income'], 12000);
+    expect(summary['expense'], 5000);
+    expect(summary['net_cash_flow'], 7000);
+    expect(summary['closing_cash_balance'], 13000);
   });
 
   test('version 33 migration preserves legacy return rows as unknown snapshot', () async {
