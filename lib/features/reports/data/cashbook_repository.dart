@@ -325,7 +325,9 @@ class CashbookRepository {
     if (!['income', 'expense'].contains(type)) {
       throw ArgumentError('Jenis transaksi tidak valid.');
     }
-    if (type == 'expense' && !['cash', 'bank_transfer'].contains(paymentMethod)) {\n      throw ArgumentError('Metode pengeluaran harus Tunai atau Transfer Bank.');\n    }\n    final cleanCategory = category.trim();
+    if (type == 'expense' && !['cash', 'bank_transfer'].contains(paymentMethod)) {
+      throw ArgumentError('Metode pengeluaran harus Tunai atau Transfer Bank.');
+    }\n    final cleanCategory = category.trim();
     final cleanDescription = description.trim();
     if (cleanCategory.isEmpty || cleanDescription.isEmpty || amount <= 0) {
       throw ArgumentError('Kategori, keterangan, dan nominal wajib diisi dengan benar.');
