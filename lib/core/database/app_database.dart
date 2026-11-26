@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 40;
+  static const int currentVersion = 41;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -887,6 +887,19 @@ class AppDatabase {
 
     await batch.commit(noResult: true);
     await db.execute('''
+      CREATE TABLE business_story_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL CHECK(kind IN ('libur', 'jam', 'promo')),
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        date_label TEXT NOT NULL DEFAULT '',
+        return_date_label TEXT NOT NULL DEFAULT '',
+        template TEXT NOT NULL DEFAULT 'biru',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_business_story_history_created ON business_story_history(created_at DESC, id DESC)');
+    await db.execute('''
       CREATE TABLE loyalty_point_ledger (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_id INTEGER,
@@ -938,6 +951,22 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+    if (oldVersion < 41) {
+      await db.execute('''
+        CREATE TABLE business_story_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          kind TEXT NOT NULL CHECK(kind IN ('libur', 'jam', 'promo')),
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          date_label TEXT NOT NULL DEFAULT '',
+          return_date_label TEXT NOT NULL DEFAULT '',
+          template TEXT NOT NULL DEFAULT 'biru',
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+      await db.execute('CREATE INDEX idx_business_story_history_created ON business_story_history(created_at DESC, id DESC)');
+    }
+
     // Varian produk ditambahkan secara aditif; data produk dan transaksi lama tidak diubah.
     if (oldVersion < 38) {
       await db.execute('''
