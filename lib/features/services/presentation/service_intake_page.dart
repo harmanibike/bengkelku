@@ -63,6 +63,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
 
   List<Map<String, Object?>> _bicycles = [];
   bool _loadingBicycles = false;
+  int _bicycleLoadToken = 0;
   List<Map<String, Object?>> _serviceCatalog = [];
   List<Map<String, Object?>> _mechanics = [];
   final _partSearchController = TextEditingController();
@@ -149,6 +150,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
 
   void _onCustomerSearchChanged(String keyword) {
     if (_selectedCustomerId != null) {
+      _bicycleLoadToken++;
       setState(() {
         _selectedCustomerId = null;
         _selectedBicycleId = null;
@@ -172,18 +174,19 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   }
 
   Future<void> _loadBicycles(int customerId) async {
+    final token = ++_bicycleLoadToken;
     try {
       final bicycles = await _customerRepository.getBicycles(
         customerId: customerId,
       );
-      if (!mounted) return;
+      if (!mounted || token != _bicycleLoadToken) return;
       setState(() {
         _bicycles = bicycles;
         _selectedBicycleId = null;
         _loadingBicycles = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted || token != _bicycleLoadToken) return;
       setState(() => _loadingBicycles = false);
       _showMessage('Gagal memuat sepeda: $error');
     }
@@ -980,6 +983,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                                   tooltip: 'Hapus pencarian',
                                   onPressed: () {
                                     _customerSearchController.clear();
+                                    _bicycleLoadToken++;
                                     setState(() {
                                       _selectedCustomerId = null;
                                       _selectedBicycleId = null;
@@ -1008,13 +1012,16 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                               style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
                             )),
                             TextButton(
-                              onPressed: () => setState(() {
+                              onPressed: () {
+                                _bicycleLoadToken++;
+                                setState(() {
                                 _selectedCustomerId = null;
                                 _selectedBicycleId = null;
                                 _bicycles = [];
                                 _loadingBicycles = false;
                                 _customerSearchController.clear();
-                              }),
+                                });
+                              },
                               child: const Text('Ganti'),
                             ),
                           ]),
