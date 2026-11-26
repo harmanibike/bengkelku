@@ -639,8 +639,6 @@ class SaleRepository {
           AND transaction_type = 'income'
         GROUP BY LOWER(COALESCE(payment_method, 'cash'))
       ''', [id]);
-      final amountReceived = cashPaidRows.fold<int>(
-        0, (sum, row) => sum + ((row['total'] as num?)?.toInt() ?? 0));
       final walletPaidRows = await txn.rawQuery('''
         SELECT COALESCE(SUM(amount), 0) AS total
         FROM customer_wallet_ledger
