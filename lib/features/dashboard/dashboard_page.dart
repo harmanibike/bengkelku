@@ -8,7 +8,6 @@ import '../settings/presentation/account_profile_page.dart';
 
 import '../bicycles/presentation/bicycle_list_page.dart';
 import '../customers/presentation/customer_list_page.dart';
-import '../products/presentation/product_list_page.dart';
 import '../inventory/presentation/inventory_page.dart';
 import '../purchases/presentation/purchases_page.dart';
 import '../settings/presentation/settings_page.dart';
@@ -93,10 +92,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _openServicePricing() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ServicePricingPage()));
-  }
-
-  void _openProducts() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductListPage()));
   }
 
   void _openInventory() {
