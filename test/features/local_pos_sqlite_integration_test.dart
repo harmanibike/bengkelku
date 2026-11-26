@@ -156,6 +156,48 @@ void main() {
     expect(detail['payments'], hasLength(3));
   });
 
+  test('online purchase fees are included in invoice total and product landed cost', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Toko Online Uji'});
+    final productId = await db.insert('products', {
+      'name': 'Produk Online Uji', 'purchase_price': 0, 'stock': 0,
+      'track_stock': 1, 'is_active': 1,
+    });
+    final purchaseId = await PurchaseRepository().createPurchase(
+      invoiceNumber: 'ONLINE-UJI-001',
+      supplierId: supplierId,
+      purchaseType: 'online',
+      marketplace: 'Marketplace Uji',
+      orderNumber: 'ORD-001',
+      trackingNumber: 'RESI-001',
+      shippingFee: 30000,
+      packingFee: 5000,
+      insuranceFee: 3000,
+      otherFee: 2000,
+      discount: 10000,
+      items: [
+        {
+          'product_id': productId,
+          'product_name': 'Produk Online Uji',
+          'quantity': 1,
+          'unit_cost': 500000,
+          'discount': 0,
+        },
+      ],
+    );
+    final purchase = (await db.query('purchases', where: 'id = ?', whereArgs: [purchaseId])).single;
+    final product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    final batch = (await db.query('inventory_cost_batches', where: 'purchase_id = ?', whereArgs: [purchaseId])).single;
+    expect(purchase['purchase_type'], 'online');
+    expect(purchase['marketplace'], 'Marketplace Uji');
+    expect(purchase['order_number'], 'ORD-001');
+    expect(purchase['tracking_number'], 'RESI-001');
+    expect(purchase['total'], 530000);
+    expect(batch['unit_cost'], 530000);
+    expect(product['purchase_price'], 530000);
+    expect(product['stock'], 1);
+  });
+
   test('supplier payment history and cashbook stay synchronized', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Pemasok Uji'});
