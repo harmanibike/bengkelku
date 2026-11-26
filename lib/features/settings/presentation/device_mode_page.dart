@@ -79,7 +79,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
   Future<void> _startLocalApiServer() async {
     setState(() {
       _startingServer = true;
-      _serverMessage = 'Menyalakan layanan pemeriksaan Server...';
+      _serverMessage = 'Menyiapkan layanan HTTPS Server...';
     });
     try {
       final port = await BengkelKuServerService.instance.startServer();
@@ -97,8 +97,8 @@ class _DeviceModePageState extends State<DeviceModePage> {
       setState(() {
         _serverRunning = true;
         _serverMessage = addresses.isEmpty
-            ? 'API aktif pada port $port. IP Wi-Fi belum terdeteksi; pastikan kedua HP berada pada jaringan yang sama.'
-            : 'API pemeriksaan aktif. Alamat Server: ${addresses.join(', ')}:$port';
+            ? 'HTTPS aktif pada port $port. IP Wi-Fi belum terdeteksi; pastikan kedua HP berada pada jaringan yang sama.'
+            : 'HTTPS aktif. Alamat Server: ${addresses.join(', ')}:$port';
       });
     } catch (error) {
       if (!mounted) return;
@@ -113,7 +113,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
     if (!mounted) return;
     setState(() {
       _serverRunning = false;
-      _serverMessage = 'API pemeriksaan Server dihentikan.';
+      _serverMessage = 'Layanan HTTPS Server dihentikan.';
     });
   }
 
@@ -332,12 +332,12 @@ class _DeviceModePageState extends State<DeviceModePage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const Text(
-                        'Uji Layanan Server (Tahap Awal)',
+                        'Uji Layanan HTTPS Server',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 5),
                       const Text(
-                        'Menyalakan endpoint pemeriksaan versi dan koneksi pada port 8765. Tahap ini belum membuka data transaksi atau database ke Client.',
+                        'Menyalakan endpoint pemeriksaan melalui HTTPS dengan identitas sertifikat tersimpan. Tahap ini belum membuka data transaksi atau database ke Client.',
                         style: TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                       const SizedBox(height: 8),
@@ -351,7 +351,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
                               icon: _startingServer
                                   ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
                                   : const Icon(Icons.play_arrow),
-                              label: Text(_startingServer ? 'Menyalakan...' : 'Jalankan API'),
+                              label: Text(_startingServer ? 'Menyalakan...' : 'Jalankan HTTPS'),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -487,7 +487,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Simpan alamat HP Server yang akan dituju. Tombol tes memeriksa endpoint API BengkelKu, bukan hanya apakah port Wi-Fi terbuka. Transaksi Client belum dialihkan ke database pusat.',
+                'Alamat Server akan diperoleh dan diverifikasi melalui pairing sertifikat. Pemeriksaan Client belum dibuka sebelum proses pairing aman selesai; tidak ada fallback HTTP. Transaksi Client belum dialihkan ke database pusat.',
                 style: TextStyle(fontSize: 11, color: Colors.grey),
               ),
               const SizedBox(height: 8),
@@ -550,7 +550,7 @@ class _DeviceModePageState extends State<DeviceModePage> {
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     )
                                   : const Icon(Icons.wifi_tethering),
-                              label: Text(_testingClient ? 'Memeriksa...' : 'Tes API Server'),
+                              label: const Text('Tes TLS (setelah pairing)'),
                             ),
                           ),
                         ],
