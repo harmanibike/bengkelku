@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 45;
+  static const int currentVersion = 46;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -286,6 +286,8 @@ class AppDatabase {
         subtotal INTEGER NOT NULL DEFAULT 0,
         quantity_received INTEGER NOT NULL DEFAULT 0,
         allocated_unit_cost INTEGER NOT NULL DEFAULT 0,
+        allocated_landed_total INTEGER NOT NULL DEFAULT 0,
+        received_cost_total INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
       )
@@ -1042,6 +1044,24 @@ class AppDatabase {
       }
     }
 
+    // Simpan total biaya perolehan dan biaya kumulatif yang sudah diterima.
+    if (oldVersion < 46) {
+      final itemTable = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'purchase_items' LIMIT 1",
+      );
+      if (itemTable.isNotEmpty) {
+        final columns = await db.rawQuery('PRAGMA table_info(purchase_items)');
+        final names = columns.map((column) => column['name']).toSet();
+        if (!names.contains('allocated_landed_total')) {
+          await db.execute('ALTER TABLE purchase_items ADD COLUMN allocated_landed_total INTEGER NOT NULL DEFAULT 0');
+          await db.execute('UPDATE purchase_items SET allocated_landed_total = allocated_unit_cost * quantity');
+        }
+        if (!names.contains('received_cost_total')) {
+          await db.execute('ALTER TABLE purchase_items ADD COLUMN received_cost_total INTEGER NOT NULL DEFAULT 0');
+          await db.execute('UPDATE purchase_items SET received_cost_total = allocated_unit_cost * quantity_received');
+        }
+      }
+    }
     // Stok opname kini mencakup varian produk tanpa mengubah sesi lama.
     if (oldVersion < 43) {
       final opnameTable = await db.rawQuery(
