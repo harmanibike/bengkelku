@@ -449,11 +449,11 @@ void main() {
     );
     try {
       socket.write(
-        'POST /api/v1/pair HTTP/1.1\\r\\n'
-        'Host: ${identity.dnsName}\\r\\n'
-        'Content-Type: application/json\\r\\n'
-        'Content-Length: ${utf8.encode(jsonEncode({'code': '1234567890', 'device_name': 'HP Client'})).length}\\r\\n'
-        'Connection: close\\r\\n\\r\\n'
+        'POST /api/v1/pair HTTP/1.1\r\n'
+        'Host: ${identity.dnsName}\r\n'
+        'Content-Type: application/json\r\n'
+        'Content-Length: ${utf8.encode(jsonEncode({'code': '1234567890', 'device_name': 'HP Client'})).length}\r\n'
+        'Connection: close\r\n\r\n'
         '${jsonEncode({'code': '1234567890', 'device_name': 'HP Client'})}',
       );
       final response = await utf8.decoder
