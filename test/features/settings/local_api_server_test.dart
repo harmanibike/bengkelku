@@ -99,12 +99,12 @@ void main() {
     final context = SecurityContext(withTrustedRoots: false)
       ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
       ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
-    var requestedOperation = '';
+    LocalApiBridgeRequest? receivedBridgeRequest;
     final port = await server.startSecure(
       securityContext: context,
       port: 0,
-      bridgeHandler: (operation) async {
-        requestedOperation = operation;
+      bridgeHandler: (request) async {
+        receivedBridgeRequest = request;
         return {
           'server_name': 'Bike POS Server',
           'read_only': true,
@@ -127,7 +127,10 @@ void main() {
           .bind(socket)
           .join()
           .timeout(const Duration(seconds: 5));
-      expect(requestedOperation, 'server_info');
+      expect(receivedBridgeRequest?.operation, 'server_info');
+      expect(receivedBridgeRequest?.requestId, isNotEmpty);
+      expect(receivedBridgeRequest?.remoteAddress, InternetAddress.loopbackIPv4.address);
+      expect(receivedBridgeRequest?.payload, isEmpty);
       expect(response, contains('200 OK'));
       expect(response, contains('"read_only":true'));
       expect(response, contains('Bike POS Server'));
