@@ -35,6 +35,11 @@ class PurchaseReportRepository {
       FROM supplier_payments
       WHERE payment_date >= ? AND payment_date < ?
     ''', [from, until]);
+    final supplierCountRows = await db.rawQuery('''
+      SELECT COUNT(DISTINCT p.supplier_id) AS count
+      FROM purchases p
+      WHERE p.status = 'active' AND p.purchase_date >= ? AND p.purchase_date < ?
+    ''', [from, until]);
     final suppliers = await db.rawQuery('''
       SELECT s.id AS supplier_id, s.name AS supplier_name,
         COUNT(p.id) AS invoice_count, COALESCE(SUM(p.total), 0) AS total_amount,
@@ -69,6 +74,7 @@ class PurchaseReportRepository {
       'return_refund_received': returns.first['refund_received'] ?? 0,
       'payment_count': payments.first['count'] ?? 0,
       'payment_amount': payments.first['amount'] ?? 0,
+      'supplier_count': supplierCountRows.first['count'] ?? 0,
       'suppliers': suppliers,
       'latest': latest,
     };
