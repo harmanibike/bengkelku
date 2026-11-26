@@ -24,11 +24,15 @@ class PurchaseReturnRepository {
     final db = await _db;
     return db.rawQuery('''
       SELECT pi.id AS purchase_item_id, pi.product_id, pi.product_name,
-        pi.quantity AS purchased_quantity, pi.unit_cost,
+        pi.quantity AS purchased_quantity, pi.quantity_received AS received_quantity, pi.unit_cost,
         COALESCE((SELECT SUM(pri.quantity)
           FROM purchase_return_items pri
           JOIN purchase_returns pr ON pr.id = pri.purchase_return_id
-          WHERE pri.purchase_item_id = pi.id AND pr.status = 'active'), 0) AS returned_quantity
+          WHERE pri.purchase_item_id = pi.id AND pr.status = 'active'), 0) AS returned_quantity,
+        MAX(pi.quantity_received - COALESCE((SELECT SUM(pri.quantity)
+          FROM purchase_return_items pri
+          JOIN purchase_returns pr ON pr.id = pri.purchase_return_id
+          WHERE pri.purchase_item_id = pi.id AND pr.status = 'active'), 0), 0) AS returnable_quantity
       FROM purchase_items pi
       WHERE pi.purchase_id = ?
       ORDER BY pi.id
