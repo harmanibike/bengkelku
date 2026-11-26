@@ -969,26 +969,33 @@ class AppDatabase {
 
     // Metadata pembelian online dan biaya perolehan barang. Migrasi aditif agar faktur lama tetap utuh.
     if (oldVersion < 44) {
-      final purchaseColumns = await db.rawQuery('PRAGMA table_info(purchases)');
-      final names = purchaseColumns.map((column) => column['name']).toSet();
-      final additions = <String, String>{
-        'purchase_type': "TEXT NOT NULL DEFAULT 'direct'",
-        'marketplace': 'TEXT',
-        'order_number': 'TEXT',
-        'tracking_number': 'TEXT',
-        'shipping_fee': 'INTEGER NOT NULL DEFAULT 0',
-        'packing_fee': 'INTEGER NOT NULL DEFAULT 0',
-        'insurance_fee': 'INTEGER NOT NULL DEFAULT 0',
-        'marketplace_fee': 'INTEGER NOT NULL DEFAULT 0',
-        'transfer_fee': 'INTEGER NOT NULL DEFAULT 0',
-        'other_fee': 'INTEGER NOT NULL DEFAULT 0',
-      };
-      for (final entry in additions.entries) {
-        if (!names.contains(entry.key)) {
-          await db.execute('ALTER TABLE purchases ADD COLUMN ${entry.key} ${entry.value}');
+      // Database legacy/minimal dapat belum memiliki modul pembelian.
+      // Lewati migrasi modul ini bila tabel induk belum tersedia.
+      final purchaseTable = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'purchases' LIMIT 1",
+      );
+      if (purchaseTable.isNotEmpty) {
+        final purchaseColumns = await db.rawQuery('PRAGMA table_info(purchases)');
+        final names = purchaseColumns.map((column) => column['name']).toSet();
+        final additions = <String, String>{
+          'purchase_type': "TEXT NOT NULL DEFAULT 'direct'",
+          'marketplace': 'TEXT',
+          'order_number': 'TEXT',
+          'tracking_number': 'TEXT',
+          'shipping_fee': 'INTEGER NOT NULL DEFAULT 0',
+          'packing_fee': 'INTEGER NOT NULL DEFAULT 0',
+          'insurance_fee': 'INTEGER NOT NULL DEFAULT 0',
+          'marketplace_fee': 'INTEGER NOT NULL DEFAULT 0',
+          'transfer_fee': 'INTEGER NOT NULL DEFAULT 0',
+          'other_fee': 'INTEGER NOT NULL DEFAULT 0',
+        };
+        for (final entry in additions.entries) {
+          if (!names.contains(entry.key)) {
+            await db.execute('ALTER TABLE purchases ADD COLUMN ${entry.key} ${entry.value}');
+          }
         }
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_purchases_order_number ON purchases(order_number)');
       }
-      await db.execute('CREATE INDEX IF NOT EXISTS idx_purchases_order_number ON purchases(order_number)');
     }
 
     // Stok opname kini mencakup varian produk tanpa mengubah sesi lama.
