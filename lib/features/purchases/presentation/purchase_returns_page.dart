@@ -227,7 +227,8 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
     }
     final creditController = TextEditingController();
     final refundController = TextEditingController();
-    final result = await showDialog<Map<String, int>>(
+    var refundPaymentMethod = 'cash';
+    final result = await showDialog<Map<String, Object?>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Penyelesaian ${row['return_number']}'),
@@ -261,8 +262,27 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
               ),
             ),
             const SizedBox(height: 8),
+            StatefulBuilder(
+              builder: (context, setMethodState) => DropdownButtonFormField<String>(
+                value: refundPaymentMethod,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Metode uang diterima',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'cash', child: Text('Tunai (masuk Saldo Toko)')),
+                  DropdownMenuItem(value: 'bank_transfer', child: Text('Transfer Bank (tidak masuk Saldo Toko)')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setMethodState(() => refundPaymentMethod = value);
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
             const Text(
-              'Isi sesuai kesepakatan pemasok. Kredit mengurangi sisa utang faktur; uang kembali baru masuk kas setelah benar-benar diterima.',
+              'Kredit mengurangi sisa utang faktur. Uang kembali dicatat sesuai metode yang benar-benar diterima; transfer bank tidak menambah saldo tunai laci.',
               style: TextStyle(fontSize: 10, color: Colors.grey),
             ),
           ],
@@ -274,7 +294,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
               final credit = parseCurrencyInput(creditController.text);
               final refund = parseCurrencyInput(refundController.text);
               if (credit >= 0 && refund >= 0 && credit + refund > 0 && credit + refund <= pending) {
-                Navigator.pop(dialogContext, {'credit': credit, 'refund': refund});
+                Navigator.pop(dialogContext, {'credit': credit, 'refund': refund, 'method': refundPaymentMethod});
               }
             },
             child: const Text('Simpan'),
@@ -290,6 +310,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
         returnId: row['id'] as int,
         creditApplied: result['credit']!,
         refundReceived: result['refund']!,
+        refundPaymentMethod: result['method'] as String? ?? 'cash',
       );
       await _reload();
       if (mounted) {
