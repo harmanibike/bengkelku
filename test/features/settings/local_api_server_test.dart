@@ -92,6 +92,84 @@ void main() {
     );
   });
 
+  test('server-info endpoint delegates only read-only metadata to bridge handler', () async {
+    final identity = await ServerTlsIdentityRepository(
+      store: _MemoryTlsStore(),
+    ).loadOrCreate();
+    final context = SecurityContext(withTrustedRoots: false)
+      ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
+      ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
+    var requestedOperation = '';
+    final port = await server.startSecure(
+      securityContext: context,
+      port: 0,
+      bridgeHandler: (operation) async {
+        requestedOperation = operation;
+        return {
+          'server_name': 'Bike POS Server',
+          'read_only': true,
+        };
+      },
+    );
+    final socket = await const PinnedLanTlsConnector().connect(
+      address: InternetAddress.loopbackIPv4.address,
+      port: port,
+      serverDnsName: identity.dnsName,
+      certificatePem: identity.certificatePem,
+    );
+    try {
+      socket.write(
+        'GET /api/v1/server-info HTTP/1.1\\r\\n'
+        'Host: ${identity.dnsName}\\r\\n'
+        'Connection: close\\r\\n\\r\\n',
+      );
+      final response = await utf8.decoder
+          .bind(socket)
+          .join()
+          .timeout(const Duration(seconds: 5));
+      expect(requestedOperation, 'server_info');
+      expect(response, contains('200 OK'));
+      expect(response, contains('"read_only":true'));
+      expect(response, contains('Bike POS Server'));
+    } finally {
+      await socket.close();
+    }
+  });
+
+  test('server-info endpoint fails closed when no main-isolate bridge exists', () async {
+    final identity = await ServerTlsIdentityRepository(
+      store: _MemoryTlsStore(),
+    ).loadOrCreate();
+    final context = SecurityContext(withTrustedRoots: false)
+      ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
+      ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
+    final port = await server.startSecure(
+      securityContext: context,
+      port: 0,
+    );
+    final socket = await const PinnedLanTlsConnector().connect(
+      address: InternetAddress.loopbackIPv4.address,
+      port: port,
+      serverDnsName: identity.dnsName,
+      certificatePem: identity.certificatePem,
+    );
+    try {
+      socket.write(
+        'GET /api/v1/server-info HTTP/1.1\\r\\n'
+        'Host: ${identity.dnsName}\\r\\n'
+        'Connection: close\\r\\n\\r\\n',
+      );
+      final response = await utf8.decoder
+          .bind(socket)
+          .join()
+          .timeout(const Duration(seconds: 5));
+      expect(response, contains('503 Service Unavailable'));
+      expect(response, contains('bridge_unavailable'));
+    } finally {
+      await socket.close();
+    }
+  });
+
   test('starts health endpoint and reports server/client compatibility', () async {
     final port = await server.start(port: 0, serverName: 'HP Server Bengkel');
     expect(server.isRunning, isTrue);
