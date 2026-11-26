@@ -47,6 +47,11 @@ class SaldoTokoRepository {
         category.toLowerCase().contains('pembelian')) return 'Pembelian';
     if (reference.contains('adjustment') ||
         category.toLowerCase().contains('penyesuaian')) return 'Penyesuaian';
+    // Semua pengeluaran manual masuk filter Pengeluaran, termasuk gaji,
+    // komisi, transportasi, listrik, sewa, perawatan, dan perlengkapan.
+    if (reference == 'manual_cash' && row['transaction_type'] == 'expense') {
+      return 'Pengeluaran';
+    }
     if (category.toLowerCase().contains('pengeluaran') ||
         category.toLowerCase().contains('operasional')) return 'Pengeluaran';
     return row['transaction_type'] == 'income' ? 'Uang Masuk' : 'Uang Keluar';
