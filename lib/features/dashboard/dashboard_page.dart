@@ -479,8 +479,8 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         children: [
           Container(
-            width: 56,
-            height: 56,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(14),
@@ -490,7 +490,7 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             child: Icon(icon, color: Colors.white, size: 32),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           SizedBox(
             height: 28,
             child: Text(
@@ -542,8 +542,8 @@ class _DashboardPageState extends State<DashboardPage> {
           crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 6,
-          mainAxisSpacing: 6,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 14,
           childAspectRatio: ratio,
           children: tiles,
         );
