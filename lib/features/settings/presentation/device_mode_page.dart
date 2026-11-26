@@ -491,34 +491,18 @@ class _DeviceModePageState extends State<DeviceModePage> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: null,
-                              icon: const Icon(Icons.lock_outline),
-                              label: const Text(
-                                'Tes TLS belum tersedia (menunggu pairing aman)',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: FilledButton.icon(
-                              onPressed: _savingClient || _testingClient
-                                  ? null
-                                  : _testClientConnection,
-                              icon: _testingClient
-                                  ? const SizedBox(
-                                      width: 15,
-                                      height: 15,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.wifi_tethering),
-                              label: const Text('Tes TLS (setelah pairing)'),
-                            ),
-                          ),
-                        ],
+                      FilledButton.icon(
+                        onPressed: _savingClient ? null : _saveClientConfig,
+                        icon: _savingClient
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: Text(
+                          _savingClient ? 'Menyimpan...' : 'Simpan Alamat Server',
+                        ),
                       ),
                       if (_connectionMessage != null) ...[
                         const SizedBox(height: 8),
