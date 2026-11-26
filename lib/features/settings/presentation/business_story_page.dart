@@ -31,7 +31,6 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
   String _businessName = 'Bengkel & Toko Sepeda';
   String _businessAddress = '';
   String _businessContact = '';
-  String _businessLogoPath = '';
   bool _sharing = false;
   bool _saving = false;
 
@@ -53,7 +52,6 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           _businessContact = (profile['business_whatsapp']?.trim().isNotEmpty == true
                   ? profile['business_whatsapp']!.trim()
                   : profile['business_phone']?.trim()) ?? '';
-          _businessLogoPath = profile['business_logo_path']?.trim() ?? '';
         });
       }
     } catch (_) {
@@ -254,12 +252,22 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
     }
   }
 
+  IconData get _announcementIcon => _kind == 'libur'
+      ? Icons.event_busy_rounded
+      : _kind == 'jam'
+          ? Icons.schedule_rounded
+          : Icons.local_offer_rounded;
+
   Widget _poster() {
-    final colors = _template == 'hangat'
-        ? const [Color(0xFF8C351C), Color(0xFFE58A32)]
-        : _template == 'hijau'
-            ? const [Color(0xFF075B50), Color(0xFF27A58A)]
-            : const [Color(0xFF104B91), Color(0xFF168B9B)];
+    final colors = switch (_template) {
+      'hijau' => const [Color(0xFF075B50), Color(0xFF27A58A)],
+      'hangat' => const [Color(0xFF8C351C), Color(0xFFE58A32)],
+      'ungu' => const [Color(0xFF452477), Color(0xFF9670D5)],
+      'merah' => const [Color(0xFF8F2032), Color(0xFFE45B57)],
+      'gelap' => const [Color(0xFF202A38), Color(0xFF536477)],
+      'biru' => const [Color(0xFF104B91), Color(0xFF168B9B)],
+      _ => const [Color(0xFF104B91), Color(0xFF168B9B)],
+    };
     final date = _dateController.text.trim();
     final returnDate = _returnDateController.text.trim();
     return RepaintBoundary(
@@ -292,16 +300,30 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
                 child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_businessLogoPath.isNotEmpty && File(_businessLogoPath).existsSync())
-                Container(
-                  width: 66,
-                  height: 66,
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-                  child: Image.file(File(_businessLogoPath), fit: BoxFit.contain),
-                )
-              else
-                const Icon(Icons.pedal_bike_rounded, color: Colors.white, size: 38),
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.55), width: 1.5),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(_announcementIcon, color: Colors.white, size: 34),
+                    Positioned(
+                      right: 8,
+                      bottom: 7,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                        child: Icon(Icons.pedal_bike_rounded, color: colors.first, size: 15),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -421,7 +443,10 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
             items: const [
               DropdownMenuItem(value: 'biru', child: Text('Biru profesional')),
               DropdownMenuItem(value: 'hijau', child: Text('Hijau segar')),
-              DropdownMenuItem(value: 'hangat', child: Text('Oranye promo')),
+              DropdownMenuItem(value: 'hangat', child: Text('Oranye hangat')),
+              DropdownMenuItem(value: 'ungu', child: Text('Ungu elegan')),
+              DropdownMenuItem(value: 'merah', child: Text('Merah tegas')),
+              DropdownMenuItem(value: 'gelap', child: Text('Abu-abu modern')),
             ],
             onChanged: (value) { if (value != null) setState(() => _template = value); },
           ),
