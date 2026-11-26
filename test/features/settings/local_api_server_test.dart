@@ -172,50 +172,29 @@ void main() {
 
 
   test('server-info endpoint fails closed when the main-isolate bridge errors', () async {
-    final identity = await ServerTlsIdentityRepository(
-      store: _MemoryTlsStore(),
-    ).loadOrCreate();
-    final context = SecurityContext(withTrustedRoots: false)
-      ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
-      ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
-    final port = await server.startSecure(
-      securityContext: context,
+    final port = await server.start(
       port: 0,
       bridgeHandler: (_) async => throw StateError('bridge failure'),
     );
-    final socket = await const PinnedLanTlsConnector().connect(
-      address: InternetAddress.loopbackIPv4.address,
-      port: port,
-      serverDnsName: identity.dnsName,
-      certificatePem: identity.certificatePem,
-    );
+    final client = HttpClient();
     try {
-      socket.write(
-        'GET /api/v1/server-info HTTP/1.1\\r\\n'
-        'Host: ${identity.dnsName}\\r\\n'
-        'Connection: close\\r\\n\\r\\n',
+      final request = await client.get(
+        InternetAddress.loopbackIPv4.address,
+        port,
+        '/api/v1/server-info',
       );
-      final response = await utf8.decoder
-          .bind(socket)
-          .join()
-          .timeout(const Duration(seconds: 5));
-      expect(response, contains('503 Service Unavailable'));
-      expect(response, contains('bridge_timeout_or_error'));
-      expect(response, isNot(contains('bridge failure')));
+      final response = await request.close();
+      final body = await response.transform(utf8.decoder).join();
+      expect(response.statusCode, HttpStatus.serviceUnavailable);
+      expect(body, contains('bridge_timeout_or_error'));
+      expect(body, isNot(contains('bridge failure')));
     } finally {
-      await socket.close();
+      client.close(force: true);
     }
   });
 
   test('server-info endpoint rejects non-GET methods', () async {
-    final identity = await ServerTlsIdentityRepository(
-      store: _MemoryTlsStore(),
-    ).loadOrCreate();
-    final context = SecurityContext(withTrustedRoots: false)
-      ..useCertificateChainBytes(utf8.encode(identity.certificatePem))
-      ..usePrivateKeyBytes(utf8.encode(identity.privateKeyPem));
-    final port = await server.startSecure(
-      securityContext: context,
+    final port = await server.start(
       port: 0,
       bridgeHandler: (_) async => {'read_only': true},
     );
