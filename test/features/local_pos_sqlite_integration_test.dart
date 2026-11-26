@@ -599,6 +599,69 @@ void main() {
   });
 
 
+  test('landed purchase cost reconciles exactly across partial receipts and rounding', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Uji Pembulatan'});
+    final productId = await db.insert('products', {
+      'name': 'Produk HPP Pecahan',
+      'purchase_price': 0,
+      'stock': 0,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final purchaseId = await PurchaseRepository().createPurchase(
+      invoiceNumber: 'INV-HPP-PECAHAN',
+      supplierId: supplierId,
+      shippingFee: 2,
+      items: [
+        {
+          'product_id': productId,
+          'product_name': 'Produk HPP Pecahan',
+          'quantity': 3,
+          'unit_cost': 1000,
+          'discount': 0,
+        },
+      ],
+    );
+    final item = (await db.query(
+      'purchase_items',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    )).single;
+    expect(item['allocated_landed_total'], 3002);
+    await PurchaseRepository().receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {item['id'] as int: 1},
+    );
+    var batches = await db.query(
+      'inventory_cost_batches',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    );
+    expect(batches.fold<int>(0, (sum, row) =>
+        sum + (row['quantity_remaining'] as int) * (row['unit_cost'] as int)), 1001);
+    await PurchaseRepository().receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {item['id'] as int: 2},
+    );
+    batches = await db.query(
+      'inventory_cost_batches',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    );
+    final batchValue = batches.fold<int>(0, (sum, row) =>
+        sum + (row['quantity_remaining'] as int) * (row['unit_cost'] as int));
+    final receivedItem = (await db.query(
+      'purchase_items',
+      where: 'id = ?',
+      whereArgs: [item['id']],
+    )).single;
+    expect(batchValue, 3002);
+    expect(receivedItem['received_cost_total'], 3002);
+    expect(batches.fold<int>(0, (sum, row) =>
+        sum + (row['quantity_received'] as int)), 3);
+  });
+
   test('purchase receipt supports partial deliveries and rejects over-receipt', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Pemasok Kirim Bertahap'});
