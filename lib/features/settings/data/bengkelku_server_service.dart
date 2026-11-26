@@ -19,6 +19,8 @@ class BengkelKuServerService {
   static final BengkelKuServerService instance = BengkelKuServerService._();
   static const int _serviceId = 8765;
   static bool _initialized = false;
+  static int? _activePort;
+  static Future<void> _lifecycle = Future<void>.value();
   static final ServerTlsIdentityRepository _identityRepository =
       ServerTlsIdentityRepository(store: FlutterSecureValueStore());
 
@@ -55,11 +57,16 @@ class BengkelKuServerService {
     return FlutterForegroundTask.isRunningService;
   }
 
-  Future<int> startServer() async {
+  Future<int> startServer() => _serializeLifecycle(_startServer);
+
+  Future<int> _startServer() async {
     if (!Platform.isAndroid) {
       throw UnsupportedError('Layanan Server hanya tersedia pada Android.');
     }
     initialize();
+    if (await FlutterForegroundTask.isRunningService && _activePort != null) {
+      return _activePort!;
+    }
 
     // Load/create the identity on the main isolate where secure storage is
     // initialized. The foreground isolate must not open the business database
@@ -115,13 +122,16 @@ class BengkelKuServerService {
         callback: startBengkelKuServerCallback,
         serviceTypes: [ForegroundServiceTypes.connectedDevice],
       );
-      return await started.future.timeout(
+      final port = await started.future.timeout(
         const Duration(seconds: 25),
         onTimeout: () => throw TimeoutException(
           'Layanan Server HTTPS belum memberi konfirmasi. Periksa notifikasi Android.',
         ),
       );
+      _activePort = port;
+      return port;
     } catch (_) {
+      _activePort = null;
       if (await FlutterForegroundTask.isRunningService) {
         await FlutterForegroundTask.stopService();
       }
@@ -131,9 +141,22 @@ class BengkelKuServerService {
     }
   }
 
-  Future<void> stopServer() async {
+  Future<void> stopServer() => _serializeLifecycle(_stopServer);
+
+  Future<void> _stopServer() async {
     if (!Platform.isAndroid) return;
     await FlutterForegroundTask.stopService();
+    _activePort = null;
+  }
+
+  /// Serializes start/stop requests so rapid taps cannot race service lifecycle.
+  Future<T> _serializeLifecycle<T>(Future<T> Function() operation) {
+    final result = _lifecycle.then((_) => operation());
+    _lifecycle = result.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return result;
   }
 }
 
