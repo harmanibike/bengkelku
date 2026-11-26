@@ -88,7 +88,7 @@ void main() {
     expect(result.message, contains('TLS'));
   });
 
-  test('rejects a paired certificate when the trusted DNS identity differs,
+  test('rejects a paired certificate when the trusted DNS identity differs',
       () async {
     final serverIdentity = await createIdentity();
     final otherIdentity = await createIdentity();
