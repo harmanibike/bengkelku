@@ -17,6 +17,11 @@ void main() {
       );
     });
 
+    test('wallet deposit is applied on completion, not on pickup', () {
+      expect(ServiceRepository.walletAutoPaymentStatuses, contains('completed'));
+      expect(ServiceRepository.walletAutoPaymentStatuses, isNot(contains('delivered')));
+    });
+
     test('delivered and cancelled are terminal statuses', () {
       expect(ServiceRepository.allowedStatusTransitions['delivered'], isEmpty);
       expect(ServiceRepository.allowedStatusTransitions['cancelled'], isEmpty);
