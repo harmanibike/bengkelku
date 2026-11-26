@@ -632,11 +632,15 @@ class SaleRepository {
 
       final cleanReason = reason?.trim();
       final cashPaidRows = await txn.rawQuery('''
-        SELECT COALESCE(SUM(amount), 0) AS total
+        SELECT LOWER(COALESCE(payment_method, 'cash')) AS payment_method,
+          SUM(amount) AS total
         FROM cash_transactions
-        WHERE reference_id = ? AND reference_type IN ('sale', 'sale_payment') AND transaction_type = 'income'
+        WHERE reference_id = ? AND reference_type IN ('sale', 'sale_payment')
+          AND transaction_type = 'income'
+        GROUP BY LOWER(COALESCE(payment_method, 'cash'))
       ''', [id]);
-      final amountReceived = (cashPaidRows.first['total'] as num?)?.toInt() ?? 0;
+      final amountReceived = cashPaidRows.fold<int>(
+        0, (sum, row) => sum + ((row['total'] as num?)?.toInt() ?? 0));
       final walletPaidRows = await txn.rawQuery('''
         SELECT COALESCE(SUM(amount), 0) AS total
         FROM customer_wallet_ledger
@@ -666,16 +670,19 @@ class SaleRepository {
           'created_at': now,
         });
       }
-      if (amountReceived > 0) {
+      for (final payment in cashPaidRows) {
+        final refundAmount = (payment['total'] as num?)?.toInt() ?? 0;
+        if (refundAmount <= 0) continue;
         await txn.insert('cash_transactions', {
           'transaction_type': 'expense',
           'category': 'Pembatalan Penjualan',
           'description': cleanReason == null || cleanReason.isEmpty
               ? 'Pengembalian pembayaran penjualan $invoice'
               : 'Pengembalian pembayaran penjualan $invoice: $cleanReason',
-          'amount': amountReceived,
+          'amount': refundAmount,
           'reference_type': 'sale_cancel',
           'reference_id': id,
+          'payment_method': payment['payment_method']?.toString() ?? 'cash',
           'transaction_date': now,
         });
       }
