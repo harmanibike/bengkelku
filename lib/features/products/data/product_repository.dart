@@ -523,7 +523,7 @@ class ProductRepository {
   }
 
   Future<List<Map<String, Object?>>> getStockMovements({String keyword = '', String movementType = 'all'}) async {
-    AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
+    AuthSession.instance.requireCashierOrAdmin('Riwayat stok hanya dapat diakses Admin dan Kasir.');
     final db = await _db;
     final term = keyword.trim();
     final where = <String>[];
