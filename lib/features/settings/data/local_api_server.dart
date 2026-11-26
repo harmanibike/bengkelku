@@ -278,41 +278,15 @@ class LocalApiServer {
       }
       final code = (decoded['code'] as String).trim();
       final deviceName = (decoded['device_name'] as String).trim();
-      if (!RegExp(r'^\\d{10}
-    final pendingStop = _stopFuture;
-    if (pendingStop != null) return pendingStop;
-
-    final future = _stopInternal();
-    _stopFuture = future;
-    return future.whenComplete(() {
-      if (identical(_stopFuture, future)) _stopFuture = null;
-    });
-  }
-
-  Future<void> _stopInternal() async {
-    // Bila Stop ditekan ketika bind masih berlangsung, tunggu hasilnya agar
-    // server tidak tertinggal aktif tanpa kendali UI.
-    final pendingStart = _startFuture;
-    if (pendingStart != null) {
-      try {
-        await pendingStart;
-      } catch (_) {
-        return;
-      }
-    }
-    final server = _server;
-    _server = null;
-    _bridgeHandler = null;
-    await server?.close(force: true);
-  }
-}
-).hasMatch(code) ||
-          deviceName.isEmpty || deviceName.length > 60) {
+      if (deviceName.isEmpty || deviceName.length > 60) {
         throw const FormatException('Invalid pairing fields.');
       }
 
       final result = await handler(LocalApiBridgeRequest(
-        requestId: 'pair-' + DateTime.now().microsecondsSinceEpoch.toString() + '-' + (_nextBridgeRequestId++).toString(),
+        requestId: 'pair-' +
+            DateTime.now().microsecondsSinceEpoch.toString() +
+            '-' +
+            (_nextBridgeRequestId++).toString(),
         operation: 'pair_device',
         remoteAddress: request.connectionInfo?.remoteAddress.address ?? 'unknown',
         payload: {'code': code, 'device_name': deviceName},
