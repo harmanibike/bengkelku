@@ -42,9 +42,11 @@ class LocalApiServer {
   Future<int> start({
     int port = defaultPort,
     String serverName = 'BengkelKu Server',
+    LocalApiBridgeHandler? bridgeHandler,
   }) => _start(
         port: port,
         serverName: serverName,
+        bridgeHandler: bridgeHandler,
       );
 
   /// Starts the same health API over TLS. The caller owns certificate
@@ -248,7 +250,7 @@ class LocalApiServer {
       return;
     }
     if (request.contentLength > _maxPairingBodyBytes) {
-      request.response.statusCode = HttpStatus.payloadTooLarge;
+      request.response.statusCode = 413;
       request.response.write(jsonEncode({
         'app': 'bengkelku_pos',
         'status': 'payload_too_large',
