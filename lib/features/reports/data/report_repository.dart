@@ -458,4 +458,72 @@ class ReportRepository {
       'item_count': value(products.first, 'item_count') + value(variants.first, 'item_count'),
     };
   }
+
+  /// Rincian nilai persediaan per produk dan varian.
+  /// Nilai modal mengikuti sisa biaya batch; kekurangan batch memakai harga pokok master,
+  /// sama dengan rumus ringkasan valuasi agar total detail dapat direkonsiliasi.
+  Future<List<Map<String, Object?>>> getCurrentStockValuationItems() async {
+    AuthSession.instance.requireCashierOrAdmin('Laporan stok hanya dapat diakses Admin dan Kasir.');
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT * FROM (
+        SELECT
+          'product' AS item_type,
+          p.id AS item_id,
+          p.id AS product_id,
+          COALESCE(p.sku, '') AS sku,
+          p.name AS product_name,
+          COALESCE(p.category, 'Lainnya') AS category,
+          p.unit AS unit,
+          p.stock AS stock,
+          p.purchase_price AS fallback_unit_cost,
+          CASE
+            WHEN COALESCE(b.batch_qty, 0) < p.stock
+              THEN COALESCE(b.batch_value, 0) + (p.stock - COALESCE(b.batch_qty, 0)) * p.purchase_price
+            ELSE COALESCE(b.batch_value, 0)
+          END AS cost_value,
+          p.stock * p.selling_price AS selling_value
+        FROM products p
+        LEFT JOIN (
+          SELECT product_id, SUM(quantity_remaining) AS batch_qty,
+            SUM(quantity_remaining * unit_cost) AS batch_value
+          FROM inventory_cost_batches
+          WHERE quantity_remaining > 0 AND variant_id IS NULL
+          GROUP BY product_id
+        ) b ON b.product_id = p.id
+        WHERE p.is_active = 1 AND p.track_stock = 1
+
+        UNION ALL
+
+        SELECT
+          'variant' AS item_type,
+          v.id AS item_id,
+          p.id AS product_id,
+          COALESCE(v.sku, p.sku, '') AS sku,
+          p.name || ' - ' || v.name AS product_name,
+          COALESCE(p.category, 'Lainnya') AS category,
+          p.unit AS unit,
+          v.stock AS stock,
+          v.purchase_price AS fallback_unit_cost,
+          CASE
+            WHEN COALESCE(b.batch_qty, 0) < v.stock
+              THEN COALESCE(b.batch_value, 0) + (v.stock - COALESCE(b.batch_qty, 0)) * v.purchase_price
+            ELSE COALESCE(b.batch_value, 0)
+          END AS cost_value,
+          v.stock * v.selling_price AS selling_value
+        FROM product_variants v
+        JOIN products p ON p.id = v.product_id
+        LEFT JOIN (
+          SELECT variant_id, SUM(quantity_remaining) AS batch_qty,
+            SUM(quantity_remaining * unit_cost) AS batch_value
+          FROM inventory_cost_batches
+          WHERE quantity_remaining > 0 AND variant_id IS NOT NULL
+          GROUP BY variant_id
+        ) b ON b.variant_id = v.id
+        WHERE p.is_active = 1 AND v.is_active = 1 AND v.track_stock = 1
+      )
+      ORDER BY product_name COLLATE NOCASE ASC
+    ''');
+  }
+
 }
