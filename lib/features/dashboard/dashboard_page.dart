@@ -479,8 +479,8 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(14),
@@ -490,8 +490,17 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             child: Icon(icon, color: Colors.white, size: 32),
           ),
-          const SizedBox(height: 9),
-          Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, height: 1.15, fontWeight: FontWeight.w600, color: Color(0xFF37474F))),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 28,
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, height: 1.15, fontWeight: FontWeight.w600, color: Color(0xFF37474F)),
+            ),
+          ),
         ],
       ),
     );
@@ -525,7 +534,9 @@ class _DashboardPageState extends State<DashboardPage> {
       const SizedBox(height: 4),
       LayoutBuilder(builder: (context, constraints) {
         final columns = constraints.maxWidth >= 560 ? 4 : 3;
-        final ratio = constraints.maxWidth >= 560 ? 1.55 : 1.55;
+        // Beri tinggi cukup untuk ikon dan label agar tidak bertabrakan
+        // pada layar ponsel yang memiliki lebar kolom terbatas.
+        final ratio = constraints.maxWidth >= 560 ? 1.35 : 1.10;
         return GridView.count(
           padding: EdgeInsets.zero,
           crossAxisCount: columns,
