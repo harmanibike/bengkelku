@@ -183,21 +183,27 @@ void main() {
       port: 0,
       bridgeHandler: (_) async => throw StateError('bridge failure'),
     );
-    final client = HttpClient()
-      ..badCertificateCallback = (certificate, host, port) => true;
+    final socket = await const PinnedLanTlsConnector().connect(
+      address: InternetAddress.loopbackIPv4.address,
+      port: port,
+      serverDnsName: identity.dnsName,
+      certificatePem: identity.certificatePem,
+    );
     try {
-      final request = await client.get(
-        InternetAddress.loopbackIPv4.address,
-        port,
-        '/api/v1/server-info',
+      socket.write(
+        'GET /api/v1/server-info HTTP/1.1\\r\\n'
+        'Host: ${identity.dnsName}\\r\\n'
+        'Connection: close\\r\\n\\r\\n',
       );
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      expect(response.statusCode, HttpStatus.serviceUnavailable);
-      expect(body, contains('bridge_timeout_or_error'));
-      expect(body, isNot(contains('bridge failure')));
+      final response = await utf8.decoder
+          .bind(socket)
+          .join()
+          .timeout(const Duration(seconds: 5));
+      expect(response, contains('503 Service Unavailable'));
+      expect(response, contains('bridge_timeout_or_error'));
+      expect(response, isNot(contains('bridge failure')));
     } finally {
-      client.close(force: true);
+      await socket.close();
     }
   });
 
@@ -213,21 +219,28 @@ void main() {
       port: 0,
       bridgeHandler: (_) async => {'read_only': true},
     );
-    final client = HttpClient()
-      ..badCertificateCallback = (certificate, host, port) => true;
+    final socket = await const PinnedLanTlsConnector().connect(
+      address: InternetAddress.loopbackIPv4.address,
+      port: port,
+      serverDnsName: identity.dnsName,
+      certificatePem: identity.certificatePem,
+    );
     try {
-      final request = await client.post(
-        InternetAddress.loopbackIPv4.address,
-        port,
-        '/api/v1/server-info',
+      socket.write(
+        'POST /api/v1/server-info HTTP/1.1\\r\\n'
+        'Host: ${identity.dnsName}\\r\\n'
+        'Content-Length: 0\\r\\n'
+        'Connection: close\\r\\n\\r\\n',
       );
-      final response = await request.close();
-      expect(response.statusCode, HttpStatus.methodNotAllowed);
-      expect(response.headers.value(HttpHeaders.allowHeader), 'GET');
-      final body = await response.transform(utf8.decoder).join();
-      expect(body, contains('method_not_allowed'));
+      final response = await utf8.decoder
+          .bind(socket)
+          .join()
+          .timeout(const Duration(seconds: 5));
+      expect(response, contains('405 Method Not Allowed'));
+      expect(response.toLowerCase(), contains('allow: get'));
+      expect(response, contains('method_not_allowed'));
     } finally {
-      client.close(force: true);
+      await socket.close();
     }
   });
 
