@@ -290,6 +290,7 @@ class PurchaseReturnRepository {
           throw StateError('Retur pembelian untuk varian belum tersedia. Stok varian tidak diubah agar pencatatan tetap akurat.');
         }
         final purchased = item['quantity'] as int? ?? 0;
+        final received = (item['quantity_received'] as num?)?.toInt() ?? 0;
         final returnedRows = await txn.rawQuery('''
           SELECT COALESCE(SUM(pri.quantity), 0) AS total
           FROM purchase_return_items pri
@@ -297,11 +298,11 @@ class PurchaseReturnRepository {
           WHERE pri.purchase_item_id = ? AND pr.status = 'active'
         ''', [entry.key]);
         final alreadyReturned = returnedRows.first['total'] as int? ?? 0;
-        final available = purchased - alreadyReturned;
+        final available = received - alreadyReturned;
         if (quantity > available) {
-          throw StateError('Retur ${item['product_name']} melebihi sisa yang dapat diretur ($available).');
+          throw StateError('Retur ${item['product_name']} melebihi jumlah yang sudah diterima dan belum diretur ($available).');
         }
-        final unitCost = item['unit_cost'] as int? ?? 0;
+        final unitCost = (item['unit_cost'] as num?)?.toInt() ?? 0;
         final productId = item['product_id'] as int?;
         total += quantity * unitCost;
         selected.add({
