@@ -38,6 +38,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
   @override
   void initState() {
     super.initState();
+    _dateController.text = _formatDate(DateTime.now());
     _loadBusinessName();
   }
 
@@ -67,6 +68,36 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
     _dateController.dispose();
     _returnDateController.dispose();
     super.dispose();
+  }
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day-$month-${date.year}';
+  }
+
+  Future<void> _pickDate(TextEditingController controller) async {
+    final now = DateTime.now();
+    final parsed = controller.text.split('-');
+    DateTime initial = now;
+    if (parsed.length == 3) {
+      final day = int.tryParse(parsed[0]);
+      final month = int.tryParse(parsed[1]);
+      final year = int.tryParse(parsed[2]);
+      if (day != null && month != null && year != null) {
+        initial = DateTime(year, month, day);
+      }
+    }
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      helpText: 'Pilih tanggal pengumuman',
+    );
+    if (picked != null && mounted) {
+      setState(() => controller.text = _formatDate(picked));
+    }
   }
 
   void _selectKind(String? value) {
@@ -244,7 +275,21 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
               end: Alignment.bottomRight,
             ),
           ),
-          child: Column(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              IgnorePointer(
+                child: Center(
+                  child: Icon(
+                    Icons.pedal_bike_rounded,
+                    size: 230,
+                    color: Colors.white.withValues(alpha: 0.075),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.zero,
+                child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (_businessLogoPath.isNotEmpty && File(_businessLogoPath).existsSync())
@@ -332,6 +377,9 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
               const Text('Terima kasih atas kepercayaan Anda',
                   style: TextStyle(color: Colors.white70, fontSize: 10)),
             ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -394,14 +442,28 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
           const SizedBox(height: 10),
           TextField(
             controller: _dateController,
-            decoration: const InputDecoration(labelText: 'Tanggal mulai / berlaku (opsional)', hintText: 'Contoh: 28–30 November 2026', border: OutlineInputBorder(), isDense: true),
-            onChanged: (_) => setState(() {}),
+            readOnly: true,
+            onTap: () => _pickDate(_dateController),
+            decoration: const InputDecoration(
+              labelText: 'Tanggal mulai / berlaku',
+              hintText: 'Pilih tanggal',
+              suffixIcon: Icon(Icons.calendar_month_rounded),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
           ),
           const SizedBox(height: 10),
           TextField(
             controller: _returnDateController,
-            decoration: const InputDecoration(labelText: 'Tanggal buka kembali (opsional)', hintText: 'Contoh: 1 Desember 2026', border: OutlineInputBorder(), isDense: true),
-            onChanged: (_) => setState(() {}),
+            readOnly: true,
+            onTap: () => _pickDate(_returnDateController),
+            decoration: const InputDecoration(
+              labelText: 'Tanggal buka kembali (opsional)',
+              hintText: 'Pilih tanggal',
+              suffixIcon: Icon(Icons.calendar_month_rounded),
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
           ),
           const SizedBox(height: 18),
           const Text('Pratinjau Story 9:16', style: TextStyle(fontWeight: FontWeight.bold)),
