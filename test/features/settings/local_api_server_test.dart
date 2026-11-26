@@ -495,7 +495,6 @@ void main() {
         'https_required',
       );
       expect(invoked, isFalse);
-      await response.drain<void>();
     } finally {
       client.close(force: true);
     }
