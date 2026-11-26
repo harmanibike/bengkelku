@@ -70,6 +70,10 @@ class _CashbookPageState extends State<CashbookPage> {
       'purchase_return_refund' => 'Refund retur pembelian',
       'purchase_return_cancel' => 'Pembatalan retur pembelian',
       'manual_cash' => 'Input manual',
+      'customer_deposit' => 'Deposit pelanggan',
+      'customer_wallet_withdrawal' => 'Penarikan saldo pelanggan',
+      'tip' => 'Tip mekanik',
+      'tip_handover' => 'Penyerahan tip',
       null || '' => 'Sumber tidak tercatat',
       _ => type,
     };
@@ -120,12 +124,12 @@ class _CashbookPageState extends State<CashbookPage> {
             ]),
             const SizedBox(height:10),
             Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(children:[
-              _balanceLine('Saldo awal',data['opening_balance']),
+              _balanceLine('Saldo dana awal',data['opening_balance']),
               const Divider(height:14),
-              _balanceLine('Kas masuk',income,color:Colors.green),
-              _balanceLine('Kas keluar',expense,color:Colors.red),
+              _balanceLine('Dana masuk',income,color:Colors.green),
+              _balanceLine('Dana keluar',expense,color:Colors.red),
               const Divider(height:14),
-              _balanceLine('Saldo akhir',data['closing_balance'],bold:true),
+              _balanceLine('Saldo dana akhir',data['closing_balance'],bold:true),
             ]))),
             const SizedBox(height:8),
             Card(child:Padding(padding:const EdgeInsets.all(12),child:Column(
