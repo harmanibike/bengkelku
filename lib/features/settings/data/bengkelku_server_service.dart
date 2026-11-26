@@ -284,21 +284,22 @@ class BengkelKuServerTaskHandler extends TaskHandler {
     unawaited(_startSecureServer(data));
   }
 
-  Future<Map<String, dynamic>> _requestMainIsolate(String operation) async {
-    if (operation != 'server_info') {
+  Future<Map<String, dynamic>> _requestMainIsolate(LocalApiBridgeRequest request) async {
+    if (request.operation != 'server_info' || request.payload.isNotEmpty) {
       throw StateError('Operasi bridge tidak diizinkan.');
     }
     if (_pendingBridgeRequests.length >= 8) {
       throw StateError('Antrean komunikasi Server sedang penuh.');
     }
-    final requestId = 'rpc-${DateTime.now().microsecondsSinceEpoch}-${_nextBridgeRequestId++}';
+    final requestId = request.requestId + '-rpc-' + (_nextBridgeRequestId++).toString();
     final completer = Completer<Map<String, dynamic>>();
     _pendingBridgeRequests[requestId] = completer;
     try {
       FlutterForegroundTask.sendDataToMain({
         'type': 'bridge_request',
         'request_id': requestId,
-        'operation': operation,
+        'operation': request.operation,
+        'remote_address': request.remoteAddress,
       });
       return await completer.future.timeout(const Duration(seconds: 4));
     } finally {
