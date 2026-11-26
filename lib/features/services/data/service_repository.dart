@@ -1227,15 +1227,18 @@ class ServiceRepository {
       if (status == 'cancelled') {
         final paidRows = await txn.rawQuery(
           '''
-          SELECT COALESCE(SUM(amount), 0) AS total_paid
+          SELECT LOWER(COALESCE(payment_method, 'cash')) AS payment_method,
+            SUM(amount) AS total_paid
           FROM cash_transactions
           WHERE reference_type = 'service_order'
             AND reference_id = ?
             AND transaction_type = 'income'
+          GROUP BY LOWER(COALESCE(payment_method, 'cash'))
           ''',
           [id],
         );
-        final refund = Sqflite.firstIntValue(paidRows) ?? 0;
+        final refund = paidRows.fold<int>(
+          0, (sum, row) => sum + ((row['total_paid'] as num?)?.toInt() ?? 0));
         final walletPayments = await txn.rawQuery('''
           SELECT COALESCE(SUM(amount), 0) AS total
           FROM customer_wallet_ledger
@@ -1265,15 +1268,18 @@ class ServiceRepository {
             'created_at': now,
           });
         }
-        if (refund > 0) {
+        for (final payment in paidRows) {
+          final refundAmount = (payment['total_paid'] as num?)?.toInt() ?? 0;
+          if (refundAmount <= 0) continue;
           await txn.insert('cash_transactions', {
             'transaction_type': 'expense',
             'category': 'Pembatalan Servis',
             'description':
                 'Pengembalian pembayaran servis ${rows.first['order_number'] ?? id}',
-            'amount': refund,
+            'amount': refundAmount,
             'reference_type': 'service_order_cancellation',
             'reference_id': id,
+            'payment_method': payment['payment_method']?.toString() ?? 'cash',
             'transaction_date': now,
           });
         }
