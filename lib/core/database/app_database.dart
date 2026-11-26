@@ -998,8 +998,17 @@ class AppDatabase {
 
     // Stok opname kini mencakup varian produk tanpa mengubah sesi lama.
     if (oldVersion < 43) {
-      await db.execute('ALTER TABLE stock_opname_items ADD COLUMN variant_id INTEGER REFERENCES product_variants(id) ON DELETE SET NULL');
-      await db.execute('CREATE INDEX idx_stock_opname_items_variant ON stock_opname_items(variant_id)');
+      final opnameTable = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='stock_opname_items'",
+      );
+      if (opnameTable.isNotEmpty) {
+        final columns = await db.rawQuery('PRAGMA table_info(stock_opname_items)');
+        final hasVariantId = columns.any((column) => column['name'] == 'variant_id');
+        if (!hasVariantId) {
+          await db.execute('ALTER TABLE stock_opname_items ADD COLUMN variant_id INTEGER REFERENCES product_variants(id) ON DELETE SET NULL');
+        }
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_opname_items_variant ON stock_opname_items(variant_id)');
+      }
     }
 
     // Register inventaris peralatan bengkel; migrasi aditif dan tidak mengubah stok/transaksi.
