@@ -187,13 +187,28 @@ class BengkelKuServerService {
             'token': credential.token,
           },
         });
-      } on Object {
+      } on StateError {
         await limiter.recordFailure(remoteAddress);
         FlutterForegroundTask.sendDataToTask({
           'type': 'bridge_response',
           'request_id': requestId,
           'ok': true,
           'data': {'status': 'invalid_code'},
+        });
+      } on ArgumentError {
+        await limiter.recordFailure(remoteAddress);
+        FlutterForegroundTask.sendDataToTask({
+          'type': 'bridge_response',
+          'request_id': requestId,
+          'ok': true,
+          'data': {'status': 'invalid_code'},
+        });
+      } on Object {
+        FlutterForegroundTask.sendDataToTask({
+          'type': 'bridge_response',
+          'request_id': requestId,
+          'ok': true,
+          'data': {'status': 'pairing_unavailable'},
         });
       }
     } finally {
