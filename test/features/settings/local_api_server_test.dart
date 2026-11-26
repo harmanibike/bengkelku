@@ -489,7 +489,11 @@ void main() {
       request.headers.contentType = ContentType.text;
       request.write('code=1234567890');
       final response = await request.close();
-      expect(response.statusCode, HttpStatus.unsupportedMediaType);
+      expect(response.statusCode, HttpStatus.upgradeRequired);
+      expect(
+        jsonDecode(await response.transform(utf8.decoder).join())['status'],
+        'https_required',
+      );
       expect(invoked, isFalse);
       await response.drain<void>();
     } finally {
@@ -514,7 +518,11 @@ void main() {
       request.headers.contentType = ContentType.json;
       request.write('x' * 4097);
       final response = await request.close();
-      expect(response.statusCode, 413);
+      expect(response.statusCode, HttpStatus.upgradeRequired);
+      expect(
+        jsonDecode(await response.transform(utf8.decoder).join())['status'],
+        'https_required',
+      );
       expect(invoked, isFalse);
       await response.drain<void>();
     } finally {
