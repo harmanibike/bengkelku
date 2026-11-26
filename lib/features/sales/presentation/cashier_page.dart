@@ -33,7 +33,26 @@ class _CashierPageState extends State<CashierPage> {
   bool _loading = true;
   bool _saving = false;
   int _heldCount = 0;
+  String _selectedCategory = 'Semua';
+  bool _cartExpanded = false;
   final TextEditingController _buyerNameForHold = TextEditingController();
+
+  List<String> get _categories {
+    final values = _products
+        .map((product) => product['category']?.toString().trim() ?? '')
+        .where((category) => category.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ['Semua', ...values];
+  }
+
+  List<Map<String, Object?>> get _visibleProducts {
+    if (_selectedCategory == 'Semua') return _products;
+    return _products
+        .where((product) => product['category']?.toString() == _selectedCategory)
+        .toList();
+  }
 
   int get _total => _cart.values.fold(0, (sum, item) =>
       sum + (item['unit_price'] as int) * (item['quantity'] as int));
@@ -150,6 +169,7 @@ class _CashierPageState extends State<CashierPage> {
       return;
     }
     setState(() {
+      _cartExpanded = true;
       final price = product['selling_price'] as int? ?? 0;
       _cart[id] = {
         'product_id': id,
@@ -195,6 +215,7 @@ class _CashierPageState extends State<CashierPage> {
       if (!mounted) return;
       setState(() {
         _cart.clear();
+        _cartExpanded = false;
         _buyerNameForHold.clear();
       });
       await _loadHeldCount();
@@ -255,6 +276,7 @@ class _CashierPageState extends State<CashierPage> {
                         }
                         setState(() {
                           _cart.clear();
+                          _cartExpanded = true;
                           for (final item in items) {
                             final id = (item['product_id'] as num).toInt();
                             _cart[id] = Map<String, Object?>.from(item);
@@ -512,6 +534,7 @@ class _CashierPageState extends State<CashierPage> {
       if (!mounted) return;
       setState(() {
         _cart.clear();
+        _cartExpanded = false;
         _buyerNameForHold.clear();
         _saving = false;
       });
@@ -545,39 +568,37 @@ class _CashierPageState extends State<CashierPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Card(
               margin: EdgeInsets.zero,
-              child: ListTile(
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.build_circle_outlined,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  ),
-                ),
-                title: const Text(
-                  'Pembayaran Servis',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text('Lihat tagihan servis yang belum lunas'),
-                trailing: const Icon(Icons.chevron_right),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
                 onTap: _saving ? null : _openServicePayments,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  child: Row(
+                    children: [
+                      Icon(Icons.build_circle_outlined, color: Theme.of(context).colorScheme.primary, size: 23),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('Pembayaran Servis', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                      Text('Tagihan belum lunas', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right, size: 20),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
             child: TextField(
               controller: _search,
               onChanged: (_) => _loadProducts(),
               decoration: InputDecoration(
-                hintText: 'Cari produk / SKU / barcode',
+                hintText: 'Cari nama, SKU, atau barcode',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -595,16 +616,41 @@ class _CashierPageState extends State<CashierPage> {
                   ],
                 ),
                 isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
               ),
             ),
           ),
+          if (_categories.length > 1)
+            SizedBox(
+              height: 42,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                scrollDirection: Axis.horizontal,
+                itemCount: _categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 7),
+                itemBuilder: (context, index) {
+                  final category = _categories[index];
+                  final selected = _selectedCategory == category;
+                  return ChoiceChip(
+                    label: Text(category, style: const TextStyle(fontSize: 12)),
+                    selected: selected,
+                    onSelected: (_) => setState(() => _selectedCategory = category),
+                    visualDensity: VisualDensity.compact,
+                    showCheckmark: false,
+                  );
+                },
+              ),
+            ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _products.isEmpty
                     ? const Center(child: Text('Belum ada produk aktif. Tambahkan produk terlebih dahulu.'))
-                    : LayoutBuilder(
+                    : _visibleProducts.isEmpty
+                        ? const Center(child: Text('Tidak ada produk pada kategori ini.'))
+                        : LayoutBuilder(
                         builder: (context, constraints) {
                           final width = constraints.maxWidth;
                           final columns = width >= 1100
@@ -617,15 +663,15 @@ class _CashierPageState extends State<CashierPage> {
                           final isCompact = width < 560;
                           return GridView.builder(
                             padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                            itemCount: _products.length,
+                            itemCount: _visibleProducts.length,
                             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: columns,
                               crossAxisSpacing: 8,
                               mainAxisSpacing: 8,
-                              childAspectRatio: isCompact ? 0.82 : 0.92,
+                              childAspectRatio: isCompact ? 0.76 : 0.92,
                             ),
                             itemBuilder: (context, index) {
-                              final product = _products[index];
+                              final product = _visibleProducts[index];
                               final tracked = (product['track_stock'] as int? ?? 1) == 1;
                               final stock = product['stock'] as int? ?? 0;
                               final unavailable = tracked && stock <= 0;
@@ -639,11 +685,12 @@ class _CashierPageState extends State<CashierPage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
-                                        Expanded(
+                                        SizedBox(
+                                          height: 88,
                                           child: AppPhotoPreview(
                                             path: product['image_path']?.toString(),
                                             width: double.infinity,
-                                            height: double.infinity,
+                                            height: 88,
                                             fit: BoxFit.cover,
                                             borderRadius: BorderRadius.circular(10),
                                             placeholderIcon: Icons.inventory_2_outlined,
@@ -703,15 +750,25 @@ class _CashierPageState extends State<CashierPage> {
           ),
           Container(
             decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black12)]),
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(children: [
-                  const Expanded(child: Text('Keranjang', style: TextStyle(fontWeight: FontWeight.bold))),
-                  Text('${_cart.length} produk'),
-                ]),
-                if (_cart.isNotEmpty) ...[
+                InkWell(
+                  onTap: () => setState(() => _cartExpanded = !_cartExpanded),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(children: [
+                      const Icon(Icons.shopping_basket_outlined, size: 19),
+                      const SizedBox(width: 8),
+                      const Expanded(child: Text('Keranjang', style: TextStyle(fontWeight: FontWeight.bold))),
+                      Text('${_cart.length} produk'),
+                      const SizedBox(width: 5),
+                      Icon(_cartExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up),
+                    ]),
+                  ),
+                ),
+                if (_cart.isNotEmpty && _cartExpanded) ...[
                   TextField(
                     controller: _buyerNameForHold,
                     decoration: const InputDecoration(
