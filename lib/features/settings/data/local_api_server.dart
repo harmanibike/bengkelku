@@ -35,6 +35,8 @@ class LocalApiServer {
   LocalApiBridgeHandler? _bridgeHandler;
   int _nextBridgeRequestId = 0;
 
+  bool _isSecure = false;
+
   bool get isRunning => _server != null;
   int? get port => _server?.port;
 
@@ -123,6 +125,7 @@ class LocalApiServer {
             shared: true,
           );
     _server = server;
+    _isSecure = securityContext != null;
     _bridgeHandler = bridgeHandler;
     unawaited(_handleRequests(server, serverName));
     return server.port;
@@ -284,6 +287,16 @@ class LocalApiServer {
         throw const FormatException('Invalid pairing fields.');
       }
 
+      // Pairing returns a bearer token, so it must never run over plaintext.
+      if (!_isSecure) {
+        request.response.statusCode = HttpStatus.upgradeRequired;
+        request.response.write(jsonEncode({
+          'app': 'bengkelku_pos',
+          'status': 'https_required',
+        }));
+        return;
+      }
+
       final result = await handler(LocalApiBridgeRequest(
         requestId: 'pair-' +
             DateTime.now().microsecondsSinceEpoch.toString() +
@@ -363,6 +376,7 @@ class LocalApiServer {
     }
     final server = _server;
     _server = null;
+    _isSecure = false;
     _bridgeHandler = null;
     await server?.close(force: true);
   }
