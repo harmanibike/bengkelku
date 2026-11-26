@@ -1903,6 +1903,27 @@ void main() {
       whereArgs: [secondReturn],
     )).single;
     expect(second['refund_received'], 0);
+
+    final cashbook = CashbookRepository();
+    var issues = await cashbook.getReconciliationIssues(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(issues.where((row) => row['reference_type'] == 'purchase_return_refund'), isEmpty);
+    await db.update(
+      'cash_transactions',
+      {'amount': 29000},
+      where: "reference_type = 'purchase_return_refund' AND reference_id = ?",
+      whereArgs: [firstReturn],
+    );
+    issues = await cashbook.getReconciliationIssues(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(
+      issues.where((row) => row['reference_type'] == 'purchase_return_refund'),
+      hasLength(1),
+    );
   });
 
 
