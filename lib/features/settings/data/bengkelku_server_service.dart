@@ -171,12 +171,12 @@ class BengkelKuServerService {
       await FlutterForegroundTask.stopService();
     }
 
-    _activeIdentity = identity;
-    _identitySent = false;
     final started = Completer<int>();
-    _startupCompleter = started;
-
-    final permission = await FlutterForegroundTask.checkNotificationPermission();
+    try {
+      _activeIdentity = identity;
+      _identitySent = false;
+      _startupCompleter = started;
+      final permission = await FlutterForegroundTask.checkNotificationPermission();
     if (permission != NotificationPermission.granted) {
       final requested =
           await FlutterForegroundTask.requestNotificationPermission();
@@ -187,7 +187,6 @@ class BengkelKuServerService {
       }
     }
 
-    try {
       await FlutterForegroundTask.startService(
         serviceId: _serviceId,
         notificationTitle: 'Bike POS Server aktif',
@@ -221,6 +220,7 @@ class BengkelKuServerService {
     if (!Platform.isAndroid) return;
     await FlutterForegroundTask.stopService();
     _activePort = null;
+    _activeIdentity = null;
   }
 
   /// Serializes start/stop requests so rapid taps cannot race service lifecycle.
@@ -349,6 +349,12 @@ class BengkelKuServerTaskHandler extends TaskHandler {
 
   @override
   Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
+    for (final completer in _pendingBridgeRequests.values) {
+      if (!completer.isCompleted) {
+        completer.completeError(StateError('Layanan Server dihentikan.'));
+      }
+    }
+    _pendingBridgeRequests.clear();
     await _server.stop();
   }
 }
