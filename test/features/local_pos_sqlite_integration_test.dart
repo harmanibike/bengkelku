@@ -255,6 +255,18 @@ void main() {
       end: DateTime(2100),
     );
     expect(clean, isEmpty);
+
+    // Audit juga harus menangkap bila total dibayar pada faktur berbeda
+    // dari jumlah seluruh riwayat pembayaran, walaupun buku kas cocok.
+    await db.update('purchases', {'paid': 49000},
+      where: 'id = ?', whereArgs: [purchaseId]);
+    final invoiceMismatch = await CashbookRepository().getSupplierPaymentMismatches(
+      start: DateTime(2000),
+      end: DateTime(2100),
+    );
+    expect(invoiceMismatch, hasLength(1));
+    expect(invoiceMismatch.single['stored_paid_difference'], -1000);
+    expect(invoiceMismatch.single['difference'], 0);
   });
 
   test('service cancellation refuses wallet refund when customer link is missing', () async {
