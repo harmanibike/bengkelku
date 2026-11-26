@@ -65,6 +65,33 @@ void main() {
     }
   });
 
+  test('rejects a Server presenting a different paired certificate', () async {
+    final pairedIdentity = await ServerTlsIdentityRepository(
+      store: _MemoryTlsStore(),
+    ).loadOrCreate();
+    final impostorIdentity = await ServerTlsIdentityRepository(
+      store: _MemoryTlsStore(),
+    ).loadOrCreate();
+    final impostorContext = SecurityContext(withTrustedRoots: false)
+      ..useCertificateChainBytes(utf8.encode(impostorIdentity.certificatePem))
+      ..usePrivateKeyBytes(utf8.encode(impostorIdentity.privateKeyPem));
+    final port = await server.startSecure(
+      securityContext: impostorContext,
+      port: 0,
+      serverName: 'Server dengan sertifikat berbeda',
+    );
+
+    await expectLater(
+      const PinnedLanTlsConnector().connect(
+        address: InternetAddress.loopbackIPv4.address,
+        port: port,
+        serverDnsName: pairedIdentity.dnsName,
+        certificatePem: pairedIdentity.certificatePem,
+      ),
+      throwsA(anyOf(isA<HandshakeException>(), isA<TlsException>())),
+    );
+  });
+
   test('starts health endpoint and reports server/client compatibility', () async {
     final port = await server.start(port: 0, serverName: 'HP Server Bengkel');
     expect(server.isRunning, isTrue);
