@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 42;
+  static const int currentVersion = 43;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -320,6 +320,7 @@ class AppDatabase {
         purchase_return_id INTEGER NOT NULL,
         purchase_item_id INTEGER NOT NULL,
         product_id INTEGER,
+        variant_id INTEGER,
         product_name TEXT NOT NULL,
         quantity INTEGER NOT NULL,
         stock_deducted INTEGER NOT NULL DEFAULT 0,
@@ -715,10 +716,12 @@ class AppDatabase {
         variance INTEGER,
         counted_at TEXT,
         FOREIGN KEY (session_id) REFERENCES stock_opname_sessions(id) ON DELETE RESTRICT,
-        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+        FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL
       )
     ''');
     batch.execute('CREATE INDEX idx_stock_opname_items_session ON stock_opname_items(session_id, product_name)');
+    batch.execute('CREATE INDEX idx_stock_opname_items_variant ON stock_opname_items(variant_id)');
 
     // Kas masuk dan keluar.
     batch.execute('''
@@ -991,6 +994,12 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+
+    // Stok opname kini mencakup varian produk tanpa mengubah sesi lama.
+    if (oldVersion < 43) {
+      await db.execute('ALTER TABLE stock_opname_items ADD COLUMN variant_id INTEGER REFERENCES product_variants(id) ON DELETE SET NULL');
+      await db.execute('CREATE INDEX idx_stock_opname_items_variant ON stock_opname_items(variant_id)');
+    }
 
     // Register inventaris peralatan bengkel; migrasi aditif dan tidak mengubah stok/transaksi.
     if (oldVersion < 42) {
