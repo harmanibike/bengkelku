@@ -1894,6 +1894,59 @@ void main() {
   });
 
 
+  test('cancelling purchase with rounded split cost batches matches stock movements', () async {
+    final db = await AppDatabase.instance.database;
+    final supplierId = await db.insert('suppliers', {'name': 'Pemasok Uji Batch Pembulatan'});
+    final productId = await db.insert('products', {
+      'name': 'Produk Batal HPP Pecahan',
+      'purchase_price': 0,
+      'stock': 0,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final purchases = PurchaseRepository();
+    final purchaseId = await purchases.createPurchase(
+      invoiceNumber: 'INV-BATAL-HPP-PECAHAN',
+      supplierId: supplierId,
+      shippingFee: 2,
+      items: [
+        {
+          'product_id': productId,
+          'product_name': 'Produk Batal HPP Pecahan',
+          'quantity': 3,
+          'unit_cost': 1000,
+          'discount': 0,
+        },
+      ],
+    );
+    final item = (await db.query(
+      'purchase_items',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    )).single;
+    await purchases.receivePurchaseItems(
+      purchaseId: purchaseId,
+      receivedQuantities: {item['id'] as int: 3},
+    );
+    final batches = await db.query(
+      'inventory_cost_batches',
+      where: 'purchase_id = ?',
+      whereArgs: [purchaseId],
+    );
+    expect(batches, hasLength(2));
+    expect(batches.fold<int>(0, (sum, row) =>
+        sum + (row['quantity_received'] as int) * (row['unit_cost'] as int)), 3002);
+
+    await purchases.cancelPurchase(
+      purchaseId: purchaseId,
+      reason: 'Uji pembatalan setelah alokasi pembulatan HPP',
+    );
+    final product = (await db.query('products', where: 'id = ?', whereArgs: [productId])).single;
+    final purchase = (await db.query('purchases', where: 'id = ?', whereArgs: [purchaseId])).single;
+    expect(product['stock'], 0);
+    expect(purchase['status'], 'cancelled');
+  });
+
   test('cancelling partially received purchase reverses only received stock', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Pemasok Batal Parsial'});
