@@ -388,7 +388,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
       final bicycles = await _customerRepository.getBicycles(
         customerId: customerId,
       );
-      if (!mounted) return;
+      if (!mounted || _selectedCustomerId != customerId) return;
       setState(() {
         _bicycles = bicycles;
         _selectedBicycleId = bicycleId;
