@@ -382,4 +382,95 @@ void main() {
       client.close(force: true);
     }
   });
+
+  test('pair endpoint sends bounded request metadata to the main-isolate bridge', () async {
+    LocalApiBridgeRequest? received;
+    final port = await server.start(
+      port: 0,
+      bridgeHandler: (request) async {
+        received = request;
+        return {
+          'status': 'paired',
+          'device_id': 7,
+          'device_name': 'HP Client',
+          'token': 'a' * 64,
+        };
+      },
+    );
+    final client = HttpClient();
+    try {
+      final request = await client.postUrl(
+        Uri(scheme: 'http', host: '127.0.0.1', port: port, path: '/api/v1/pair'),
+      );
+      request.headers.contentType = ContentType.json;
+      request.write(jsonEncode({
+        'code': '1234567890',
+        'device_name': 'HP Client',
+      }));
+      final response = await request.close();
+      final body = jsonDecode(await response.transform(utf8.decoder).join())
+          as Map<String, dynamic>;
+
+      expect(response.statusCode, HttpStatus.created);
+      expect(body['status'], 'paired');
+      expect(body['token'], 'a' * 64);
+      expect(received?.operation, 'pair_device');
+      expect(received?.remoteAddress, InternetAddress.loopbackIPv4.address);
+      expect(received?.payload['code'], '1234567890');
+      expect(received?.payload['device_name'], 'HP Client');
+    } finally {
+      client.close(force: true);
+    }
+  });
+
+  test('pair endpoint rejects non-JSON content without invoking the bridge', () async {
+    var invoked = false;
+    final port = await server.start(
+      port: 0,
+      bridgeHandler: (_) async {
+        invoked = true;
+        return {'status': 'paired'};
+      },
+    );
+    final client = HttpClient();
+    try {
+      final request = await client.postUrl(
+        Uri(scheme: 'http', host: '127.0.0.1', port: port, path: '/api/v1/pair'),
+      );
+      request.headers.contentType = ContentType.text;
+      request.write('code=1234567890');
+      final response = await request.close();
+      expect(response.statusCode, HttpStatus.unsupportedMediaType);
+      expect(invoked, isFalse);
+      await response.drain<void>();
+    } finally {
+      client.close(force: true);
+    }
+  });
+
+  test('pair endpoint rejects oversized bodies before invoking the bridge', () async {
+    var invoked = false;
+    final port = await server.start(
+      port: 0,
+      bridgeHandler: (_) async {
+        invoked = true;
+        return {'status': 'paired'};
+      },
+    );
+    final client = HttpClient();
+    try {
+      final request = await client.postUrl(
+        Uri(scheme: 'http', host: '127.0.0.1', port: port, path: '/api/v1/pair'),
+      );
+      request.headers.contentType = ContentType.json;
+      request.write('x' * 4097);
+      final response = await request.close();
+      expect(response.statusCode, HttpStatus.payloadTooLarge);
+      expect(invoked, isFalse);
+      await response.drain<void>();
+    } finally {
+      client.close(force: true);
+    }
+  });
+
 }
