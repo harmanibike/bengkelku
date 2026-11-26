@@ -57,6 +57,11 @@ class _CashierPageState extends State<CashierPage> {
   int get _total => _cart.values.fold(0, (sum, item) =>
       sum + (item['unit_price'] as int) * (item['quantity'] as int));
 
+  int get _cartQuantity => _cart.values.fold(
+        0,
+        (sum, item) => sum + (item['quantity'] as int),
+      );
+
   @override
   void initState() {
     super.initState();
@@ -169,7 +174,8 @@ class _CashierPageState extends State<CashierPage> {
       return;
     }
     setState(() {
-      _cartExpanded = true;
+      // Pertahankan katalog tetap lega; detail keranjang dibuka saat kasir
+      // mengetuk panel keranjang.
       final price = product['selling_price'] as int? ?? 0;
       _cart[id] = {
         'product_id': id,
@@ -762,7 +768,8 @@ class _CashierPageState extends State<CashierPage> {
                       const Icon(Icons.shopping_basket_outlined, size: 19),
                       const SizedBox(width: 8),
                       const Expanded(child: Text('Keranjang', style: TextStyle(fontWeight: FontWeight.bold))),
-                      Text('${_cart.length} produk'),
+                      Text('$_cartQuantity item • ${_rupiah(_total)}',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(width: 5),
                       Icon(_cartExpanded ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up),
                     ]),
