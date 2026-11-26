@@ -295,7 +295,7 @@ class PurchaseRepository {
         final previousCost = (item['received_cost_total'] as num?)?.toInt() ??
             previousReceived * ((item['allocated_unit_cost'] as num?)?.toInt() ?? 0);
         final orderedQuantity = (item['quantity'] as num?)?.toInt() ?? 1;
-        final cumulativeCost = (allocatedTotal * nextReceived / orderedQuantity).round();
+        final cumulativeCost = (allocatedTotal * nextReceived + orderedQuantity ~/ 2) ~/ orderedQuantity;
         final receiptCost = cumulativeCost - previousCost;
         final unitCost = receiptCost ~/ quantity;
         final higherCostUnits = receiptCost % quantity;
