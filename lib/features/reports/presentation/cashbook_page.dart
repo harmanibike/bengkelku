@@ -219,8 +219,8 @@ class _CashbookPageState extends State<CashbookPage> {
                     const SizedBox(height: 4),
                     Text(
                       supplierMismatches.isEmpty
-                        ? 'Riwayat pembayaran pemasok sesuai dengan kas keluar pada periode ini.'
-                        : 'Ada perbedaan antara riwayat pembayaran faktur dan kas keluar. Periksa sebelum melakukan koreksi.',
+                        ? 'Nilai dibayar pada faktur, riwayat pembayaran, dan kas keluar saling cocok.'
+                        : 'Ada perbedaan antara nilai dibayar pada faktur, riwayat pembayaran, atau kas keluar. Periksa sebelum melakukan koreksi.',
                       style: const TextStyle(fontSize: 11),
                     ),
                     if (supplierMismatches.isNotEmpty) ...[
