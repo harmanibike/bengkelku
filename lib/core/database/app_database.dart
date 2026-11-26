@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 43;
+  static const int currentVersion = 44;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -956,6 +956,30 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+
+    // Metadata pembelian online dan biaya perolehan barang. Migrasi aditif agar faktur lama tetap utuh.
+    if (oldVersion < 44) {
+      final purchaseColumns = await db.rawQuery('PRAGMA table_info(purchases)');
+      final names = purchaseColumns.map((column) => column['name']).toSet();
+      final additions = <String, String>{
+        'purchase_type': "TEXT NOT NULL DEFAULT 'direct'",
+        'marketplace': 'TEXT',
+        'order_number': 'TEXT',
+        'tracking_number': 'TEXT',
+        'shipping_fee': 'INTEGER NOT NULL DEFAULT 0',
+        'packing_fee': 'INTEGER NOT NULL DEFAULT 0',
+        'insurance_fee': 'INTEGER NOT NULL DEFAULT 0',
+        'marketplace_fee': 'INTEGER NOT NULL DEFAULT 0',
+        'transfer_fee': 'INTEGER NOT NULL DEFAULT 0',
+        'other_fee': 'INTEGER NOT NULL DEFAULT 0',
+      };
+      for (final entry in additions.entries) {
+        if (!names.contains(entry.key)) {
+          await db.execute('ALTER TABLE purchases ADD COLUMN ${entry.key} ${entry.value}');
+        }
+      }
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_purchases_order_number ON purchases(order_number)');
+    }
 
     // Stok opname kini mencakup varian produk tanpa mengubah sesi lama.
     if (oldVersion < 43) {
