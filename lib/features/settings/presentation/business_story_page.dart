@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -31,6 +32,7 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
   String _businessName = 'Bengkel & Toko Sepeda';
   String _businessAddress = '';
   String _businessContact = '';
+  String? _announcementLogoPath;
   bool _sharing = false;
   bool _saving = false;
 
@@ -39,6 +41,66 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
     super.initState();
     _dateController.text = _formatDate(DateTime.now());
     _loadBusinessName();
+    _loadAnnouncementLogo();
+  }
+
+  Future<File> _customLogoFile() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/business_story_custom_logo');
+  }
+
+  Future<void> _loadAnnouncementLogo() async {
+    try {
+      final file = await _customLogoFile();
+      if (await file.exists() && mounted) {
+        setState(() => _announcementLogoPath = file.path);
+      }
+    } catch (_) {
+      // Logo bawaan tetap digunakan bila file khusus belum tersedia.
+    }
+  }
+
+  Future<void> _pickAnnouncementLogo() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 92,
+      );
+      if (picked == null || !mounted) return;
+      final target = await _customLogoFile();
+      await File(picked.path).copy(target.path);
+      if (mounted) {
+        setState(() => _announcementLogoPath = target.path);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logo pengumuman berhasil diperbarui.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memilih logo: $error')),
+        );
+      }
+    }
+  }
+
+  Future<void> _resetAnnouncementLogo() async {
+    try {
+      final file = await _customLogoFile();
+      if (await file.exists()) await file.delete();
+      if (mounted) {
+        setState(() => _announcementLogoPath = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logo bawaan pengumuman digunakan kembali.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengembalikan logo bawaan: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _loadBusinessName() async {
@@ -308,20 +370,36 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white.withValues(alpha: 0.55), width: 1.5),
                 ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(_announcementIcon, color: Colors.white, size: 34),
-                    Positioned(
-                      right: 8,
-                      bottom: 7,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: Icon(Icons.pedal_bike_rounded, color: colors.first, size: 15),
-                      ),
-                    ),
-                  ],
+                child: ClipOval(
+                  child: _announcementLogoPath != null &&
+                          File(_announcementLogoPath!).existsSync()
+                      ? Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Image.file(
+                            File(_announcementLogoPath!),
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => Icon(
+                              _announcementIcon,
+                              color: Colors.white,
+                              size: 34,
+                            ),
+                          ),
+                        )
+                      : Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Icon(_announcementIcon, color: Colors.white, size: 34),
+                            Positioned(
+                              right: 8,
+                              bottom: 7,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                child: Icon(Icons.pedal_bike_rounded, color: colors.first, size: 15),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
               const Spacer(),
@@ -449,6 +527,47 @@ class _BusinessStoryPageState extends State<BusinessStoryPage> {
               DropdownMenuItem(value: 'gelap', child: Text('Abu-abu modern')),
             ],
             onChanged: (value) { if (value != null) setState(() => _template = value); },
+          ),
+          const SizedBox(height: 12),
+          const Text('Logo Pengumuman', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: ClipOval(
+                  child: _announcementLogoPath != null &&
+                          File(_announcementLogoPath!).existsSync()
+                      ? Image.file(File(_announcementLogoPath!), fit: BoxFit.contain)
+                      : Icon(_announcementIcon, size: 30, color: Colors.blueGrey),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _pickAnnouncementLogo,
+                      icon: const Icon(Icons.photo_library_outlined),
+                      label: const Text('Pilih dari Galeri'),
+                    ),
+                    TextButton.icon(
+                      onPressed: _announcementLogoPath == null ? null : _resetAnnouncementLogo,
+                      icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                      label: const Text('Gunakan Logo Bawaan'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           TextField(
