@@ -185,6 +185,214 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     }
   }
 
+  Future<void> _createCustomerFromSearch() async {
+    final nameController = TextEditingController(
+      text: _customerSearchController.text.trim(),
+    );
+    final phoneController = TextEditingController();
+    final details = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Tambah Pelanggan'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Nama pelanggan *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Nomor HP (opsional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(dialogContext, {
+                'name': name,
+                'phone': phoneController.text.trim(),
+              });
+            },
+            child: const Text('Simpan Pelanggan'),
+          ),
+        ],
+      ),
+    );
+    nameController.dispose();
+    phoneController.dispose();
+    if (details == null) return;
+
+    try {
+      final customerId = await _customerRepository.addCustomer(
+        name: details['name']!,
+        phone: details['phone'],
+      );
+      if (!mounted) return;
+      _customerSearchController.text = details['name']!;
+      _selectCustomer({
+        'id': customerId,
+        'name': details['name'],
+        'phone': details['phone'],
+      });
+      _showMessage('Pelanggan berhasil ditambahkan. Periksa data sepedanya.');
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage('Gagal menambahkan pelanggan: $error');
+    }
+  }
+
+  Future<void> _addBicycleForSelectedCustomer() async {
+    final customerId = _selectedCustomerId;
+    if (customerId == null) return;
+
+    final brandController = TextEditingController();
+    final modelController = TextEditingController();
+    final colorController = TextEditingController();
+    final serialController = TextEditingController();
+    String selectedType = 'Standar';
+
+    final details = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Tambah Sepeda Pelanggan'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Pelanggan: ${_customerSearchController.text}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: brandController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Merek sepeda *',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: modelController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Model sepeda (opsional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Jenis sepeda',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _bicycleTypes.map((type) =>
+                      DropdownMenuItem(value: type, child: Text(type)),
+                    ).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setDialogState(() => selectedType = value);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: colorController,
+                    decoration: const InputDecoration(
+                      labelText: 'Warna (opsional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: serialController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nomor rangka (opsional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (brandController.text.trim().isEmpty) return;
+                Navigator.pop(dialogContext, {
+                  'brand': brandController.text.trim(),
+                  'model': modelController.text.trim(),
+                  'type': selectedType,
+                  'color': colorController.text.trim(),
+                  'serial': serialController.text.trim(),
+                });
+              },
+              child: const Text('Simpan Sepeda'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    brandController.dispose();
+    modelController.dispose();
+    colorController.dispose();
+    serialController.dispose();
+    if (details == null) return;
+
+    try {
+      final bicycleId = await _customerRepository.addBicycle(
+        customerId: customerId,
+        brand: details['brand'],
+        model: details['model'],
+        bicycleType: details['type'],
+        color: details['color'],
+        serialNumber: details['serial'],
+        ownershipStatus: 'customer_owned',
+      );
+      final bicycles = await _customerRepository.getBicycles(
+        customerId: customerId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _bicycles = bicycles;
+        _selectedBicycleId = bicycleId;
+      });
+      _showMessage('Sepeda berhasil ditambahkan dan dipilih untuk servis.');
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage('Gagal menambahkan sepeda: $error');
+    }
+  }
+
 
 
   Future<void> _searchParts(String keyword) async {
@@ -832,10 +1040,23 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         )
                       else if (_customerSearchController.text.trim().isNotEmpty &&
                           _selectedCustomerId == null && !_searchingCustomers)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text('Pelanggan tidak ditemukan. Pilih mode Pelanggan Umum untuk pelanggan tanpa data terdaftar.',
-                            style: TextStyle(color: Colors.deepOrange)),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Pelanggan tidak ditemukan.',
+                                style: TextStyle(color: Colors.deepOrange),
+                              ),
+                              const SizedBox(height: 6),
+                              OutlinedButton.icon(
+                                onPressed: _createCustomerFromSearch,
+                                icon: const Icon(Icons.person_add_alt_1),
+                                label: const Text('Tambahkan sebagai Pelanggan'),
+                              ),
+                            ],
+                          ),
                         ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
@@ -863,12 +1084,22 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                             value == null ? 'Pilih sepeda' : null,
                       ),
                       if (_selectedCustomerId != null && _bicycles.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            'Pelanggan ini belum memiliki data sepeda. '
-                            'Tambahkan sepeda melalui menu Sepeda.',
-                            style: TextStyle(color: Colors.deepOrange),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Pelanggan ini belum memiliki data sepeda.',
+                                style: TextStyle(color: Colors.deepOrange),
+                              ),
+                              const SizedBox(height: 6),
+                              OutlinedButton.icon(
+                                onPressed: _addBicycleForSelectedCustomer,
+                                icon: const Icon(Icons.pedal_bike),
+                                label: const Text('Tambahkan Sepeda'),
+                              ),
+                            ],
                           ),
                         ),
                       ],
