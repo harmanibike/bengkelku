@@ -98,9 +98,6 @@ class PurchaseRepository {
     final db = await _db;
     return db.transaction((txn) async {
       final supplier = await txn.query('suppliers', columns: ['id', 'name'], where: 'id = ?', whereArgs: [supplierId], limit: 1);
-      final settingRows = await txn.query('app_settings', columns: ['setting_value'], where: 'setting_key = ?', whereArgs: ['purchase_cost_method'], limit: 1);
-      final configuredMethod = settingRows.isEmpty ? 'weighted_average' : settingRows.first['setting_value']?.toString();
-      final costMethod = const ['weighted_average', 'last_cost', 'manual', 'per_batch'].contains(configuredMethod) ? configuredMethod! : 'weighted_average';
       if (supplier.isEmpty) throw StateError('Pemasok tidak ditemukan.');
       final lineCosts = _allocatePurchaseLineCosts(
         normalized.map((item) => item['subtotal'] as int).toList(),
