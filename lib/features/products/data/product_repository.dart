@@ -182,6 +182,24 @@ class ProductRepository {
     AuthSession.instance.requireAdmin('Pengelolaan stok dan produk hanya dapat diakses Admin.');
     final db = await _db;
     return db.transaction((txn) async {
+      final existing = await txn.query(
+        'products',
+        columns: ['stock', 'track_stock', 'name'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (existing.isEmpty) throw StateError('Produk tidak ditemukan.');
+      final currentStock = existing.first['stock'] as int? ?? 0;
+      if (!trackStock && currentStock > 0) {
+        throw StateError(
+          'Stok produk masih $currentStock. Kosongkan stok melalui penyesuaian stok sebelum menonaktifkan pemantauan stok.',
+        );
+      }
+      if (name.trim().isEmpty) throw ArgumentError('Nama produk wajib diisi.');
+      if ([purchasePrice, sellingPrice, wholesalePrice, minimumStock].any((value) => value < 0)) {
+        throw ArgumentError('Harga dan batas stok tidak boleh negatif.');
+      }
       final updated = await txn.update('products', {
         'sku': _nullable(sku),
         'barcode': _nullable(barcode),
@@ -375,6 +393,12 @@ class ProductRepository {
     return db.transaction((txn) async {
       final rows = await txn.query('product_variants', where: 'id = ? AND is_active = 1', whereArgs: [id], limit: 1);
       if (rows.isEmpty) throw StateError('Varian tidak ditemukan atau sudah nonaktif.');
+      final currentStock = rows.first['stock'] as int? ?? 0;
+      if (!trackStock && currentStock > 0) {
+        throw StateError(
+          'Stok varian masih $currentStock. Kosongkan stok melalui penyesuaian stok sebelum menonaktifkan pemantauan stok.',
+        );
+      }
       await _ensureVariantIdentifiersAvailable(
         txn,
         sku: _nullable(sku),
