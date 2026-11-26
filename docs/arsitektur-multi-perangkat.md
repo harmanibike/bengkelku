@@ -271,3 +271,65 @@ Dokumentasi Dart menyatakan `connectionFactory` menerima URL yang diminta dan me
 - Uji perubahan IP DHCP tanpa mengganti identitas sertifikat.
 - Uji pembuatan, penyimpanan, pemuatan ulang, dan penghapusan private key pada Android API 23/24 sesuai baseline perangkat.
 - Baru setelah PoC lulus, dependensi boleh dipertimbangkan untuk aplikasi utama. Tidak ada perubahan pada `pubspec.yaml` atau listener produksi pada tahap evaluasi ini.
+
+## Audit akses database lintas-isolate — 26 November 2026
+
+Pemeriksaan kode aktual memperjelas bahwa **jembatan pesan ke isolate utama adalah opsi migrasi paling kecil**, tetapi belum boleh langsung dipakai untuk endpoint bisnis.
+
+### Kondisi yang ditemukan
+
+- main() membuka AppDatabase.instance.database pada isolate utama.
+- AuthSession.instance juga merupakan singleton lokal isolate utama dan menyimpan akun yang sedang login.
+- BengkelKuServerTaskHandler menjalankan listener HTTPS pada isolate task foreground yang terpisah.
+- LocalApiServer hanya memiliki endpoint health-check; handler request belum memiliki dispatcher database.
+- Callback FlutterForegroundTask.addTaskDataCallback di BengkelKuServerService.startServer() saat ini hanya dipasang selama proses handshake awal Server, lalu dilepas setelah listener menyatakan aktif.
+- DevicePairingRepository langsung memakai AppDatabase.instance dan beberapa operasi administratif memakai AuthSession.instance. Memanggil repository ini dari task isolate tidak akan memakai singleton atau sesi yang sama dengan UI.
+
+Kesimpulan: **jangan memanggil DevicePairingRepository, AppDatabase, atau AuthSession langsung dari LocalApiServer/task isolate.** Status Server aktif saat ini hanya membuktikan listener HTTPS hidup, bukan bahwa database dapat diakses dengan benar.
+
+### Rancangan jembatan yang akan diprototipekan
+
+Untuk menghindari pembukaan koneksi SQLite kedua dan perubahan besar pada seluruh repository lokal, kandidat pertama adalah pemilik database tetap isolate utama:
+
+1. Isolate task menerima request HTTPS, memvalidasi batas ukuran dan bentuk request, lalu mengirim pesan terstruktur ke isolate utama.
+2. Isolate utama menjadi satu-satunya pihak yang memanggil repository, database, dan pemeriksaan otorisasi.
+3. Balasan dikirim kembali ke task isolate dengan request_id yang sama. Task isolate hanya mengembalikan respons HTTP setelah menerima balasan yang cocok.
+4. Setiap request memiliki batas waktu. Jika isolate utama tidak merespons, API mengembalikan kegagalan sementara; tidak ada operasi tulis yang dianggap berhasil.
+5. Pesan hanya boleh berisi nama operasi dari allowlist dan data terstruktur. Tidak boleh ada SQL mentah, nama tabel bebas, atau pemanggilan method arbitrer dari jaringan.
+6. Operasi tulis wajib memakai ID idempotensi yang diverifikasi dan disimpan atomik di database agar retry setelah Wi-Fi terputus tidak menggandakan transaksi.
+7. Token perangkat diverifikasi dan status pencabutan diperiksa di isolate pemilik database pada setiap request terlindungi. Jangan mempercayai device_id atau role yang dikirim Client.
+8. Otorisasi akun Admin/Kasir/Mekanik dilakukan terpisah dari pairing perangkat. Pairing hanya mengenali perangkat, bukan memberi hak akses akun.
+
+### Kontrak pesan PoC
+
+Envelope request minimum:
+- protocol_version
+- request_id acak
+- operation dari allowlist
+- device_token untuk autentikasi perangkat (tidak dicatat ke log)
+- payload objek JSON dengan skema khusus operasi
+
+Envelope response minimum:
+- protocol_version
+- request_id
+- ok
+- result atau kode error yang aman ditampilkan
+
+Batas PoC yang harus ditentukan dan diuji:
+- batas ukuran body dan payload sebelum decoding penuh;
+- jumlah request bersamaan dan antrean maksimum;
+- timeout request database dan perilaku saat callback isolate utama belum terpasang;
+- penolakan request ID duplikat atau respons terlambat;
+- pembersihan Completer ketika Client memutus koneksi;
+- pembatalan operasi yang belum dimulai, tanpa menganggap transaksi SQLite yang sudah commit dapat dibatalkan;
+- lifecycle saat aplikasi masuk background, logout, task service dihentikan, atau proses aplikasi dibuat ulang.
+
+### Urutan implementasi yang disetujui secara teknis
+
+1. Buat komponen bridge generik tanpa endpoint bisnis dan uji request/response, timeout, duplikasi ID, dan batas antrean.
+2. Buktikan bridge tetap bekerja saat UI berada di background pada Android sasaran; jika tidak, Server harus berhenti atau arsitektur database worker khusus harus dievaluasi.
+3. Tambahkan satu operasi baca non-sensitif sebagai PoC setelah autentikasi perangkat dan otorisasi benar-benar terhubung.
+4. Tambahkan pairing jaringan setelah rate limit percobaan gagal dipanggil secara nyata dan diuji terhadap percobaan paralel.
+5. Baru rancang operasi tulis transaksi dengan idempotensi dan transaksi database atomik.
+
+**Status:** ini keputusan arah prototipe, bukan implementasi jembatan yang sudah tersedia. Sampai seluruh langkah dan tes di atas lulus, listener tetap hanya menyediakan health-check dan Mode Client tetap nonaktif.
