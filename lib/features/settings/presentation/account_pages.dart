@@ -62,7 +62,7 @@ class _AuthGateState extends State<AuthGate> {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       if (accountsSnapshot.hasError) {
-        return Scaffold(body: Center(child: Text('Gagal memeriksa akun: \${accountsSnapshot.error}')));
+        return Scaffold(body: Center(child: Text('Gagal memeriksa akun: ${accountsSnapshot.error}')));
       }
       if (accountsSnapshot.data != true) return const FirstAdminPage();
       return FutureBuilder<Map<String, Object?>?>(
