@@ -4,8 +4,16 @@ import 'dart:io';
 
 /// API jaringan lokal tahap awal. Hanya health-check dan metadata Server;
 /// belum menyediakan akses transaksi atau database untuk perangkat Client.
+class LocalApiBridgeRequest {
+  const LocalApiBridgeRequest({required this.requestId, required this.operation, required this.remoteAddress, this.payload = const <String, Object?>{}});
+  final String requestId;
+  final String operation;
+  final String remoteAddress;
+  final Map<String, Object?> payload;
+}
+
 typedef LocalApiBridgeHandler = Future<Map<String, dynamic>> Function(
-  String operation,
+  LocalApiBridgeRequest request,
 );
 
 class LocalApiServer {
@@ -25,6 +33,7 @@ class LocalApiServer {
   Future<int>? _startFuture;
   Future<void>? _stopFuture;
   LocalApiBridgeHandler? _bridgeHandler;
+  int _nextBridgeRequestId = 0;
 
   bool get isRunning => _server != null;
   int? get port => _server?.port;
@@ -156,7 +165,12 @@ class LocalApiServer {
               try {
                 // This allowlisted, read-only operation is executed by the
                 // main isolate through the foreground-task message bridge.
-                final data = await handler('server_info');
+                final bridgeRequest = LocalApiBridgeRequest(
+                  requestId: 'api-' + DateTime.now().microsecondsSinceEpoch.toString() + '-' + (_nextBridgeRequestId++).toString(),
+                  operation: 'server_info',
+                  remoteAddress: request.connectionInfo?.remoteAddress.address ?? 'unknown',
+                );
+                final data = await handler(bridgeRequest);
                 final payload = jsonEncode({
                   'app': 'bengkelku_pos',
                   'status': 'ok',
