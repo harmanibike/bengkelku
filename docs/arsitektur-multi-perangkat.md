@@ -63,7 +63,7 @@ Semua mode memakai kode aplikasi, layar, modul, dan sistem akun yang sama.
 - Mode Lokal/Server/Client dan penyimpanan pilihan mode.
 - Pengelola lifecycle server yang terpisah dari AuthSession.
 - Layanan server Android dengan notifikasi foreground yang jelas. Implementasi awal memakai layanan foreground bertipe connectedDevice; layanan hanya dimulai atas tindakan Admin dan tidak auto-start saat boot.
-- Listener health-check berjalan pada isolate layanan. Isolate ini belum membuka SQLite dan belum menerima transaksi bisnis.
+- Listener health-check dan metadata server berjalan pada isolate layanan. Permintaan metadata diteruskan sebagai objek bridge terstruktur (ID permintaan, operasi allowlist, alamat sumber, payload kosong) ke isolate utama; isolate layanan tidak membuka SQLite dan belum menerima transaksi bisnis.
 - Status server, alamat LAN, dan kontrol mulai/berhenti.
 - Mode Lokal dan database lama tetap tidak berubah.
 
@@ -334,3 +334,11 @@ Batas PoC yang harus ditentukan dan diuji:
 5. Baru rancang operasi tulis transaksi dengan idempotensi dan transaksi database atomik.
 
 **Status per 26 November 2026:** prototipe bridge terbatas untuk metadata `server_info` sudah ada dan tes CI untuk endpoint, kegagalan saat bridge tidak tersedia, serta penolakan sertifikat berbeda telah lulus. Ini belum merupakan bridge database generik dan belum membuka pairing jaringan. Listener hanya menyediakan health-check dan metadata read-only; Mode Client tetap nonaktif sampai autentikasi perangkat, pairing jaringan, pemulihan koneksi, uji background Android, serta pembatasan akses data dibuktikan.
+
+
+## Catatan implementasi bridge terstruktur — 26 November 2026
+
+- Listener HTTPS meneruskan metadata ke isolate utama melalui objek LocalApiBridgeRequest yang memuat ID permintaan internal, operasi allowlist server_info, alamat IP sumber, dan payload kosong.
+- Isolate utama tetap menjadi satu-satunya pemilik jalur repository/database untuk pekerjaan berikutnya. Task isolate tidak membuka SQLite.
+- Operasi selain server_info dan payload non-kosong tetap ditolak pada bridge.
+- Perubahan ini hanya menyiapkan bentuk pesan yang dapat diaudit; belum mengaktifkan pairing, autentikasi perangkat, endpoint bisnis, atau Mode Client.
