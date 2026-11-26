@@ -1038,7 +1038,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                             },
                           ),
                         )
-                      else if (_customerSearchController.text.trim().isNotEmpty &&
+                      if (_customerSearchController.text.trim().isNotEmpty &&
                           _selectedCustomerId == null && !_searchingCustomers)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
@@ -1046,7 +1046,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Pelanggan tidak ditemukan.',
+                                'Jika nama yang dicari belum ada dalam daftar, Anda dapat menambahkannya.',
                                 style: TextStyle(color: Colors.deepOrange),
                               ),
                               const SizedBox(height: 6),
