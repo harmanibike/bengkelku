@@ -88,6 +88,24 @@ void main() {
     expect(result.message, contains('TLS'));
   });
 
+
+  test('rejects a paired certificate when the trusted DNS identity differs',
+      () async {
+    final serverIdentity = await createIdentity();
+    final otherIdentity = await createIdentity();
+    final port = await startSecureServer(serverIdentity);
+
+    final result = await service.checkSecureServer(
+      host: InternetAddress.loopbackIPv4.address,
+      port: port,
+      serverDnsName: otherIdentity.dnsName,
+      certificatePem: serverIdentity.certificatePem,
+    );
+
+    expect(result.isApiReady, isFalse);
+    expect(result.message, contains('TLS'));
+  });
+
   test('does not fall back to plaintext HTTP when TLS is requested', () async {
     final identity = await createIdentity();
     final port = await server.start(port: 0);
