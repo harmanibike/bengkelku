@@ -162,9 +162,13 @@ class PurchaseReturnRepository {
     required int returnId,
     required int creditApplied,
     required int refundReceived,
+    String refundPaymentMethod = 'cash',
   }) async {
     AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
 
+    if (!['cash', 'bank_transfer'].contains(refundPaymentMethod)) {
+      throw ArgumentError('Metode penerimaan refund tidak valid.');
+    }
     if (creditApplied < 0 || refundReceived < 0) {
       throw ArgumentError('Nilai penyelesaian tidak boleh negatif.');
     }
@@ -245,6 +249,7 @@ class PurchaseReturnRepository {
           'amount': refundReceived,
           'reference_type': 'purchase_return_refund',
           'reference_id': returnId,
+          'payment_method': refundPaymentMethod,
           'transaction_date': now,
         });
       }
