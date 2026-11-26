@@ -293,7 +293,6 @@ class PurchaseReturnRepository {
         if (item['variant_id'] != null) {
           throw StateError('Retur pembelian untuk varian belum tersedia. Stok varian tidak diubah agar pencatatan tetap akurat.');
         }
-        final purchased = item['quantity'] as int? ?? 0;
         final received = (item['quantity_received'] as num?)?.toInt() ?? 0;
         final returnedRows = await txn.rawQuery('''
           SELECT COALESCE(SUM(pri.quantity), 0) AS total
