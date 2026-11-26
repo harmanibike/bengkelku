@@ -119,7 +119,11 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const CashbookPage()));
   }
 
-  void _openExpenses() {\n    Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesPage()));\n  }\n\n  void _openSaldoToko() {
+  void _openExpenses() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesPage()));
+  }
+
+  void _openSaldoToko() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const SaldoTokoPage()));
   }
 
