@@ -126,6 +126,9 @@ class LocalApiServer {
           request.response.headers.contentType = ContentType.json;
           request.response.headers.set(HttpHeaders.cacheControlHeader, 'no-store');
           request.response.headers.set('X-Content-Type-Options', 'nosniff');
+          // Tutup respons setelah satu permintaan agar klien LAN dan pengujian
+          // tidak menunggu koneksi keep-alive yang tidak diperlukan.
+          request.response.persistentConnection = false;
 
           if (request.method == 'GET' && request.uri.path == '/api/v1/health') {
             request.response.statusCode = HttpStatus.ok;
