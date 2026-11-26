@@ -297,6 +297,21 @@ class CashbookRepository {
     ''', [from, until, from, until, from, until, from, until, from, until, from, until]);
   }
 
+
+  Future<List<Map<String, Object?>>> getManualExpenses({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    AuthSession.instance.requireAdmin('Menu pengeluaran hanya dapat diakses Admin.');
+    final db = await _db;
+    return db.query(
+      'cash_transactions',
+      where: "reference_type = 'manual_cash' AND transaction_type = 'expense' AND datetime(transaction_date) >= datetime(?) AND datetime(transaction_date) < datetime(?)",
+      whereArgs: [start.toIso8601String(), end.toIso8601String()],
+      orderBy: 'datetime(transaction_date) DESC, id DESC',
+    );
+  }
+
   Future<int> addManualTransaction({
     required String type,
     required String category,
@@ -310,7 +325,7 @@ class CashbookRepository {
     if (!['income', 'expense'].contains(type)) {
       throw ArgumentError('Jenis transaksi tidak valid.');
     }
-    final cleanCategory = category.trim();
+    if (!['cash', 'bank_transfer'].contains(paymentMethod)) {\n      throw ArgumentError('Metode pengeluaran harus Tunai atau Transfer Bank.');\n    }\n    final cleanCategory = category.trim();
     final cleanDescription = description.trim();
     if (cleanCategory.isEmpty || cleanDescription.isEmpty || amount <= 0) {
       throw ArgumentError('Kategori, keterangan, dan nominal wajib diisi dengan benar.');
