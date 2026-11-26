@@ -313,7 +313,7 @@ class PurchaseRepository {
         if (costMethod == 'weighted_average') {
           nextPurchasePrice = after <= 0 ? unitCost : ((existingStockValue + receiptCost) / after).round();
         } else if (costMethod == 'last_cost') {
-          nextPurchasePrice = unitCost;
+          nextPurchasePrice = (receiptCost + quantity ~/ 2) ~/ quantity;
         }
         await txn.update(table, {
           'stock': after,
