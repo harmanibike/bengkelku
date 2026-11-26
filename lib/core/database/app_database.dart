@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 44;
+  static const int currentVersion = 45;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -267,6 +267,7 @@ class AppDatabase {
         marketplace_fee INTEGER NOT NULL DEFAULT 0,
         transfer_fee INTEGER NOT NULL DEFAULT 0,
         other_fee INTEGER NOT NULL DEFAULT 0,
+        receiving_status TEXT NOT NULL DEFAULT 'pending',
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
       )
@@ -283,6 +284,8 @@ class AppDatabase {
         unit_cost INTEGER NOT NULL DEFAULT 0,
         discount INTEGER NOT NULL DEFAULT 0,
         subtotal INTEGER NOT NULL DEFAULT 0,
+        quantity_received INTEGER NOT NULL DEFAULT 0,
+        allocated_unit_cost INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
       )
@@ -995,6 +998,47 @@ class AppDatabase {
           }
         }
         await db.execute('CREATE INDEX IF NOT EXISTS idx_purchases_order_number ON purchases(order_number)');
+      }
+    }
+
+    // Penerimaan barang dipisahkan dari pembuatan faktur. Faktur lama dianggap
+    // sudah diterima karena versi sebelumnya langsung menambah stok saat dibuat.
+    if (oldVersion < 45) {
+      final purchaseTable = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'purchases' LIMIT 1",
+      );
+      if (purchaseTable.isNotEmpty) {
+        final purchaseColumns = await db.rawQuery('PRAGMA table_info(purchases)');
+        final purchaseNames = purchaseColumns.map((column) => column['name']).toSet();
+        if (!purchaseNames.contains('receiving_status')) {
+          await db.execute("ALTER TABLE purchases ADD COLUMN receiving_status TEXT NOT NULL DEFAULT 'received'");
+        }
+        final itemTable = await db.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'purchase_items' LIMIT 1",
+        );
+        if (itemTable.isNotEmpty) {
+          final itemColumns = await db.rawQuery('PRAGMA table_info(purchase_items)');
+          final itemNames = itemColumns.map((column) => column['name']).toSet();
+          if (!itemNames.contains('quantity_received')) {
+            await db.execute('ALTER TABLE purchase_items ADD COLUMN quantity_received INTEGER NOT NULL DEFAULT 0');
+            await db.execute('UPDATE purchase_items SET quantity_received = quantity');
+          }
+          if (!itemNames.contains('allocated_unit_cost')) {
+            await db.execute('ALTER TABLE purchase_items ADD COLUMN allocated_unit_cost INTEGER NOT NULL DEFAULT 0');
+            await db.execute('UPDATE purchase_items SET allocated_unit_cost = unit_cost');
+          }
+          await db.execute("""
+            UPDATE purchases
+            SET receiving_status = CASE
+              WHEN EXISTS (
+                SELECT 1 FROM purchase_items pi
+                WHERE pi.purchase_id = purchases.id AND pi.quantity_received < pi.quantity
+              ) THEN 'partial'
+              ELSE 'received'
+            END
+            WHERE receiving_status = 'received' OR receiving_status IS NULL
+          """);
+        }
       }
     }
 
