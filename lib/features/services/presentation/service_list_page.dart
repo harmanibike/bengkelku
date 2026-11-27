@@ -891,9 +891,6 @@ class _ServiceListPageState extends State<ServiceListPage> {
   Future<void> _reviewPartChange(int serviceId, Map<String, Object?> request) async {
     final isAdd = request['request_type'] == 'add';
     final catalogPrice = (request['unit_price'] as num?)?.toInt() ?? 0;
-    final priceController = TextEditingController(
-      text: isAdd ? _formatCurrencyInput(catalogPrice) : '',
-    );
     final noteController = TextEditingController();
     bool customerApproved = false;
     final result = await showDialog<Map<String, Object?>>(
@@ -905,12 +902,22 @@ class _ServiceListPageState extends State<ServiceListPage> {
             Text('${request['item_name']} • Qty ${request['quantity']}\nCatatan mekanik: ${request['mechanic_note'] ?? '-'}'),
             if (isAdd) ...[
               const SizedBox(height: 8),
-              TextField(controller: priceController, keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Harga jual per unit (Rp)',
-                  helperText: 'Otomatis dari katalog: ${_rupiah(catalogPrice)}. Bisa disesuaikan.',
-                  border: const OutlineInputBorder(),
-                )),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(dialogContext).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Harga katalog (otomatis)', style: TextStyle(fontSize: 12)),
+                    Text(_rupiah(catalogPrice), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text('Subtotal: ${_rupiah(catalogPrice * ((request['quantity'] as num?)?.toInt() ?? 0))}'),
+                  ],
+                ),
+              ),
             ],
             CheckboxListTile(contentPadding: EdgeInsets.zero, value: customerApproved,
               onChanged: (v) => setDialogState(() => customerApproved = v ?? false),
@@ -923,8 +930,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
             TextButton(onPressed: () => Navigator.pop(dialogContext, {'approve': false}), child: const Text('Tolak')),
             FilledButton(
               onPressed: customerApproved ? () => Navigator.pop(dialogContext, {
-                'approve': true, 'customer_approved': true,
-                'price': _parseCurrencyInput(priceController.text), 'note': noteController.text.trim(),
+                'approve': true, 'customer_approved': true, 'note': noteController.text.trim(),
               }) : null,
               child: const Text('Setujui & terapkan'),
             ),
@@ -932,7 +938,6 @@ class _ServiceListPageState extends State<ServiceListPage> {
         ),
       ),
     );
-    priceController.dispose();
     noteController.dispose();
     if (result == null) return;
     try {
@@ -940,7 +945,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
         requestId: request['id'] as int,
         approve: result['approve'] == true,
         customerApproved: result['customer_approved'] == true,
-        approvedUnitPrice: isAdd && result['approve'] == true ? result['price'] as int? : null,
+        approvedUnitPrice: isAdd && result['approve'] == true ? catalogPrice : null,
         customerApprovalNote: result['note']?.toString(),
       );
       if (!mounted) return;
