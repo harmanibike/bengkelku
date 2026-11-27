@@ -2469,4 +2469,65 @@ void main() {
     final versionRows = await upgradedDb.rawQuery('PRAGMA user_version');
     expect(versionRows.single['user_version'], AppDatabase.currentVersion);
   });
+
+
+  test('service direct cost history preserves the cost snapshot at completion', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
+    final services = ServiceRepository();
+    final serviceId = await services.createServiceOrder(
+      customerId: customerId,
+      bicycleId: bicycleId,
+      complaint: 'Audit biaya langsung servis',
+      laborCost: 100000,
+      directPartsCost: 5000,
+      otherDirectCost: 2000,
+    );
+
+    await services.updateServiceDirectCosts(
+      id: serviceId,
+      directPartsCost: 7000,
+      otherDirectCost: 3000,
+    );
+    await services.updateServiceStatus(id: serviceId, status: 'checking');
+    await services.updateServiceStatus(id: serviceId, status: 'in_progress');
+    await services.updateServiceStatus(id: serviceId, status: 'completed');
+
+    final completedRows = await db.query(
+      'service_orders',
+      columns: ['completed_at'],
+      where: 'id = ?',
+      whereArgs: [serviceId],
+      limit: 1,
+    );
+    final completedAt = DateTime.parse(completedRows.single['completed_at'] as String);
+
+    // Koreksi biaya setelah pekerjaan selesai tidak boleh mengubah laporan
+    // periode penyelesaian yang sudah terjadi.
+    await services.updateServiceDirectCosts(
+      id: serviceId,
+      directPartsCost: 9000,
+      otherDirectCost: 4000,
+    );
+
+    final history = await services.getServiceDirectCostHistory(serviceId);
+    expect(history, hasLength(3));
+    expect(
+      history.map((row) => row['new_direct_parts_cost']).toList(),
+      [9000, 7000, 5000],
+    );
+    expect(
+      history.map((row) => row['new_other_direct_cost']).toList(),
+      [4000, 3000, 2000],
+    );
+
+    final summary = await ReportRepository().getSummary(
+      start: completedAt.subtract(const Duration(days: 1)),
+      end: completedAt.add(const Duration(days: 1)),
+    );
+    expect(summary['service_revenue'], 100000);
+    expect(summary['service_direct_cost_amount'], 10000);
+    expect(summary['service_gross_profit_amount'], 90000);
+  });
+
 }
