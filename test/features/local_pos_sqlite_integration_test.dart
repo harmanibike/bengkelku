@@ -1221,9 +1221,14 @@ void main() {
     final backup = await service.createBackup();
     final archive = ZipDecoder().decodeBytes(await backup.readAsBytes());
     final mediaFile = archive.files.firstWhere((file) => file.name.startsWith('media/product/'));
-    archive.files.remove(mediaFile);
+    final brokenArchive = Archive();
+    for (final entry in archive.files) {
+      if (entry.name != mediaFile.name) {
+        brokenArchive.addFile(entry);
+      }
+    }
     final broken = File(p.join(testDirectory.path, 'backup_missing_media.zip'));
-    await broken.writeAsBytes(ZipEncoder().encode(archive));
+    await broken.writeAsBytes(ZipEncoder().encode(brokenArchive));
 
     await expectLater(
       service.restoreBackup(broken.path),
