@@ -765,7 +765,6 @@ class ServiceRepository {
     required bool approve,
     bool customerApproved = false,
     String? customerApprovalNote,
-    int? approvedUnitPrice,
   }) async {
     final session = AuthSession.instance;
     session.requireCashierOrAdmin(
@@ -774,10 +773,6 @@ class ServiceRepository {
     if (approve && !customerApproved) {
       throw StateError('Minta dan catat persetujuan pelanggan sebelum menerapkan perubahan.');
     }
-    if (approvedUnitPrice != null && approvedUnitPrice < 0) {
-      throw ArgumentError('Harga sparepart tidak boleh negatif.');
-    }
-
     final db = await _db;
     return db.transaction((txn) async {
       final requests = await txn.query(
@@ -815,7 +810,9 @@ class ServiceRepository {
         if (requestType == 'add') {
           final productId = request['product_id'] as int?;
           final quantity = request['quantity'] as int? ?? 0;
-          final unitPrice = approvedUnitPrice ?? (request['unit_price'] as int? ?? 0);
+          // Gunakan harga katalog yang disimpan saat pengajuan dibuat.
+          // Admin/Kasir tidak perlu mengetik atau mengirim harga manual.
+          final unitPrice = (request['unit_price'] as num?)?.toInt() ?? 0;
           if (productId == null || quantity <= 0) {
             throw StateError('Data sparepart usulan tidak valid.');
           }
@@ -999,9 +996,7 @@ class ServiceRepository {
       if (approve) {
         final itemSubtotal = (request['quantity'] as int? ?? 0) *
             (request['unit_price'] as int? ?? 0);
-        final effectiveSubtotal = request['request_type'] == 'add'
-            ? (request['quantity'] as int? ?? 0) * (approvedUnitPrice ?? 0)
-            : itemSubtotal;
+        final effectiveSubtotal = itemSubtotal;
         final newParts = request['request_type'] == 'add'
             ? oldParts + effectiveSubtotal
             : (oldParts - itemSubtotal < 0 ? 0 : oldParts - itemSubtotal);
@@ -1046,7 +1041,6 @@ class ServiceRepository {
           'customer_approved': approve && customerApproved ? 1 : 0,
           'customer_approval_note': approve ? _nullableText(customerApprovalNote) : null,
           'reviewed_at': now,
-          if (approve && approvedUnitPrice != null) 'unit_price': approvedUnitPrice,
         },
         where: 'id = ?',
         whereArgs: [requestId],
