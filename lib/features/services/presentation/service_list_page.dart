@@ -982,10 +982,15 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   _detailLine('Pelanggan', detail['customer_name']),
                   _detailLine('Telepon', detail['customer_phone']),
                   _detailLine(
-                    'Sepeda',
-                    '${detail['bicycle_brand'] ?? ''} ${detail['bicycle_model'] ?? ''}',
+                    detail['bicycle_brand'] == 'Roda Lepas'
+                        ? 'Objek servis'
+                        : 'Sepeda',
+                    detail['bicycle_brand'] == 'Roda Lepas'
+                        ? 'Roda Lepas • ${detail['bicycle_model'] ?? ''}'
+                        : '${detail['bicycle_brand'] ?? ''} ${detail['bicycle_model'] ?? ''}',
                   ),
-                  _detailLine('Nomor rangka', detail['bicycle_serial_number']),
+                  if (detail['bicycle_brand'] != 'Roda Lepas')
+                    _detailLine('Nomor rangka', detail['bicycle_serial_number']),
                   _detailLine('Tanggal masuk', _dateLabel(detail['received_at'])),
                   _detailLine('Keluhan', detail['complaint']),
                   _detailLine('Diagnosis', detail['diagnosis']),
