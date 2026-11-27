@@ -272,15 +272,6 @@ class _DashboardPageState extends State<DashboardPage> {
               },
               icon: const Icon(Icons.logout_rounded, color: Colors.white),
             ),
-            Material(
-              color: Colors.white.withValues(alpha: 0.18),
-              shape: const CircleBorder(),
-              child: IconButton(
-                tooltip: 'Perbarui data',
-                onPressed: () => _refresh(),
-                icon: const Icon(Icons.refresh, color: Colors.white),
-              ),
-            ),
           ],
         ),
       ),
