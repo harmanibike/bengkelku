@@ -201,6 +201,7 @@ class AppDatabase {
         minimum_stock INTEGER NOT NULL DEFAULT 0,
         track_stock INTEGER NOT NULL DEFAULT 1,
         description TEXT,
+        image_path TEXT,
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT
