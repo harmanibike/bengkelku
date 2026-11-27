@@ -134,7 +134,7 @@ Audit ini adalah pemeriksaan statis terhadap struktur repository, halaman, repos
 - [x] Metode pembaruan harga beli: rata-rata tertimbang, harga terakhir, manual, dan per batch (FIFO).
 - [x] Riwayat batch biaya dan perlindungan pembatalan pembelian/retur dengan alasan serta validasi dependensi.
 - [x] Laporan pembelian dan pemasok dasar.
-- [ ] Audit pembulatan HPP per unit dan rekonsiliasi nilai batch terhadap total biaya faktur, termasuk penerimaan bertahap.
+- [x] Audit pembulatan HPP per unit dan rekonsiliasi nilai batch terhadap total biaya faktur, termasuk penerimaan bertahap (termasuk penerimaan parsial, batch pecahan biaya, pembatalan, dan uji otomatis).
 - [ ] Audit menyeluruh skenario pembelian lama, stok batch, retur, pembayaran, kredit pemasok, dan utang pada data nyata.
 - [ ] Uji langsung alur pembelian dan retur pada perangkat Android fisik.
 
