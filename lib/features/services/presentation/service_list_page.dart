@@ -218,6 +218,18 @@ class _ServiceListPageState extends State<ServiceListPage> {
       await _repository.addWalletPayment(id: id, amount: amount);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pembayaran dari saldo pelanggan berhasil.')));
+      final printSettings = await ReceiptSettingsRepository().getReceiptSettings();
+      if (printSettings.autoPrintServicePayments) {
+        final updatedOrder = await _repository.getServiceOrderById(id);
+        if (!mounted) return;
+        final isPaid = (updatedOrder?['remaining_payment'] as num? ?? 0) <= 0;
+        if (isPaid) {
+          await ReceiptShareLauncher.serviceFinalPayment(context, id, autoPrint: true);
+        } else {
+          await ReceiptShareLauncher.service(context, id, autoPrint: true);
+        }
+      }
+      if (!mounted) return;
       _refresh();
       await _showDetail({'id': id});
     } catch (error) {
