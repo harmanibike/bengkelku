@@ -78,7 +78,7 @@ class ReceiptPrintSettings {
       spacing: number('spacing', 1).clamp(0.7, 1.6).toDouble(),
       autoPrintSales: flag('autoPrintSales', false),
       autoPrintServicePayments: flag('autoPrintServicePayments', false),
-      printCopies: (json['printCopies'] is num ? (json['printCopies'] as num).toInt() : 1).clamp(1, 3),
+      printCopies: (json['printCopies'] is num ? (json['printCopies'] as num).toInt() : 1).clamp(1, 3).toInt(),
     );
   }
 
