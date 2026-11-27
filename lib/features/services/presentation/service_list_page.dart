@@ -982,9 +982,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
                       );
                     })),
                   ],
-                  if (AuthSession.instance.isMechanic && const ['waiting', 'checking', 'in_progress'].contains(status))
+                  if ((AuthSession.instance.isMechanic || AuthSession.instance.isCashierOrAdmin) && const ['waiting', 'checking', 'in_progress'].contains(status))
                     OutlinedButton.icon(onPressed: () => Navigator.pop(dialogContext, 'part_add'),
-                      icon: const Icon(Icons.add_box_outlined), label: const Text('Usulkan tambah sparepart')),
+                      icon: const Icon(Icons.add_box_outlined), label: const Text('Tambah sparepart')),
                   if (estimateHistory.isNotEmpty) ...[
                     const Divider(),
                     const Text('Riwayat perubahan estimasi', style: TextStyle(fontWeight: FontWeight.bold)),
