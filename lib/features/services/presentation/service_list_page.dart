@@ -1524,6 +1524,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 if (!AuthSession.instance.isMechanic) FilterChip(
                   label: const Text('Piutang'),
                   selected: _showOutstandingOnly,
+                  showCheckmark: false,
                   avatar: const Icon(Icons.account_balance_wallet_outlined, size: 17),
                   onSelected: (selected) {
                     setState(() {
