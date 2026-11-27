@@ -1178,9 +1178,10 @@ void main() {
     expect(archive.files.any((file) => file.name.startsWith('media/profile/')), isTrue);
     expect(archive.files.where((file) => file.name.startsWith('media/service/')), hasLength(2));
 
-    await db.update('products', {'image_path': null}, where: 'id = ?', whereArgs: [productId]);
-    await db.update('app_users', {'profile_photo_path': null}, where: 'id = ?', whereArgs: [userId]);
-    await db.update('service_orders', {
+    final afterBackupDb = await AppDatabase.instance.database;
+    await afterBackupDb.update('products', {'image_path': null}, where: 'id = ?', whereArgs: [productId]);
+    await afterBackupDb.update('app_users', {'profile_photo_path': null}, where: 'id = ?', whereArgs: [userId]);
+    await afterBackupDb.update('service_orders', {
       'before_photo_path': null,
       'after_photo_path': null,
     }, where: 'id = ?', whereArgs: [serviceId]);
