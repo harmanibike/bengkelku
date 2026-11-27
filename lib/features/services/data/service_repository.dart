@@ -664,7 +664,7 @@ class ServiceRepository {
       if (requestType == 'add') {
         final products = await txn.query(
           'products',
-          columns: ['id', 'name', 'is_active'],
+          columns: ['id', 'name', 'is_active', 'selling_price'],
           where: 'id = ?',
           whereArgs: [productId],
           limit: 1,
@@ -675,6 +675,7 @@ class ServiceRepository {
         itemName = products.first['name']?.toString() ?? 'Sparepart';
         requestProductId = productId;
         requestQuantity = quantity;
+        requestUnitPrice = (products.first['selling_price'] as num?)?.toInt() ?? 0;
       } else {
         if (serviceOrderItemId == null) {
           throw ArgumentError('Pilih sparepart yang akan dibatalkan.');
