@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart';
+
 import 'package:flutter/services.dart';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -1136,6 +1138,100 @@ void main() {
       (await restoredDb.rawQuery('PRAGMA integrity_check')).single.values.first,
       'ok',
     );
+  });
+
+  test('ZIP backup restores product, user profile, and service photos', () async {
+    final db = await AppDatabase.instance.database;
+    final productPhoto = File(p.join(testDirectory.path, 'product_photo.jpg'));
+    final profilePhoto = File(p.join(testDirectory.path, 'profile_photo.jpg'));
+    final beforePhoto = File(p.join(testDirectory.path, 'service_before.jpg'));
+    final afterPhoto = File(p.join(testDirectory.path, 'service_after.jpg'));
+    await productPhoto.writeAsBytes([1, 2, 3, 4, 5]);
+    await profilePhoto.writeAsBytes([6, 7, 8, 9]);
+    await beforePhoto.writeAsBytes([10, 11, 12]);
+    await afterPhoto.writeAsBytes([13, 14, 15]);
+
+    final productId = await db.insert('products', {
+      'name': 'Produk dengan Foto',
+      'selling_price': 20000,
+      'purchase_price': 10000,
+      'stock': 1,
+      'image_path': productPhoto.path,
+    });
+    final userId = await db.insert('app_users', {
+      'display_name': 'Admin Foto',
+      'username': 'admin_foto',
+      'role': 'admin',
+      'pin_hash': 'test-hash',
+      'profile_photo_path': profilePhoto.path,
+    });
+    final serviceId = await db.insert('service_orders', {
+      'order_number': 'SRV-BACKUP-FOTO-001',
+      'before_photo_path': beforePhoto.path,
+      'after_photo_path': afterPhoto.path,
+    });
+
+    final service = DatabaseBackupService();
+    final backup = await service.createBackup();
+    final archive = ZipDecoder().decodeBytes(await backup.readAsBytes());
+    expect(archive.files.any((file) => file.name.startsWith('media/product/')), isTrue);
+    expect(archive.files.any((file) => file.name.startsWith('media/profile/')), isTrue);
+    expect(archive.files.where((file) => file.name.startsWith('media/service/')), hasLength(2));
+
+    await db.update('products', {'image_path': null}, where: 'id = ?', whereArgs: [productId]);
+    await db.update('app_users', {'profile_photo_path': null}, where: 'id = ?', whereArgs: [userId]);
+    await db.update('service_orders', {
+      'before_photo_path': null,
+      'after_photo_path': null,
+    }, where: 'id = ?', whereArgs: [serviceId]);
+    await productPhoto.delete();
+    await profilePhoto.delete();
+    await beforePhoto.delete();
+    await afterPhoto.delete();
+
+    await service.restoreBackup(backup.path);
+    final restoredDb = await AppDatabase.instance.database;
+    final productPath = (await restoredDb.query('products',
+      columns: ['image_path'], where: 'id = ?', whereArgs: [productId])).single['image_path'] as String;
+    final profilePath = (await restoredDb.query('app_users',
+      columns: ['profile_photo_path'], where: 'id = ?', whereArgs: [userId])).single['profile_photo_path'] as String;
+    final servicePhotos = (await restoredDb.query('service_orders',
+      columns: ['before_photo_path', 'after_photo_path'],
+      where: 'id = ?', whereArgs: [serviceId])).single;
+
+    expect(await File(productPath).readAsBytes(), [1, 2, 3, 4, 5]);
+    expect(await File(profilePath).readAsBytes(), [6, 7, 8, 9]);
+    expect(await File(servicePhotos['before_photo_path'] as String).readAsBytes(), [10, 11, 12]);
+    expect(await File(servicePhotos['after_photo_path'] as String).readAsBytes(), [13, 14, 15]);
+  });
+
+  test('ZIP restore rejects a manifest that references missing media', () async {
+    final db = await AppDatabase.instance.database;
+    final photo = File(p.join(testDirectory.path, 'missing_on_restore.jpg'));
+    await photo.writeAsBytes([21, 22, 23]);
+    final productId = await db.insert('products', {
+      'name': 'Foto Wajib Ada',
+      'selling_price': 10000,
+      'purchase_price': 5000,
+      'stock': 1,
+      'image_path': photo.path,
+    });
+    final service = DatabaseBackupService();
+    final backup = await service.createBackup();
+    final archive = ZipDecoder().decodeBytes(await backup.readAsBytes());
+    final mediaFile = archive.files.firstWhere((file) => file.name.startsWith('media/product/'));
+    archive.files.remove(mediaFile);
+    final broken = File(p.join(testDirectory.path, 'backup_missing_media.zip'));
+    await broken.writeAsBytes(ZipEncoder().encode(archive)!);
+
+    await expectLater(
+      service.restoreBackup(broken.path),
+      throwsA(isA<FormatException>()),
+    );
+    final unchanged = (await db.query('products',
+      columns: ['image_path'], where: 'id = ?', whereArgs: [productId])).single;
+    expect(unchanged['image_path'], photo.path);
+    expect(await photo.exists(), isTrue);
   });
 
   test('invalid database backup is rejected and temporary candidate is removed', () async {
