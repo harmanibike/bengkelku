@@ -156,6 +156,52 @@ void main() {
     expect(detail['payments'], hasLength(3));
   });
 
+  test('delivered service remains receivable and accepts payment after handover', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
+    final services = ServiceRepository();
+    final serviceId = await services.createServiceOrder(
+      customerId: customerId,
+      bicycleId: bicycleId,
+      complaint: 'Pengujian pembayaran setelah sepeda diserahkan',
+      laborCost: 100000,
+    );
+
+    await services.updateServiceStatus(id: serviceId, status: 'checking');
+    await services.updateServiceStatus(id: serviceId, status: 'in_progress');
+    await services.updateServiceStatus(id: serviceId, status: 'completed');
+    await services.updateServiceStatus(id: serviceId, status: 'delivered');
+
+    var receivables = await ReceivableRepository().getReceivables(type: 'service');
+    var receivable = receivables.singleWhere((item) => item['record_id'] == serviceId);
+    expect(receivable['paid_amount'], 0);
+    expect(receivable['remaining_amount'], 100000);
+
+    await services.addPayment(id: serviceId, amount: 40000);
+    var order = (await db.query('service_orders', where: 'id = ?', whereArgs: [serviceId])).single;
+    expect(order['service_status'], 'delivered');
+    expect(order['down_payment'], 40000);
+    expect(order['remaining_payment'], 60000);
+
+    var history = await services.getServicePaymentHistory(serviceId);
+    expect(history, hasLength(1));
+    expect(history.single['amount'], 40000);
+    receivables = await ReceivableRepository().getReceivables(type: 'service');
+    receivable = receivables.singleWhere((item) => item['record_id'] == serviceId);
+    expect(receivable['paid_amount'], 40000);
+    expect(receivable['remaining_amount'], 60000);
+
+    await services.addPayment(id: serviceId, amount: 60000);
+    order = (await db.query('service_orders', where: 'id = ?', whereArgs: [serviceId])).single;
+    expect(order['service_status'], 'delivered');
+    expect(order['down_payment'], 100000);
+    expect(order['remaining_payment'], 0);
+    history = await services.getServicePaymentHistory(serviceId);
+    expect(history.map((item) => item['amount']).toList(), [40000, 60000]);
+    receivables = await ReceivableRepository().getReceivables(type: 'service');
+    expect(receivables.where((item) => item['record_id'] == serviceId), isEmpty);
+  });
+
   test('service sparepart request accepts quantity greater than one and applies exact quantity after approval', () async {
     final db = await AppDatabase.instance.database;
     final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
