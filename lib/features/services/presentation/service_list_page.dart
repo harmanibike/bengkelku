@@ -770,25 +770,37 @@ class _ServiceListPageState extends State<ServiceListPage> {
                             final product = filteredProducts[index];
                             final id = product['id'] as int;
                             final isSelected = selectedId == id;
-                            final stock = product['stock'];
-                            final stockText = product['track_stock'] == 1
-                                ? 'Stok: ${stock ?? 0}'
+                            final stock = (product['stock'] as num?)?.toInt() ?? 0;
+                            final tracksStock = product['track_stock'] == 1;
+                            final outOfStock = tracksStock && stock <= 0;
+                            final stockText = tracksStock
+                                ? (outOfStock ? 'Stok habis' : 'Stok: $stock')
                                 : 'Stok tidak dilacak';
                             final sku = product['sku']?.toString() ?? '';
                             return ListTile(
                               dense: true,
+                              enabled: !outOfStock,
                               selected: isSelected,
                               selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
                               leading: Icon(
-                                isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                                color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                                outOfStock
+                                    ? Icons.block
+                                    : (isSelected ? Icons.radio_button_checked : Icons.radio_button_off),
+                                color: outOfStock
+                                    ? Theme.of(context).disabledColor
+                                    : (isSelected ? Theme.of(context).colorScheme.primary : null),
                               ),
-                              title: Text(product['name']?.toString() ?? 'Sparepart'),
+                              title: Text(
+                                product['name']?.toString() ?? 'Sparepart',
+                                style: TextStyle(
+                                  color: outOfStock ? Theme.of(context).disabledColor : null,
+                                ),
+                              ),
                               subtitle: Text([
                                 if (sku.isNotEmpty) 'Kode: $sku',
                                 stockText,
                               ].join(' • ')),
-                              onTap: () => setDialogState(() => selectedId = id),
+                              onTap: outOfStock ? null : () => setDialogState(() => selectedId = id),
                             );
                           },
                         ),
