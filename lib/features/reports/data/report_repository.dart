@@ -108,8 +108,8 @@ class ReportRepository {
                + COALESCE(h.new_other_direct_cost, 0)
           FROM service_direct_cost_history h
           WHERE h.service_order_id = s.id
-            AND datetime(h.changed_at) <= datetime(s.completed_at)
-          ORDER BY datetime(h.changed_at) DESC, h.id DESC
+            AND h.changed_at <= s.completed_at
+          ORDER BY h.changed_at DESC, h.id DESC
           LIMIT 1
         ), COALESCE(s.direct_parts_cost, 0) + COALESCE(s.other_direct_cost, 0))
       ), 0) AS amount
