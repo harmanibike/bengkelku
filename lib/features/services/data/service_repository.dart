@@ -631,8 +631,10 @@ class ServiceRepository {
     String? mechanicNote,
   }) async {
     final session = AuthSession.instance;
-    if (!session.isMechanic || session.userId == null) {
-      throw StateError('Usulan sparepart hanya dapat dikirim melalui akun Mekanik.');
+    final canProposeAdd = session.isMechanic || session.isCashierOrAdmin;
+    if (session.userId == null || (requestType == 'add' && !canProposeAdd) ||
+        (requestType == 'cancel' && !session.isMechanic)) {
+      throw StateError('Akses tidak diizinkan untuk perubahan sparepart ini.');
     }
     if (requestType != 'add' && requestType != 'cancel') {
       throw ArgumentError('Jenis usulan tidak valid.');
@@ -645,12 +647,12 @@ class ServiceRepository {
       final orders = await txn.query(
         'service_orders',
         columns: ['id', 'service_status', 'assigned_mechanic_id'],
-        where: 'id = ? AND assigned_mechanic_id = ?',
-        whereArgs: [serviceOrderId, session.userId],
+        where: session.isMechanic ? 'id = ? AND assigned_mechanic_id = ?' : 'id = ?',
+        whereArgs: session.isMechanic ? [serviceOrderId, session.userId] : [serviceOrderId],
         limit: 1,
       );
       if (orders.isEmpty) {
-        throw StateError('Servis bukan penugasan Anda.');
+        throw StateError(session.isMechanic ? 'Servis bukan penugasan Anda.' : 'Data servis tidak ditemukan.');
       }
       final status = orders.first['service_status']?.toString();
       if (!const ['waiting', 'checking', 'in_progress'].contains(status)) {
