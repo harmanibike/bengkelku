@@ -910,7 +910,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
             actions: [
               TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
               FilledButton(
-                onPressed: selectedId == null ? null : () => Navigator.pop(dialogContext, true),
+                onPressed: selectedId == null ||
+                        requestedQuantity <= 0 ||
+                        (selectedProduct?['track_stock'] == 1 &&
+                            requestedQuantity >
+                                ((selectedProduct?['stock'] as num?)?.toInt() ?? 0))
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
                 child: const Text('Kirim usulan'),
               ),
             ],
