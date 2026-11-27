@@ -12,6 +12,7 @@ import '../../business/presentation/business_identity_header.dart';
 import 'service_intake_page.dart';
 import 'service_photo_helper.dart';
 import '../../receipts/presentation/receipt_share_launcher.dart';
+import '../../settings/data/receipt_settings_repository.dart';
 
 class ServiceListPage extends StatefulWidget {
   const ServiceListPage({super.key, this.showOutstandingOnly = false});
@@ -389,26 +390,38 @@ class _ServiceListPageState extends State<ServiceListPage> {
           ].join(' ')),
         ),
       );
-      final printReceipt = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Pembayaran berhasil'),
-          content: const Text(
-            'Apakah nota servis ingin dicetak atau dibagikan sekarang? '
-            'Nota akan memuat riwayat pembayaran dan sisa tagihan terbaru. Tip dan saldo deposit dicatat terpisah.',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Nanti')),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              icon: const Icon(Icons.print_outlined),
-              label: const Text('Cetak nota'),
+      final printSettings = await ReceiptSettingsRepository().getReceiptSettings();
+      if (printSettings.autoPrintServicePayments) {
+        final updatedOrder = await _repository.getServiceOrderById(id);
+        if (!mounted) return;
+        final isPaid = (updatedOrder?['remaining_payment'] as num? ?? 0) <= 0;
+        if (isPaid) {
+          await ReceiptShareLauncher.serviceFinalPayment(context, id, autoPrint: true);
+        } else {
+          await ReceiptShareLauncher.service(context, id, autoPrint: true);
+        }
+      } else {
+        final printReceipt = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Pembayaran berhasil'),
+            content: const Text(
+              'Apakah nota servis ingin dicetak atau dibagikan sekarang? '
+              'Nota akan memuat riwayat pembayaran dan sisa tagihan terbaru. Tip dan saldo deposit dicatat terpisah.',
             ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      if (printReceipt == true) await ReceiptShareLauncher.service(context, id);
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Nanti')),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                icon: const Icon(Icons.print_outlined),
+                label: const Text('Cetak nota'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        if (printReceipt == true) await ReceiptShareLauncher.service(context, id);
+      }
       if (!mounted) return;
       await _showDetail({'id': id});
     } catch (error) {
