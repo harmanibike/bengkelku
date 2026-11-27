@@ -234,6 +234,23 @@ class _PurchasesPageState extends State<PurchasesPage> {
                             ),
                           );
                           if (created != true || !context.mounted) return;
+                          final normalizedName = name.text.trim().toLowerCase();
+                          final normalizedSku = sku.text.trim().toLowerCase();
+                          final normalizedBarcode = barcode.text.trim().toLowerCase();
+                          final duplicate = products.where((product) {
+                            final existingName = (product['name']?.toString() ?? '').trim().toLowerCase();
+                            final existingSku = (product['sku']?.toString() ?? '').trim().toLowerCase();
+                            final existingBarcode = (product['barcode']?.toString() ?? '').trim().toLowerCase();
+                            return existingName == normalizedName ||
+                                (normalizedSku.isNotEmpty && existingSku == normalizedSku) ||
+                                (normalizedBarcode.isNotEmpty && existingBarcode == normalizedBarcode);
+                          }).toList();
+                          if (duplicate.isNotEmpty) {
+                            final existingName = duplicate.first['name']?.toString() ?? 'Produk yang sudah ada';
+                            setDialogState(() => errorText =
+                                'Produk "$existingName" sudah terdaftar. Cari dan pilih produk tersebut agar stok tidak terpecah.');
+                            return;
+                          }
                           final newId = await _products.addProduct(
                             name: name.text.trim(),
                             sku: sku.text,
