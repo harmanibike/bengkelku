@@ -830,11 +830,69 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   ),
                 ],
                 const SizedBox(height: 8),
-                TextField(
-                  controller: quantityController,
-                  keyboardType: TextInputType.number,
-                  onChanged: (_) => setDialogState(() {}),
-                  decoration: const InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder()),
+                Builder(
+                  builder: (context) {
+                    final stockTracked = selectedProduct?['track_stock'] == 1;
+                    final availableStock =
+                        (selectedProduct?['stock'] as num?)?.toInt() ?? 0;
+                    final currentQuantity =
+                        int.tryParse(quantityController.text.trim()) ?? 1;
+                    final canIncrease = selectedProduct != null &&
+                        (!stockTracked || currentQuantity < availableStock);
+                    return Row(
+                      children: [
+                        const Text('Jumlah'),
+                        const SizedBox(width: 12),
+                        IconButton(
+                          tooltip: 'Kurangi jumlah',
+                          onPressed: currentQuantity > 1
+                              ? () {
+                                  quantityController.text =
+                                      (currentQuantity - 1).toString();
+                                  setDialogState(() {});
+                                }
+                              : null,
+                          icon: const Icon(Icons.remove_circle_outline),
+                        ),
+                        SizedBox(
+                          width: 76,
+                          child: TextField(
+                            controller: quantityController,
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Tambah jumlah',
+                          onPressed: canIncrease
+                              ? () {
+                                  quantityController.text =
+                                      (currentQuantity + 1).toString();
+                                  setDialogState(() {});
+                                }
+                              : null,
+                          icon: const Icon(Icons.add_circle_outline),
+                        ),
+                        if (stockTracked)
+                          Expanded(
+                            child: Text(
+                              'Stok: $availableStock',
+                              textAlign: TextAlign.end,
+                              style: Theme.of(dialogContext).textTheme.bodySmall,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -844,7 +902,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Harga katalog ditampilkan sebagai acuan. Harga akhir dapat dikonfirmasi Admin/Kasir setelah pelanggan menyetujui. Usulan belum mengubah stok atau tagihan.',
+                  'Harga mengikuti katalog saat usulan dibuat. Admin/Kasir menerapkan usulan setelah pelanggan menyetujui. Stok dan tagihan belum berubah sebelum disetujui.',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ]),
