@@ -12,7 +12,7 @@ import 'receipt_preview_page.dart';
 class ReceiptShareLauncher {
   static final _snapshots = ReceiptSnapshotRepository();
 
-  static Future<void> sale(BuildContext context, int id) async {
+  static Future<void> sale(BuildContext context, int id, {bool autoPrint = false}) async {
     try {
       final sale = await SaleRepository().getSaleById(id);
       if (sale == null || !context.mounted) return;
@@ -32,7 +32,7 @@ class ReceiptShareLauncher {
           'profile': profile,
         },
       );
-      await openSnapshot(context, snapshotId);
+      await openSnapshot(context, snapshotId, autoPrint: autoPrint);
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -41,7 +41,7 @@ class ReceiptShareLauncher {
     }
   }
 
-  static Future<void> service(BuildContext context, int id) async {
+  static Future<void> service(BuildContext context, int id, {bool autoPrint = false}) async {
     try {
       final service = await ServiceRepository().getServiceOrderById(id);
       if (service == null || !context.mounted) return;
@@ -59,7 +59,7 @@ class ReceiptShareLauncher {
           'profile': profile,
         },
       );
-      await openSnapshot(context, snapshotId);
+      await openSnapshot(context, snapshotId, autoPrint: autoPrint);
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,7 +91,7 @@ class ReceiptShareLauncher {
     }
   }
 
-  static Future<void> serviceFinalPayment(BuildContext context, int id) async {
+  static Future<void> serviceFinalPayment(BuildContext context, int id, {bool autoPrint = false}) async {
     try {
       final repository = ServiceRepository();
       final service = await repository.getServiceOrderById(id);
@@ -114,7 +114,7 @@ class ReceiptShareLauncher {
         documentNumber: '$number-LUNAS',
         payload: {'service': service, 'payments': payments, 'profile': profile},
       );
-      await openSnapshot(context, snapshotId);
+      await openSnapshot(context, snapshotId, autoPrint: autoPrint);
     } catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,7 +123,7 @@ class ReceiptShareLauncher {
     }
   }
 
-  static Future<void> openSnapshot(BuildContext context, int snapshotId) async {
+  static Future<void> openSnapshot(BuildContext context, int snapshotId, {bool autoPrint = false}) async {
     try {
       final record = await _snapshots.getSnapshot(snapshotId);
       if (record == null || !context.mounted) return;
@@ -165,6 +165,7 @@ class ReceiptShareLauncher {
             shareText: shareText,
             receiptType: type,
             receiptPayload: payload,
+            autoPrint: autoPrint,
           ),
         ),
       );
