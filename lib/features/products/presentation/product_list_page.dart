@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:barcode_widget/barcode_widget.dart';
+import 'package:barcode_widget/barcode_widget.dart' as barcode_ui;
 
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -454,8 +454,8 @@ class _ProductListPageState extends State<ProductListPage> {
                             border: Border.all(color: Colors.black12),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: BarcodeWidget(
-                            barcode: Barcode.code128(),
+                          child: barcode_ui.BarcodeWidget(
+                            barcode: barcode_ui.Barcode.code128(),
                             data: barcode.text.trim(),
                             height: 64,
                             drawText: true,
