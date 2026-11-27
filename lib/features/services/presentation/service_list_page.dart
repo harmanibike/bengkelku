@@ -120,8 +120,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        constraints: const BoxConstraints(maxWidth: 480),
         title: const Text('Ubah Status Servis'),
-        content: DropdownButtonFormField<String>(
+        content: SizedBox(
+          width: MediaQuery.sizeOf(dialogContext).width * 0.82,
+          child: DropdownButtonFormField<String>(
           initialValue: current,
           isExpanded: true,
           decoration: const InputDecoration(
@@ -143,6 +146,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
           onChanged: (value) {
             if (value != null) selected = value;
           },
+          ),
         ),
         actions: [
           TextButton(
