@@ -696,40 +696,122 @@ class _ServiceListPageState extends State<ServiceListPage> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Belum ada sparepart aktif.')));
       return;
     }
-    int? selectedId = products.first['id'] as int?;
+    int? selectedId;
+    final searchController = TextEditingController();
     final quantityController = TextEditingController(text: '1');
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Usulkan penambahan sparepart'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            DropdownButtonFormField<int>(
-              initialValue: selectedId, isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Sparepart', border: OutlineInputBorder()),
-              items: products.map((p) => DropdownMenuItem<int>(value: p['id'] as int,
-                child: Text(p['name']?.toString() ?? 'Sparepart', overflow: TextOverflow.ellipsis))).toList(),
-              onChanged: (value) => setDialogState(() => selectedId = value),
+        builder: (dialogContext, setDialogState) {
+          final keyword = searchController.text.trim().toLowerCase();
+          final filteredProducts = products.where((product) {
+            if (keyword.isEmpty) return true;
+            return [
+              product['name'],
+              product['sku'],
+              product['barcode'],
+            ].any((value) => value?.toString().toLowerCase().contains(keyword) ?? false);
+          }).toList(growable: false);
+          return AlertDialog(
+            title: const Text('Usulkan penambahan sparepart'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextField(
+                  controller: searchController,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: InputDecoration(
+                    labelText: 'Cari nama / kode / barcode',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Hapus pencarian',
+                            onPressed: () {
+                              searchController.clear();
+                              setDialogState(() {});
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${filteredProducts.length} dari ${products.length} produk aktif',
+                    style: Theme.of(dialogContext).textTheme.bodySmall,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 220,
+                  child: filteredProducts.isEmpty
+                      ? const Center(child: Text('Produk tidak ditemukan.'))
+                      : ListView.separated(
+                          itemCount: filteredProducts.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final product = filteredProducts[index];
+                            final id = product['id'] as int;
+                            final isSelected = selectedId == id;
+                            final stock = product['stock'];
+                            final stockText = product['track_stock'] == 1
+                                ? 'Stok: ${stock ?? 0}'
+                                : 'Stok tidak dilacak';
+                            final sku = product['sku']?.toString() ?? '';
+                            return ListTile(
+                              dense: true,
+                              selected: isSelected,
+                              selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
+                              leading: Icon(
+                                isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                              ),
+                              title: Text(product['name']?.toString() ?? 'Sparepart'),
+                              subtitle: Text([
+                                if (sku.isNotEmpty) 'Kode: $sku',
+                                stockText,
+                              ].join(' • ')),
+                              onTap: () => setDialogState(() => selectedId = id),
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: quantityController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: noteController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Alasan / catatan', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Usulan belum mengubah stok atau tagihan. Admin/Kasir akan meminta izin pelanggan dan menentukan harga.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ]),
             ),
-            const SizedBox(height: 8),
-            TextField(controller: quantityController, keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder())),
-            const SizedBox(height: 8),
-            TextField(controller: noteController, maxLines: 2,
-              decoration: const InputDecoration(labelText: 'Alasan / catatan', border: OutlineInputBorder())),
-            const SizedBox(height: 8),
-            const Text('Usulan belum mengubah stok atau tagihan. Admin/Kasir akan meminta izin pelanggan dan menentukan harga.',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Kirim usulan')),
-          ],
-        ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+              FilledButton(
+                onPressed: selectedId == null ? null : () => Navigator.pop(dialogContext, true),
+                child: const Text('Kirim usulan'),
+              ),
+            ],
+          );
+        },
       ),
     );
     final quantity = int.tryParse(quantityController.text.trim()) ?? 0;
     final note = noteController.text.trim();
+    searchController.dispose();
     quantityController.dispose();
     noteController.dispose();
     if (confirmed != true) return;
