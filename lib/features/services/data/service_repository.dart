@@ -721,6 +721,17 @@ class ServiceRepository {
     });
   }
 
+  Future<int> countPendingServicePartChangeRequests() async {
+    AuthSession.instance.requireCashierOrAdmin(
+      'Hanya Admin dan Kasir yang dapat melihat pengajuan sparepart.',
+    );
+    final db = await _db;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) AS total FROM service_part_change_requests WHERE status = 'pending' AND request_type = 'add'",
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<List<Map<String, Object?>>> getServicePartChangeRequests(int serviceOrderId) async {
     AuthSession.instance.requireCashierOrAdmin(
       'Hanya Admin dan Kasir yang dapat meninjau usulan sparepart.',
