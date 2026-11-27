@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:barcode_widget/barcode_widget.dart';
+
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -305,16 +307,62 @@ class _ProductListPageState extends State<ProductListPage> {
                       TextFormField(
                         controller: barcode,
                         keyboardType: TextInputType.text,
+                        onChanged: (_) => setDialogState(() {}),
                         decoration: InputDecoration(
                           labelText: 'Barcode',
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             tooltip: 'Scan barcode',
-                            onPressed: () => _scanProductBarcode(barcode),
+                            onPressed: () async {
+                              await _scanProductBarcode(barcode);
+                              if (context.mounted) setDialogState(() {});
+                            },
                             icon: const Icon(Icons.qr_code_scanner),
                           ),
                         ),
                       ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              final generated = 'BK${DateTime.now().microsecondsSinceEpoch}';
+                              barcode.text = generated;
+                              barcode.selection = TextSelection.collapsed(offset: generated.length);
+                              setDialogState(() {});
+                            },
+                            icon: const Icon(Icons.auto_awesome),
+                            label: const Text('Generate barcode'),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Format Code 128',
+                              textAlign: TextAlign.end,
+                              style: TextStyle(fontSize: 11, color: Colors.grey),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (barcode.text.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.black12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: BarcodeWidget(
+                            barcode: Barcode.code128(),
+                            data: barcode.text.trim(),
+                            height: 64,
+                            drawText: true,
+                            backgroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
                         initialValue: categories.any((item) => item['name']?.toString() == category.text)
