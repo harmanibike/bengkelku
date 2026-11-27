@@ -726,6 +726,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
               product['barcode'],
             ].any((value) => value?.toString().toLowerCase().contains(keyword) ?? false);
           }).toList(growable: false);
+          final selectedProduct = selectedId == null
+              ? null
+              : products.firstWhere((product) => product['id'] == selectedId);
+          final selectedUnitPrice =
+              (selectedProduct?['selling_price'] as num?)?.toInt() ?? 0;
+          final requestedQuantity =
+              int.tryParse(quantityController.text.trim()) ?? 0;
           return AlertDialog(
             title: const Text('Usulkan penambahan sparepart'),
             content: SizedBox(
@@ -798,6 +805,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                               ),
                               subtitle: Text([
                                 if (sku.isNotEmpty) 'Kode: $sku',
+                                'Harga: ${_rupiah(product['selling_price'])}',
                                 stockText,
                               ].join(' • ')),
                               onTap: outOfStock ? null : () => setDialogState(() => selectedId = id),
@@ -805,10 +813,37 @@ class _ServiceListPageState extends State<ServiceListPage> {
                           },
                         ),
                 ),
+                if (selectedProduct != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Theme.of(dialogContext).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          selectedProduct['name']?.toString() ?? 'Sparepart dipilih',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Harga katalog per unit: ${_rupiah(selectedUnitPrice)}'),
+                        Text(
+                          'Perkiraan subtotal: ${_rupiah(selectedUnitPrice * (requestedQuantity > 0 ? requestedQuantity : 0))}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 TextField(
                   controller: quantityController,
                   keyboardType: TextInputType.number,
+                  onChanged: (_) => setDialogState(() {}),
                   decoration: const InputDecoration(labelText: 'Jumlah', border: OutlineInputBorder()),
                 ),
                 const SizedBox(height: 8),
@@ -819,7 +854,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Usulan belum mengubah stok atau tagihan. Admin/Kasir akan meminta izin pelanggan dan menentukan harga.',
+                  'Harga katalog ditampilkan sebagai acuan. Harga akhir dapat dikonfirmasi Admin/Kasir setelah pelanggan menyetujui. Usulan belum mengubah stok atau tagihan.',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ]),
