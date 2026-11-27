@@ -1346,10 +1346,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
   Widget _buildOrderCard(Map<String, Object?> order) {
     final status = order['service_status']?.toString() ?? 'waiting';
     final customer = order['customer_name']?.toString() ?? 'Pelanggan';
-    final bicycle = [
-      order['bicycle_brand']?.toString() ?? '',
-      order['bicycle_model']?.toString() ?? '',
-    ].where((part) => part.isNotEmpty).join(' ');
+    final isLooseWheel = order['bicycle_brand']?.toString() == 'Roda Lepas';
+    final bicycle = isLooseWheel
+        ? 'Roda Lepas • ${order['bicycle_model']?.toString() ?? ''}'
+        : [
+            order['bicycle_brand']?.toString() ?? '',
+            order['bicycle_model']?.toString() ?? '',
+          ].where((part) => part.isNotEmpty).join(' ');
     final complaint = order['complaint']?.toString() ?? '';
     final number = order['order_number']?.toString() ?? '-';
     final queueNumber = order['queue_number'];
@@ -1400,8 +1403,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
               const SizedBox(height: 9),
               Text(customer, style: const TextStyle(fontWeight: FontWeight.w600)),
               if (bicycle.isNotEmpty)
-                Text(bicycle,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(
+                  '${isLooseWheel ? 'Objek servis' : 'Sepeda'}: $bicycle',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               if (complaint.isNotEmpty) ...[
                 const SizedBox(height: 7),
                 Text(complaint, maxLines: 2, overflow: TextOverflow.ellipsis),
