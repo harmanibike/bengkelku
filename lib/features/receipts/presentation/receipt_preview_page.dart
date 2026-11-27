@@ -24,6 +24,7 @@ class ReceiptPreviewPage extends StatefulWidget {
     required this.title,
     this.receiptType,
     this.receiptPayload,
+    this.autoPrint = false,
   });
 
   final Uint8List? pdfBytes;
@@ -32,6 +33,7 @@ class ReceiptPreviewPage extends StatefulWidget {
   final String title;
   final String? receiptType;
   final Map<String, Object?>? receiptPayload;
+  final bool autoPrint;
 
   @override
   State<ReceiptPreviewPage> createState() => _ReceiptPreviewPageState();
@@ -94,6 +96,9 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+    if (widget.autoPrint && mounted && _nativeReceipt && _imageBytes != null) {
+      await _print();
     }
   }
 
@@ -345,9 +350,12 @@ class _ReceiptPreviewPageState extends State<ReceiptPreviewPage> {
         maxDrainWait: const Duration(seconds: 10),
       ));
       await manager.connect(BluetoothPrinterDevice(name: saved['name']!, address: saved['address']!));
-      await manager.printTicket(ticket);
-      await manager.waitWriteComplete();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Nota ESC/POS dikirim ke printer ${saved['name']!}.')));
+      for (var copy = 0; copy < settings.printCopies; copy++) {
+        await manager.printTicket(ticket);
+        await manager.waitWriteComplete();
+        if (copy + 1 < settings.printCopies) await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${settings.printCopies} salinan nota ESC/POS dikirim ke printer ${saved['name']!}.')));
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mencetak nota: $error')));
     } finally {
