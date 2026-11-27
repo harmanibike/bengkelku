@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:unified_esc_pos_printer/unified_esc_pos_printer.dart';
 
 import '../../../core/formatters/currency_input_formatter.dart';
 import '../../../core/widgets/app_photo_preview.dart';
@@ -189,6 +190,106 @@ class _ProductListPageState extends State<ProductListPage> {
     controller.selection = TextSelection.collapsed(offset: controller.text.length);
   }
 
+  Future<void> _printProductBarcode({
+    required String productName,
+    required String barcode,
+    String sku = '',
+  }) async {
+    final code = barcode.trim();
+    if (code.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Isi atau generate barcode terlebih dahulu.')),
+      );
+      return;
+    }
+
+    final quantityController = TextEditingController(text: '1');
+    final quantity = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Jumlah label barcode'),
+        content: TextField(
+          controller: quantityController,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(
+            labelText: 'Jumlah cetak',
+            helperText: 'Cetak pada gulungan kertas 58 mm.',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = int.tryParse(quantityController.text) ?? 0;
+              if (value < 1 || value > 100) return;
+              Navigator.pop(dialogContext, value);
+            },
+            child: const Text('Cetak'),
+          ),
+        ],
+      ),
+    );
+    quantityController.dispose();
+    if (quantity == null || !mounted) return;
+
+    final settings = ReceiptSettingsRepository();
+    final savedPrinter = await settings.getSavedPrinter();
+    if (savedPrinter == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Printer utama belum diatur. Hubungkan EPOS RPP02N melalui Pengaturan Printer.')),
+      );
+      return;
+    }
+
+    final manager = PrinterManager();
+    try {
+      await manager.connect(BluetoothPrinterDevice(
+        name: savedPrinter['name']!,
+        address: savedPrinter['address']!,
+      ));
+      for (var i = 0; i < quantity; i++) {
+        final ticket = await Ticket.create(PaperSize.mm58);
+        ticket.text(
+          productName.trim().isEmpty ? 'PRODUK' : productName.trim(),
+          align: PrintAlign.center,
+          style: const PrintTextStyle(bold: true),
+        );
+        ticket.barcode(
+          code,
+          type: BarcodeType.code128,
+          width: 2,
+          height: 80,
+          textPosition: BarcodeTextPosition.below,
+          align: PrintAlign.center,
+        );
+        if (sku.trim().isNotEmpty) {
+          ticket.text('SKU: ${sku.trim()}', align: PrintAlign.center);
+        }
+        ticket.feed(3);
+        await manager.printTicket(ticket);
+      }
+      await manager.waitWriteComplete();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$quantity label barcode dikirim ke ${savedPrinter['name']}. Sobek label pada garis potong kertas.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mencetak barcode: $error')),
+      );
+    } finally {
+      await manager.dispose();
+    }
+  }
+
   Future<void> _showProductForm({Map<String, Object?>? product}) async {
     final categories = await _repository.getCategories();
     if (!mounted) return;
@@ -209,6 +310,7 @@ class _ProductListPageState extends State<ProductListPage> {
     bool trackStock = (product?['track_stock'] as int? ?? 1) == 1;
     String? imagePath = product?['image_path']?.toString();
     bool removeImage = false;
+    bool printingBarcode = false;
 
     Future<void> chooseImage(ImageSource source, StateSetter setDialogState) async {
       final picked = await ImagePicker().pickImage(
@@ -407,6 +509,23 @@ class _ProductListPageState extends State<ProductListPage> {
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+              OutlinedButton.icon(
+                onPressed: barcode.text.trim().isEmpty || printingBarcode
+                    ? null
+                    : () async {
+                        setDialogState(() => printingBarcode = true);
+                        await _printProductBarcode(
+                          productName: name.text,
+                          barcode: barcode.text,
+                          sku: sku.text,
+                        );
+                        if (context.mounted) setDialogState(() => printingBarcode = false);
+                      },
+                icon: printingBarcode
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.print_outlined),
+                label: Text(printingBarcode ? 'Mencetak...' : 'Cetak Barcode'),
+              ),
               FilledButton.icon(
                 onPressed: () {
                   if (formKey.currentState!.validate()) {
