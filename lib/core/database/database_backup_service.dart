@@ -174,7 +174,7 @@ class DatabaseBackupService {
       archive.addFile(ArchiveFile(_manifestName, manifest.length, manifest));
 
       final zipBytes = ZipEncoder().encode(archive);
-      if (zipBytes == null || zipBytes.isEmpty) {
+      if (zipBytes.isEmpty) {
         throw StateError('Arsip ZIP gagal dibuat.');
       }
       final destination = File(p.join(directory.path, 'BengkelKu_Backup_$timestamp.zip'));
