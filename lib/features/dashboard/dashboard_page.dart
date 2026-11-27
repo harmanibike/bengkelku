@@ -171,9 +171,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
 
   Widget _header() {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      padding: EdgeInsets.fromLTRB(12, isLandscape ? 5 : 8, 12, isLandscape ? 7 : 12),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF1558A6), Color(0xFF2478C8)],
@@ -190,8 +191,8 @@ class _DashboardPageState extends State<DashboardPage> {
             ClipRRect(
               borderRadius: BorderRadius.circular(13),
               child: SizedBox(
-                width: 48,
-                height: 48,
+                width: isLandscape ? 40 : 48,
+                height: isLandscape ? 40 : 48,
                 child: Image.asset(
                   'assets/branding/bike_pos_icon.png',
                   fit: BoxFit.cover,
@@ -659,56 +660,73 @@ class _DashboardPageState extends State<DashboardPage> {
               child: FutureBuilder<Map<String, Object?>>(
                 future: _summaryFuture,
                 builder: (context, snapshot) {
+                  final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+                  final isWideLandscape = isLandscape && MediaQuery.of(context).size.width >= 650;
+                  final leftContent = <Widget>[
+                    _shopCard(),
+                    const SizedBox(height: 10),
+                    if (AuthSession.instance.isAdmin) ...[
+                      _cashCard(snapshot),
+                      const SizedBox(height: 10),
+                    ],
+                    if (!AuthSession.instance.isMechanic) ...[
+                      _startCashierCard(),
+                      const SizedBox(height: 7),
+                    ],
+                  ];
+                  final rightContent = <Widget>[
+                    if (AuthSession.instance.isAdmin) ...[
+                      _summary(snapshot),
+                      const SizedBox(height: 9),
+                    ],
+                    if (AuthSession.instance.isCashierOrAdmin && _pendingPartRequests > 0) ...[
+                      Material(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: _openServices,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.notifications_active, color: Color(0xFFE65100)),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Text(
+                                    'Ada $_pendingPartRequests pengajuan tambah sparepart servis menunggu persetujuan.',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6D3B00)),
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right, color: Color(0xFFE65100)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                    ],
+                    _menu(),
+                  ];
                   return CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            _shopCard(),
-                            const SizedBox(height: 10),
-                            if (AuthSession.instance.isAdmin) ...[
-                              _cashCard(snapshot),
-                              const SizedBox(height: 10),
-                            ],
-                            if (!AuthSession.instance.isMechanic) ...[
-                              _startCashierCard(),
-                              const SizedBox(height: 7),
-                            ],
-                            if (AuthSession.instance.isAdmin) ...[
-                              _summary(snapshot),
-                              const SizedBox(height: 9),
-                            ],
-                            if (AuthSession.instance.isCashierOrAdmin && _pendingPartRequests > 0) ...[
-                              Material(
-                                color: const Color(0xFFFFF3E0),
-                                borderRadius: BorderRadius.circular(12),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(12),
-                                  onTap: _openServices,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.notifications_active, color: Color(0xFFE65100)),
-                                        const SizedBox(width: 9),
-                                        Expanded(
-                                          child: Text(
-                                            'Ada $_pendingPartRequests pengajuan tambah sparepart servis menunggu persetujuan.',
-                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6D3B00)),
-                                          ),
-                                        ),
-                                        const Icon(Icons.chevron_right, color: Color(0xFFE65100)),
-                                      ],
-                                    ),
-                                  ),
+                        padding: EdgeInsets.fromLTRB(12, isLandscape ? 8 : 10, 12, 14),
+                        sliver: SliverToBoxAdapter(
+                          child: isWideLandscape
+                              ? Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: leftContent)),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rightContent)),
+                                  ],
+                                )
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [...leftContent, ...rightContent],
                                 ),
-                              ),
-                              const SizedBox(height: 9),
-                            ],
-                            _menu(),
-                          ])
                         ),
                       ),
                     ],
