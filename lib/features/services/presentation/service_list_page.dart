@@ -805,369 +805,376 @@ class _ServiceListPageState extends State<ServiceListPage> {
   }
 
   Future<void> _showDetail(Map<String, Object?> order) async {
-    final id = order['id'] as int;
-    final detail = await _repository.getServiceOrderById(id);
-    if (!mounted || detail == null) return;
-
-    final status = detail['service_status']?.toString() ?? 'waiting';
-    final statusHistory = await _repository.getServiceStatusHistory(id);
-    final directCostHistory = AuthSession.instance.isAdmin
-        ? await _repository.getServiceDirectCostHistory(id)
-        : <Map<String, Object?>>[];
-    final partChangeRequests = AuthSession.instance.isCashierOrAdmin
-        ? await _repository.getServicePartChangeRequests(id)
-        : <Map<String, Object?>>[];
-    final estimateHistory = AuthSession.instance.isCashierOrAdmin
-        ? await _repository.getServiceEstimateHistory(id)
-        : <Map<String, Object?>>[];
-    // Profil usaha dibatasi untuk Admin/Kasir. Mekanik tetap dapat membuka detail servis.
-    final businessProfile = AuthSession.instance.isMechanic
-        ? <String, String>{}
-        : await BusinessProfileRepository().getProfile();
-    if (!mounted) return;
-    final action = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(detail['order_number']?.toString() ?? 'Detail Servis'),
-        content: SizedBox(
-          width: 520,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!AuthSession.instance.isMechanic)
-                  BusinessIdentityHeader(profile: businessProfile),
-                _detailLine('Pelanggan', detail['customer_name']),
-                _detailLine('Telepon', detail['customer_phone']),
-                _detailLine(
-                  'Sepeda',
-                  '${detail['bicycle_brand'] ?? ''} ${detail['bicycle_model'] ?? ''}',
-                ),
-                _detailLine('Nomor rangka', detail['bicycle_serial_number']),
-                _detailLine('Tanggal masuk', _dateLabel(detail['received_at'])),
-                _detailLine('Keluhan', detail['complaint']),
-                _detailLine('Diagnosis', detail['diagnosis']),
-                _detailLine('Mekanik', detail['mechanic_name']),
-                if ((detail['items'] as List? ?? const []).isNotEmpty) ...[
-                  const Divider(),
-                  const Text('Sparepart pada servis', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ...((detail['items'] as List).map((rawItem) {
-                    final item = Map<String, Object?>.from(rawItem as Map);
-                    final itemId = item['id'] as int?;
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(children: [
-                        Expanded(child: Text('${item['item_name']} • Qty ${item['quantity']}', style: const TextStyle(fontSize: 13))),
-                        if (!AuthSession.instance.isMechanic) Text(_rupiah(item['subtotal']), style: const TextStyle(fontSize: 12)),
-                        if (AuthSession.instance.isMechanic && itemId != null && const ['waiting', 'checking', 'in_progress'].contains(status))
-                          TextButton(onPressed: () => Navigator.pop(dialogContext, 'part_cancel:$itemId'), child: const Text('Usulkan batal')),
-                      ]),
-                    );
-                  })),
-                ],
-                if (AuthSession.instance.isMechanic && const ['waiting', 'checking', 'in_progress'].contains(status))
-                  OutlinedButton.icon(onPressed: () => Navigator.pop(dialogContext, 'part_add'),
-                    icon: const Icon(Icons.add_box_outlined), label: const Text('Usulkan tambah sparepart')),
-                if (estimateHistory.isNotEmpty) ...[
-                  const Divider(),
-                  const Text('Riwayat perubahan estimasi', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ...estimateHistory.map((entry) => Padding(
-                    padding: const EdgeInsets.only(top: 6, bottom: 6),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${_dateLabel(entry['changed_at'])} • ${entry['changed_by_name'] ?? 'Admin/Kasir'}',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                        Text('Total: ${_rupiah(entry['old_total_cost'])} → ${_rupiah(entry['new_total_cost'])}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                        if ((entry['reason']?.toString() ?? '').isNotEmpty)
-                          Text('Alasan: ${entry['reason']}', style: const TextStyle(fontSize: 11)),
-                        if ((entry['customer_approval_note']?.toString() ?? '').isNotEmpty)
-                          Text('Persetujuan pelanggan: ${entry['customer_approval_note']}', style: const TextStyle(fontSize: 11)),
-                      ],
-                    ),
-                  )),
-                ],
-                if (partChangeRequests.isNotEmpty) ...[
-                  const Divider(),
-                  const Text('Usulan perubahan sparepart', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ...partChangeRequests.map((request) => ListTile(
-                    dense: true, contentPadding: EdgeInsets.zero,
-                    title: Text('${request['request_type'] == 'add' ? 'Tambah' : 'Batalkan'}: ${request['item_name']} × ${request['quantity']}'),
-                    subtitle: Text('Status: ${request['status']} • Mekanik: ${request['proposed_by_name'] ?? '-'}'),
-                    trailing: request['status'] == 'pending'
-                        ? TextButton(onPressed: () => Navigator.pop(dialogContext, 'review_part:${request['id']}'), child: const Text('Tinjau'))
-                        : null,
-                  )),
-                ],
-                if (!AuthSession.instance.isMechanic) ...[
-                const Divider(),
-                _detailLine('Jasa servis', _rupiah(detail['labor_cost'])),
-                _detailLine('Sparepart', _rupiah(detail['parts_cost'])),
-                if (AuthSession.instance.isAdmin) ...[
-                  _detailLine('Modal sparepart', _rupiah(detail['direct_parts_cost'])),
-                  _detailLine('Biaya langsung lain', _rupiah(detail['other_direct_cost'])),
-                ],
-                _detailLine('Diskon', _rupiah(detail['discount'])),
-                _detailLine('Total', _rupiah(detail['total_cost'])),
-                _detailLine('Sudah dibayar', _rupiah(detail['down_payment'])),
-                _detailLine('Sisa tagihan', _rupiah(detail['remaining_payment'])),
-                _detailLine(
-                  'Status pembayaran',
-                  (detail['remaining_payment'] as int? ?? 0) <= 0
-                      ? 'Lunas'
-                      : (detail['down_payment'] as int? ?? 0) > 0
-                          ? 'Belum lunas (sebagian dibayar)'
-                          : 'Belum dibayar',
-                ),
-                ],
-                _detailLine('Status sepeda', _statusLabels[status] ?? status),
-                if (statusHistory.isNotEmpty) ...[
-                  const Divider(),
-                  const Text('Riwayat Status',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  ...statusHistory.map((entry) {
-                    final next = entry['new_status']?.toString() ?? 'waiting';
-                    final previous = entry['old_status']?.toString();
-                    final label = previous == null
-                        ? 'Servis diterima'
-                        : '${_statusLabels[previous] ?? previous} → ${_statusLabels[next] ?? next}';
-                    final note = entry['note']?.toString();
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 7),
-                      child: Row(
+    try {
+  final id = order['id'] as int;
+      final detail = await _repository.getServiceOrderById(id);
+      if (!mounted || detail == null) return;
+  
+      final status = detail['service_status']?.toString() ?? 'waiting';
+      final statusHistory = await _repository.getServiceStatusHistory(id);
+      final directCostHistory = AuthSession.instance.isAdmin
+          ? await _repository.getServiceDirectCostHistory(id)
+          : <Map<String, Object?>>[];
+      final partChangeRequests = AuthSession.instance.isCashierOrAdmin
+          ? await _repository.getServicePartChangeRequests(id)
+          : <Map<String, Object?>>[];
+      final estimateHistory = AuthSession.instance.isCashierOrAdmin
+          ? await _repository.getServiceEstimateHistory(id)
+          : <Map<String, Object?>>[];
+      // Profil usaha dibatasi untuk Admin/Kasir. Mekanik tetap dapat membuka detail servis.
+      final businessProfile = AuthSession.instance.isMechanic
+          ? <String, String>{}
+          : await BusinessProfileRepository().getProfile();
+      if (!mounted) return;
+      final action = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(detail['order_number']?.toString() ?? 'Detail Servis'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!AuthSession.instance.isMechanic)
+                    BusinessIdentityHeader(profile: businessProfile),
+                  _detailLine('Pelanggan', detail['customer_name']),
+                  _detailLine('Telepon', detail['customer_phone']),
+                  _detailLine(
+                    'Sepeda',
+                    '${detail['bicycle_brand'] ?? ''} ${detail['bicycle_model'] ?? ''}',
+                  ),
+                  _detailLine('Nomor rangka', detail['bicycle_serial_number']),
+                  _detailLine('Tanggal masuk', _dateLabel(detail['received_at'])),
+                  _detailLine('Keluhan', detail['complaint']),
+                  _detailLine('Diagnosis', detail['diagnosis']),
+                  _detailLine('Mekanik', detail['mechanic_name']),
+                  if ((detail['items'] as List? ?? const []).isNotEmpty) ...[
+                    const Divider(),
+                    const Text('Sparepart pada servis', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...((detail['items'] as List).map((rawItem) {
+                      final item = Map<String, Object?>.from(rawItem as Map);
+                      final itemId = item['id'] as int?;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(children: [
+                          Expanded(child: Text('${item['item_name']} • Qty ${item['quantity']}', style: const TextStyle(fontSize: 13))),
+                          if (!AuthSession.instance.isMechanic) Text(_rupiah(item['subtotal']), style: const TextStyle(fontSize: 12)),
+                          if (AuthSession.instance.isMechanic && itemId != null && const ['waiting', 'checking', 'in_progress'].contains(status))
+                            TextButton(onPressed: () => Navigator.pop(dialogContext, 'part_cancel:$itemId'), child: const Text('Usulkan batal')),
+                        ]),
+                      );
+                    })),
+                  ],
+                  if (AuthSession.instance.isMechanic && const ['waiting', 'checking', 'in_progress'].contains(status))
+                    OutlinedButton.icon(onPressed: () => Navigator.pop(dialogContext, 'part_add'),
+                      icon: const Icon(Icons.add_box_outlined), label: const Text('Usulkan tambah sparepart')),
+                  if (estimateHistory.isNotEmpty) ...[
+                    const Divider(),
+                    const Text('Riwayat perubahan estimasi', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...estimateHistory.map((entry) => Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 6),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.history, size: 16, color: Colors.grey),
-                          const SizedBox(width: 7),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                                Text(_dateLabel(entry['changed_at']), style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                                if (note != null && note.isNotEmpty)
-                                  Text(note, style: const TextStyle(fontSize: 11)),
-                              ],
-                            ),
-                          ),
+                          Text('${_dateLabel(entry['changed_at'])} • ${entry['changed_by_name'] ?? 'Admin/Kasir'}',
+                            style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text('Total: ${_rupiah(entry['old_total_cost'])} → ${_rupiah(entry['new_total_cost'])}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          if ((entry['reason']?.toString() ?? '').isNotEmpty)
+                            Text('Alasan: ${entry['reason']}', style: const TextStyle(fontSize: 11)),
+                          if ((entry['customer_approval_note']?.toString() ?? '').isNotEmpty)
+                            Text('Persetujuan pelanggan: ${entry['customer_approval_note']}', style: const TextStyle(fontSize: 11)),
                         ],
                       ),
-                    );
-                  }),
-                ],
-                if (directCostHistory.isNotEmpty) ...[
+                    )),
+                  ],
+                  if (partChangeRequests.isNotEmpty) ...[
+                    const Divider(),
+                    const Text('Usulan perubahan sparepart', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ...partChangeRequests.map((request) => ListTile(
+                      dense: true, contentPadding: EdgeInsets.zero,
+                      title: Text('${request['request_type'] == 'add' ? 'Tambah' : 'Batalkan'}: ${request['item_name']} × ${request['quantity']}'),
+                      subtitle: Text('Status: ${request['status']} • Mekanik: ${request['proposed_by_name'] ?? '-'}'),
+                      trailing: request['status'] == 'pending'
+                          ? TextButton(onPressed: () => Navigator.pop(dialogContext, 'review_part:${request['id']}'), child: const Text('Tinjau'))
+                          : null,
+                    )),
+                  ],
+                  if (!AuthSession.instance.isMechanic) ...[
                   const Divider(),
-                  const Text('Riwayat Biaya Modal',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  ...directCostHistory.map((entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Column(
+                  _detailLine('Jasa servis', _rupiah(detail['labor_cost'])),
+                  _detailLine('Sparepart', _rupiah(detail['parts_cost'])),
+                  if (AuthSession.instance.isAdmin) ...[
+                    _detailLine('Modal sparepart', _rupiah(detail['direct_parts_cost'])),
+                    _detailLine('Biaya langsung lain', _rupiah(detail['other_direct_cost'])),
+                  ],
+                  _detailLine('Diskon', _rupiah(detail['discount'])),
+                  _detailLine('Total', _rupiah(detail['total_cost'])),
+                  _detailLine('Sudah dibayar', _rupiah(detail['down_payment'])),
+                  _detailLine('Sisa tagihan', _rupiah(detail['remaining_payment'])),
+                  _detailLine(
+                    'Status pembayaran',
+                    (detail['remaining_payment'] as int? ?? 0) <= 0
+                        ? 'Lunas'
+                        : (detail['down_payment'] as int? ?? 0) > 0
+                            ? 'Belum lunas (sebagian dibayar)'
+                            : 'Belum dibayar',
+                  ),
+                  ],
+                  _detailLine('Status sepeda', _statusLabels[status] ?? status),
+                  if (statusHistory.isNotEmpty) ...[
+                    const Divider(),
+                    const Text('Riwayat Status',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    ...statusHistory.map((entry) {
+                      final next = entry['new_status']?.toString() ?? 'waiting';
+                      final previous = entry['old_status']?.toString();
+                      final label = previous == null
+                          ? 'Servis diterima'
+                          : '${_statusLabels[previous] ?? previous} → ${_statusLabels[next] ?? next}';
+                      final note = entry['note']?.toString();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 7),
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_dateLabel(entry['changed_at']),
-                                style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                            Text('Modal sparepart: ${_rupiah(entry['old_direct_parts_cost'])} → ${_rupiah(entry['new_direct_parts_cost'])}',
-                                style: const TextStyle(fontSize: 12)),
-                            Text('Biaya langsung lain: ${_rupiah(entry['old_other_direct_cost'])} → ${_rupiah(entry['new_other_direct_cost'])}',
-                                style: const TextStyle(fontSize: 12)),
+                            const Icon(Icons.history, size: 16, color: Colors.grey),
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                  Text(_dateLabel(entry['changed_at']), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                                  if (note != null && note.isNotEmpty)
+                                    Text(note, style: const TextStyle(fontSize: 11)),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
-                      )),
-                ],
-                if ((detail['notes']?.toString() ?? '').isNotEmpty)
-                  _detailLine('Catatan', detail['notes']),
-                if (!AuthSession.instance.isMechanic) ...[
-                const Divider(),
-                const Text('Dokumentasi Servis',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text('Foto sebelum servis',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 5),
-                ServicePhotoHelper.preview(
-                  detail['before_photo_path']?.toString(),
-                  height: 145,
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'before'),
-                    icon: const Icon(Icons.add_a_photo_outlined),
-                    label: Text(detail['before_photo_path'] == null
-                        ? 'Tambah foto sebelum'
-                        : 'Ganti foto sebelum'),
+                      );
+                    }),
+                  ],
+                  if (directCostHistory.isNotEmpty) ...[
+                    const Divider(),
+                    const Text('Riwayat Biaya Modal',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    ...directCostHistory.map((entry) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_dateLabel(entry['changed_at']),
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text('Modal sparepart: ${_rupiah(entry['old_direct_parts_cost'])} → ${_rupiah(entry['new_direct_parts_cost'])}',
+                                  style: const TextStyle(fontSize: 12)),
+                              Text('Biaya langsung lain: ${_rupiah(entry['old_other_direct_cost'])} → ${_rupiah(entry['new_other_direct_cost'])}',
+                                  style: const TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        )),
+                  ],
+                  if ((detail['notes']?.toString() ?? '').isNotEmpty)
+                    _detailLine('Catatan', detail['notes']),
+                  if (!AuthSession.instance.isMechanic) ...[
+                  const Divider(),
+                  const Text('Dokumentasi Servis',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('Foto sebelum servis',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 5),
+                  ServicePhotoHelper.preview(
+                    detail['before_photo_path']?.toString(),
+                    height: 145,
                   ),
-                ),
-                const SizedBox(height: 5),
-                const Text('Foto sesudah servis',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 5),
-                ServicePhotoHelper.preview(
-                  detail['after_photo_path']?.toString(),
-                  height: 145,
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'after'),
-                    icon: const Icon(Icons.add_a_photo_outlined),
-                    label: Text(detail['after_photo_path'] == null
-                        ? 'Tambah foto sesudah'
-                        : 'Ganti foto sesudah'),
-                  ),
-                ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Tutup'),
-                ),
-                if (AuthSession.instance.isCashierOrAdmin)
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'assign_mechanic'),
-                    icon: const Icon(Icons.assignment_ind_outlined),
-                    label: const Text('Tugaskan Mekanik'),
-                  ),
-                if (!AuthSession.instance.isMechanic)
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'receipt_history'),
-                    icon: const Icon(Icons.history),
-                    label: const Text('Riwayat Nota'),
-                  ),
-                if (!AuthSession.instance.isMechanic)
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'receipt'),
-                    icon: const Icon(Icons.receipt_long_outlined),
-                    label: const Text('Nota / Bagikan'),
-                  ),
-                if (!AuthSession.instance.isMechanic)
-                  PopupMenuButton<String>(
-                    tooltip: 'Dokumen servis',
-                    onSelected: (value) => Navigator.pop(dialogContext, value),
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(
-                        value: 'service_intake_receipt',
-                        child: Text('Bukti Penerimaan Sepeda'),
-                      ),
-                      if ((detail['remaining_payment'] as int? ?? 0) <= 0 &&
-                          status != 'cancelled')
-                        const PopupMenuItem(
-                          value: 'service_final_payment_receipt',
-                          child: Text('Bukti Pelunasan'),
-                        ),
-                    ],
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.description_outlined, size: 18),
-                          const SizedBox(width: 6),
-                          const Text('Dokumen'),
-                          const Icon(Icons.arrow_drop_down, size: 18),
-                        ],
-                      ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'before'),
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                      label: Text(detail['before_photo_path'] == null
+                          ? 'Tambah foto sebelum'
+                          : 'Ganti foto sebelum'),
                     ),
                   ),
-                if (AuthSession.instance.isCashierOrAdmin &&
-                    const ['waiting', 'checking', 'in_progress'].contains(status))
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'estimate'),
-                    icon: const Icon(Icons.edit_note_outlined),
-                    label: const Text('Ubah Estimasi'),
+                  const SizedBox(height: 5),
+                  const Text('Foto sesudah servis',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 5),
+                  ServicePhotoHelper.preview(
+                    detail['after_photo_path']?.toString(),
+                    height: 145,
                   ),
-                if (AuthSession.instance.isAdmin)
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
-                    icon: const Icon(Icons.edit_note_outlined),
-                    label: const Text('Ubah Biaya Modal'),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'after'),
+                      icon: const Icon(Icons.add_a_photo_outlined),
+                      label: Text(detail['after_photo_path'] == null
+                          ? 'Tambah foto sesudah'
+                          : 'Ganti foto sesudah'),
+                    ),
                   ),
-                if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
-                    status != 'cancelled')
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'payment'),
-                    icon: const Icon(Icons.payments_outlined),
-                    label: const Text('Catat Pembayaran'),
-                  ),
-                if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
-                    detail['customer_id'] != null && status != 'cancelled')
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'wallet_payment'),
-                    icon: const Icon(Icons.account_balance_wallet_outlined),
-                    label: const Text('Bayar dari Saldo'),
-                  ),
-                if (AuthSession.instance.isCashierOrAdmin && status != 'cancelled')
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(dialogContext, 'tip'),
-                    icon: const Icon(Icons.volunteer_activism_outlined),
-                    label: const Text('Catat Uang Tip'),
-                  ),
-                FilledButton.icon(
-                  onPressed: () => Navigator.pop(dialogContext, 'status'),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Ubah Status'),
-                ),
-              ],
+                  ],
+                ],
+              ),
             ),
           ),
-        ],
-      ),
-    );
-
-    if (!mounted) return;
-    if (action?.startsWith('part_cancel:') == true) {
-      final itemId = int.tryParse(action!.split(':').last);
-      if (itemId != null) await _proposePartChange(id, cancelItemId: itemId);
-    } else if (action == 'part_add') {
-      await _proposePartChange(id);
-    } else if (action?.startsWith('review_part:') == true) {
-      final requestId = int.tryParse(action!.split(':').last);
-      Map<String, Object?>? selectedRequest;
-      for (final row in partChangeRequests) {
-        if (row['id'] == requestId) selectedRequest = row;
+          actions: [
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Tutup'),
+                  ),
+                  if (AuthSession.instance.isCashierOrAdmin)
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'assign_mechanic'),
+                      icon: const Icon(Icons.assignment_ind_outlined),
+                      label: const Text('Tugaskan Mekanik'),
+                    ),
+                  if (!AuthSession.instance.isMechanic)
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'receipt_history'),
+                      icon: const Icon(Icons.history),
+                      label: const Text('Riwayat Nota'),
+                    ),
+                  if (!AuthSession.instance.isMechanic)
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'receipt'),
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: const Text('Nota / Bagikan'),
+                    ),
+                  if (!AuthSession.instance.isMechanic)
+                    PopupMenuButton<String>(
+                      tooltip: 'Dokumen servis',
+                      onSelected: (value) => Navigator.pop(dialogContext, value),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'service_intake_receipt',
+                          child: Text('Bukti Penerimaan Sepeda'),
+                        ),
+                        if ((detail['remaining_payment'] as int? ?? 0) <= 0 &&
+                            status != 'cancelled')
+                          const PopupMenuItem(
+                            value: 'service_final_payment_receipt',
+                            child: Text('Bukti Pelunasan'),
+                          ),
+                      ],
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.description_outlined, size: 18),
+                            const SizedBox(width: 6),
+                            const Text('Dokumen'),
+                            const Icon(Icons.arrow_drop_down, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (AuthSession.instance.isCashierOrAdmin &&
+                      const ['waiting', 'checking', 'in_progress'].contains(status))
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'estimate'),
+                      icon: const Icon(Icons.edit_note_outlined),
+                      label: const Text('Ubah Estimasi'),
+                    ),
+                  if (AuthSession.instance.isAdmin)
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'direct_costs'),
+                      icon: const Icon(Icons.edit_note_outlined),
+                      label: const Text('Ubah Biaya Modal'),
+                    ),
+                  if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
+                      status != 'cancelled')
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'payment'),
+                      icon: const Icon(Icons.payments_outlined),
+                      label: const Text('Catat Pembayaran'),
+                    ),
+                  if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
+                      detail['customer_id'] != null && status != 'cancelled')
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'wallet_payment'),
+                      icon: const Icon(Icons.account_balance_wallet_outlined),
+                      label: const Text('Bayar dari Saldo'),
+                    ),
+                  if (AuthSession.instance.isCashierOrAdmin && status != 'cancelled')
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pop(dialogContext, 'tip'),
+                      icon: const Icon(Icons.volunteer_activism_outlined),
+                      label: const Text('Catat Uang Tip'),
+                    ),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.pop(dialogContext, 'status'),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Ubah Status'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+  
+      if (!mounted) return;
+      if (action?.startsWith('part_cancel:') == true) {
+        final itemId = int.tryParse(action!.split(':').last);
+        if (itemId != null) await _proposePartChange(id, cancelItemId: itemId);
+      } else if (action == 'part_add') {
+        await _proposePartChange(id);
+      } else if (action?.startsWith('review_part:') == true) {
+        final requestId = int.tryParse(action!.split(':').last);
+        Map<String, Object?>? selectedRequest;
+        for (final row in partChangeRequests) {
+          if (row['id'] == requestId) selectedRequest = row;
+        }
+        if (selectedRequest != null) await _reviewPartChange(id, selectedRequest);
+      } else if (action == 'assign_mechanic') {
+        await _assignMechanic(id);
+      } else if (action == 'receipt') {
+        await ReceiptShareLauncher.service(context, id);
+      } else if (action == 'service_intake_receipt') {
+        await ReceiptShareLauncher.serviceIntake(context, id);
+      } else if (action == 'service_final_payment_receipt') {
+        await ReceiptShareLauncher.serviceFinalPayment(context, id);
+      } else if (action == 'receipt_history') {
+        await ReceiptShareLauncher.showHistory(context, sourceType: 'service_order', sourceId: id);
+      } else if (action == 'estimate') {
+        await _editServiceEstimate(detail);
+      } else if (action == 'direct_costs') {
+        await _editDirectCosts(detail);
+      } else if (action == 'status') {
+        await _changeStatus(detail);
+      } else if (action == 'wallet_payment') {
+        await _payServiceFromWallet(detail);
+      } else if (action == 'tip') {
+        await _recordServiceTip(detail);
+      } else if (action == 'payment') {
+        await _addServicePayment(id);
+      } else if (action == 'before') {
+        await _pickServicePhoto(id, before: true);
+      } else if (action == 'after') {
+        await _pickServicePhoto(id, before: false);
       }
-      if (selectedRequest != null) await _reviewPartChange(id, selectedRequest);
-    } else if (action == 'assign_mechanic') {
-      await _assignMechanic(id);
-    } else if (action == 'receipt') {
-      await ReceiptShareLauncher.service(context, id);
-    } else if (action == 'service_intake_receipt') {
-      await ReceiptShareLauncher.serviceIntake(context, id);
-    } else if (action == 'service_final_payment_receipt') {
-      await ReceiptShareLauncher.serviceFinalPayment(context, id);
-    } else if (action == 'receipt_history') {
-      await ReceiptShareLauncher.showHistory(context, sourceType: 'service_order', sourceId: id);
-    } else if (action == 'estimate') {
-      await _editServiceEstimate(detail);
-    } else if (action == 'direct_costs') {
-      await _editDirectCosts(detail);
-    } else if (action == 'status') {
-      await _changeStatus(detail);
-    } else if (action == 'wallet_payment') {
-      await _payServiceFromWallet(detail);
-    } else if (action == 'tip') {
-      await _recordServiceTip(detail);
-    } else if (action == 'payment') {
-      await _addServicePayment(id);
-    } else if (action == 'before') {
-      await _pickServicePhoto(id, before: true);
-    } else if (action == 'after') {
-      await _pickServicePhoto(id, before: false);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membuka detail servis: $error')),
+      );
     }
   }
 
