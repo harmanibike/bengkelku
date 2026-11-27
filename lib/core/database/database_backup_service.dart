@@ -179,9 +179,25 @@ class DatabaseBackupService {
       }
       final destination = File(p.join(directory.path, 'BengkelKu_Backup_$timestamp.zip'));
       await destination.writeAsBytes(zipBytes, flush: true);
-      if (await destination.length() < databaseBytes.length) {
+      final writtenBytes = await destination.length();
+      if (writtenBytes < 100) {
         await destination.delete();
         throw StateError('Ukuran arsip backup tidak valid.');
+      }
+      // ZIP dapat lebih kecil dari database karena kompresi; validasi dengan
+      // membuka ulang arsip dan memastikan entri database utuh.
+      final verificationArchive = ZipDecoder().decodeBytes(
+        await destination.readAsBytes(),
+      );
+      final verificationDatabase = _findArchiveFile(
+        verificationArchive,
+        'database/$_databaseName',
+      );
+      if (verificationDatabase == null ||
+          (verificationDatabase.content as List<int>).length !=
+              databaseBytes.length) {
+        await destination.delete();
+        throw StateError('Verifikasi arsip backup gagal.');
       }
       return destination;
     } finally {
