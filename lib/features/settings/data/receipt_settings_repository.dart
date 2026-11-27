@@ -18,6 +18,9 @@ class ReceiptPrintSettings {
     this.footerNote = '',
     this.fontScale = 1,
     this.spacing = 1,
+    this.autoPrintSales = false,
+    this.autoPrintServicePayments = false,
+    this.printCopies = 1,
   });
 
   final int paperWidthMm;
@@ -31,6 +34,9 @@ class ReceiptPrintSettings {
   final String footerNote;
   final double fontScale;
   final double spacing;
+  final bool autoPrintSales;
+  final bool autoPrintServicePayments;
+  final int printCopies;
 
   double get paperWidthPoints => paperWidthMm == 80 ? 226.8 : 164.4;
   double get marginPoints => paperWidthMm == 80 ? 14 : 12;
@@ -50,6 +56,9 @@ class ReceiptPrintSettings {
     'footerNote': footerNote,
     'fontScale': fontScale,
     'spacing': spacing,
+    'autoPrintSales': autoPrintSales,
+    'autoPrintServicePayments': autoPrintServicePayments,
+    'printCopies': printCopies,
   };
 
   factory ReceiptPrintSettings.fromJson(Map<String, dynamic> json) {
@@ -67,6 +76,9 @@ class ReceiptPrintSettings {
       footerNote: json['footerNote']?.toString() ?? '',
       fontScale: number('fontScale', 1).clamp(0.85, 1.25).toDouble(),
       spacing: number('spacing', 1).clamp(0.7, 1.6).toDouble(),
+      autoPrintSales: flag('autoPrintSales', false),
+      autoPrintServicePayments: flag('autoPrintServicePayments', false),
+      printCopies: (json['printCopies'] is num ? (json['printCopies'] as num).toInt() : 1).clamp(1, 3),
     );
   }
 
@@ -82,6 +94,9 @@ class ReceiptPrintSettings {
     String? footerNote,
     double? fontScale,
     double? spacing,
+    bool? autoPrintSales,
+    bool? autoPrintServicePayments,
+    int? printCopies,
   }) => ReceiptPrintSettings(
     paperWidthMm: paperWidthMm ?? this.paperWidthMm,
     showLogo: showLogo ?? this.showLogo,
@@ -94,6 +109,9 @@ class ReceiptPrintSettings {
     footerNote: footerNote ?? this.footerNote,
     fontScale: fontScale ?? this.fontScale,
     spacing: spacing ?? this.spacing,
+    autoPrintSales: autoPrintSales ?? this.autoPrintSales,
+    autoPrintServicePayments: autoPrintServicePayments ?? this.autoPrintServicePayments,
+    printCopies: printCopies ?? this.printCopies,
   );
 }
 
