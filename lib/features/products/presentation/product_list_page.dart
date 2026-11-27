@@ -270,9 +270,12 @@ class _ProductListPageState extends State<ProductListPage> {
           textPosition: BarcodeTextPosition.below,
           align: PrintAlign.center,
         );
-        if (sku.trim().isNotEmpty) {
-          ticket.text('SKU: ${sku.trim()}', align: PrintAlign.center);
-        }
+        // Nama produk berada di bawah kode seperti label contoh pengguna.
+        ticket.text(
+          productName.trim().isEmpty ? 'PRODUK' : productName.trim(),
+          align: PrintAlign.center,
+          style: const PrintTextStyle(bold: true),
+        );
         ticket.feed(3);
         await manager.printTicket(ticket);
       }
