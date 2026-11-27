@@ -945,7 +945,6 @@ class _ServiceListPageState extends State<ServiceListPage> {
         requestId: request['id'] as int,
         approve: result['approve'] == true,
         customerApproved: result['customer_approved'] == true,
-        approvedUnitPrice: isAdd && result['approve'] == true ? catalogPrice : null,
         customerApprovalNote: result['note']?.toString(),
       );
       if (!mounted) return;
