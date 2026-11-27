@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:material_ui/material_ui.dart';
 
@@ -20,6 +21,7 @@ import '../sales/presentation/cashier_page.dart';
 import '../sales/presentation/sales_history_page.dart';
 import '../sales/presentation/sale_returns_page.dart';
 import '../services/presentation/service_list_page.dart';
+import '../services/data/service_repository.dart';
 import '../services/presentation/service_pricing_page.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -32,12 +34,22 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final ReportRepository _reportRepository = ReportRepository();
   late Future<Map<String, Object?>> _summaryFuture;
+  final ServiceRepository _serviceRepository = ServiceRepository();
+  Timer? _pendingRequestTimer;
+  int _pendingPartRequests = 0;
 
   @override
   void initState() {
     super.initState();
     _summaryFuture = _loadTodaySummary();
     StockReminderNotificationService.instance.syncStockReminder();
+    _loadPendingPartRequests();
+    if (AuthSession.instance.isCashierOrAdmin) {
+      _pendingRequestTimer = Timer.periodic(
+        const Duration(seconds: 30),
+        (_) => _loadPendingPartRequests(),
+      );
+    }
   }
 
   Future<Map<String, Object?>> _loadTodaySummary() {
@@ -53,7 +65,25 @@ class _DashboardPageState extends State<DashboardPage> {
     final future = _loadTodaySummary();
     setState(() => _summaryFuture = future);
     await future;
+    await _loadPendingPartRequests();
     await StockReminderNotificationService.instance.syncStockReminder();
+  }
+
+  Future<void> _loadPendingPartRequests() async {
+    if (!AuthSession.instance.isCashierOrAdmin) return;
+    try {
+      final count = await _serviceRepository.countPendingServicePartChangeRequests();
+      if (!mounted || count == _pendingPartRequests) return;
+      setState(() => _pendingPartRequests = count);
+    } catch (_) {
+      // Gangguan query notifikasi tidak boleh menghambat dashboard.
+    }
+  }
+
+  @override
+  void dispose() {
+    _pendingRequestTimer?.cancel();
+    super.dispose();
   }
 
   int _number(Map<String, Object?>? data, String key) {
@@ -195,6 +225,42 @@ class _DashboardPageState extends State<DashboardPage> {
               ],
             ),
             const SizedBox(width: 4),
+            if (AuthSession.instance.isCashierOrAdmin)
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    tooltip: _pendingPartRequests > 0
+                        ? '$_pendingPartRequests pengajuan sparepart menunggu'
+                        : 'Notifikasi pengajuan sparepart',
+                    onPressed: _openServices,
+                    icon: const Icon(Icons.notifications_active_outlined, color: Colors.white),
+                  ),
+                  if (_pendingPartRequests > 0)
+                    Positioned(
+                      right: 2,
+                      top: 2,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE53935),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white, width: 1.2),
+                        ),
+                        child: Text(
+                          _pendingPartRequests > 99 ? '99+' : '$_pendingPartRequests',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             IconButton(
               tooltip: 'Keluar',
               onPressed: () async {
