@@ -100,30 +100,32 @@ class ServiceRepository {
     return db.transaction((txn) async {
       Map<String, Object?>? registeredCustomer;
       Map<String, Object?>? registeredBicycle;
-      if (customerId != null && bicycleId != null) {
+      if (customerId != null) {
         final customers = await txn.query(
           'customers',
-          columns: ['id'],
+          columns: ['id', 'name', 'phone'],
           where: 'id = ?',
           whereArgs: [customerId],
           limit: 1,
         );
         if (customers.isEmpty) throw StateError('Pelanggan tidak ditemukan.');
-        final bicycles = await txn.query(
-          'bicycles',
-          where: 'id = ? AND customer_id = ?',
-          whereArgs: [bicycleId, customerId],
-          limit: 1,
-        );
-        if (bicycles.isEmpty) {
-          throw StateError('Sepeda tidak ditemukan atau bukan milik pelanggan ini.');
-        }
         registeredCustomer = customers.first;
-        registeredBicycle = bicycles.first;
-      } else if (customerId == null && bicycleId == null) {
+        if (bicycleId != null) {
+          final bicycles = await txn.query(
+            'bicycles',
+            where: 'id = ? AND customer_id = ?',
+            whereArgs: [bicycleId, customerId],
+            limit: 1,
+          );
+          if (bicycles.isEmpty) {
+            throw StateError('Sepeda tidak ditemukan atau bukan milik pelanggan ini.');
+          }
+          registeredBicycle = bicycles.first;
+        }
+      } else if (bicycleId == null) {
         if (_nullableText(guestCustomerName) == null ||
             _nullableText(guestBicycleBrand) == null) {
-          throw ArgumentError('Nama pelanggan dan merek sepeda wajib diisi untuk Pelanggan Umum.');
+          throw ArgumentError('Nama pelanggan dan identitas objek servis wajib diisi untuk Pelanggan Umum.');
         }
       } else {
         throw ArgumentError('Data pelanggan dan sepeda tidak lengkap.');
@@ -163,10 +165,14 @@ class ServiceRepository {
         'bicycle_id': bicycleId,
         'customer_name': registeredCustomer == null
             ? _nullableText(guestCustomerName)
-            : null,
+            : registeredBicycle == null
+                ? _nullableText(registeredCustomer['name']?.toString())
+                : null,
         'customer_phone': registeredCustomer == null
             ? _nullableText(guestCustomerPhone)
-            : null,
+            : registeredBicycle == null
+                ? _nullableText(registeredCustomer['phone']?.toString())
+                : null,
         'bicycle_brand': registeredBicycle == null
             ? _nullableText(guestBicycleBrand)
             : null,
