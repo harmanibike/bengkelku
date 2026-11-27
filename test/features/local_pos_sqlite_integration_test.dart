@@ -156,6 +156,136 @@ void main() {
     expect(detail['payments'], hasLength(3));
   });
 
+  test('service sparepart request accepts quantity greater than one and applies exact quantity after approval', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
+    final productId = await db.insert('products', {
+      'name': 'Kampas Rem Uji Multi Qty',
+      'selling_price': 15000,
+      'purchase_price': 8000,
+      'stock': 5,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    await db.insert('inventory_cost_batches', {
+      'product_id': productId,
+      'quantity_received': 5,
+      'quantity_remaining': 5,
+      'unit_cost': 8000,
+    });
+
+    final services = ServiceRepository();
+    final serviceId = await services.createServiceOrder(
+      customerId: customerId,
+      bicycleId: bicycleId,
+      complaint: 'Pengujian penambahan dua kampas rem',
+      laborCost: 10000,
+    );
+
+    final requestId = await services.proposeServicePartChange(
+      serviceOrderId: serviceId,
+      requestType: 'add',
+      productId: productId,
+      quantity: 2,
+    );
+
+    final pending = (await db.query(
+      'service_part_change_requests',
+      where: 'id = ?',
+      whereArgs: [requestId],
+    )).single;
+    expect(pending['quantity'], 2);
+    expect(pending['unit_price'], 15000);
+    expect(pending['status'], 'pending');
+    final productBeforeApproval = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    expect(productBeforeApproval['stock'], 5);
+    expect(await db.query(
+      'service_order_items',
+      where: 'service_order_id = ? AND product_id = ? AND is_active = 1',
+      whereArgs: [serviceId, productId],
+    ), isEmpty);
+
+    await services.reviewServicePartChange(
+      requestId: requestId,
+      approve: true,
+      customerApproved: true,
+      customerApprovalNote: 'Pelanggan setuju dua buah',
+    );
+
+    final approvedItem = (await db.query(
+      'service_order_items',
+      where: 'service_order_id = ? AND product_id = ? AND is_active = 1',
+      whereArgs: [serviceId, productId],
+    )).single;
+    expect(approvedItem['quantity'], 2);
+    expect(approvedItem['unit_price'], 15000);
+    expect(approvedItem['subtotal'], 30000);
+    final productAfterApproval = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    expect(productAfterApproval['stock'], 3);
+    final batch = (await db.query(
+      'inventory_cost_batches',
+      where: 'product_id = ?',
+      whereArgs: [productId],
+    )).single;
+    expect(batch['quantity_remaining'], 3);
+    final order = (await db.query(
+      'service_orders',
+      where: 'id = ?',
+      whereArgs: [serviceId],
+    )).single;
+    expect(order['parts_cost'], 30000);
+    expect(order['total_cost'], 40000);
+  });
+
+  test('service sparepart request rejects quantity above available stock without changing stock', () async {
+    final db = await AppDatabase.instance.database;
+    final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
+    final productId = await db.insert('products', {
+      'name': 'Ban Dalam Uji Stok',
+      'selling_price': 25000,
+      'purchase_price': 12000,
+      'stock': 1,
+      'track_stock': 1,
+      'is_active': 1,
+    });
+    final services = ServiceRepository();
+    final serviceId = await services.createServiceOrder(
+      customerId: customerId,
+      bicycleId: bicycleId,
+      complaint: 'Pengujian stok kurang',
+      laborCost: 10000,
+    );
+
+    await expectLater(
+      services.proposeServicePartChange(
+        serviceOrderId: serviceId,
+        requestType: 'add',
+        productId: productId,
+        quantity: 2,
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(await db.query(
+      'service_part_change_requests',
+      where: 'service_order_id = ?',
+      whereArgs: [serviceId],
+    ), isEmpty);
+    final product = (await db.query(
+      'products',
+      where: 'id = ?',
+      whereArgs: [productId],
+    )).single;
+    expect(product['stock'], 1);
+  });
+
   test('online purchase fees are stored and stock is added only after receipt', () async {
     final db = await AppDatabase.instance.database;
     final supplierId = await db.insert('suppliers', {'name': 'Toko Online Uji'});
