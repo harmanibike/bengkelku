@@ -255,16 +255,23 @@ class DatabaseBackupService {
           final archivePath = item['archivePath']?.toString();
           final id = item['id'];
           if (table == null || column == null || originalPath == null ||
-              archivePath == null || id == null) continue;
+              archivePath == null || id == null) {
+            throw const FormatException('Entri media pada manifest tidak lengkap.');
+          }
           final allowed = (table == 'products' && column == 'image_path') ||
               (table == 'app_users' && column == 'profile_photo_path') ||
               (table == 'service_orders' &&
                   (column == 'before_photo_path' || column == 'after_photo_path'));
           if (!allowed || archivePath.startsWith('/') ||
-              archivePath.split('/').contains('..') || !mediaEntries.contains(archivePath)) {
-            continue;
+              archivePath.split('/').contains('..') ||
+              !archivePath.startsWith('media/') ||
+              !mediaEntries.contains(archivePath)) {
+            throw FormatException('File media backup tidak valid atau hilang: $archivePath');
           }
-          final entry = archive.files.firstWhere((file) => file.name == archivePath);
+          final entry = _findArchiveFile(archive, archivePath);
+          if (entry == null) {
+            throw FormatException('File media backup tidak ditemukan: $archivePath');
+          }
           final safeName = p.basename(archivePath);
           final kind = table == 'products'
               ? 'products'
