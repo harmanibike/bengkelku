@@ -68,6 +68,20 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
   void _refresh() => setState(_loadOrders);
 
+  String _formatCurrencyInput(int value) {
+    final digits = value.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  int _parseCurrencyInput(String value) {
+    return int.tryParse(value.replaceAll('.', '').replaceAll(',', '').trim()) ?? 0;
+  }
+
   String _rupiah(Object? value) {
     final amount = value is num ? value.toInt() : 0;
     final digits = amount.toString();
@@ -831,7 +845,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final isAdd = request['request_type'] == 'add';
     final catalogPrice = (request['unit_price'] as num?)?.toInt() ?? 0;
     final priceController = TextEditingController(
-      text: isAdd ? formatCurrencyInput(catalogPrice) : '',
+      text: isAdd ? _formatCurrencyInput(catalogPrice) : '',
     );
     final noteController = TextEditingController();
     bool customerApproved = false;
@@ -863,7 +877,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
             FilledButton(
               onPressed: customerApproved ? () => Navigator.pop(dialogContext, {
                 'approve': true, 'customer_approved': true,
-                'price': parseCurrencyInput(priceController.text), 'note': noteController.text.trim(),
+                'price': _parseCurrencyInput(priceController.text), 'note': noteController.text.trim(),
               }) : null,
               child: const Text('Setujui & terapkan'),
             ),
