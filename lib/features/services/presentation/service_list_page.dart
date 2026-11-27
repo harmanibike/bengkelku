@@ -820,7 +820,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final estimateHistory = AuthSession.instance.isCashierOrAdmin
         ? await _repository.getServiceEstimateHistory(id)
         : <Map<String, Object?>>[];
-    final businessProfile = await BusinessProfileRepository().getProfile();
+    // Profil usaha dibatasi untuk Admin/Kasir. Mekanik tetap dapat membuka detail servis.
+    final businessProfile = AuthSession.instance.isMechanic
+        ? <String, String>{}
+        : await BusinessProfileRepository().getProfile();
     if (!mounted) return;
     final action = await showDialog<String>(
       context: context,
@@ -833,7 +836,8 @@ class _ServiceListPageState extends State<ServiceListPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                BusinessIdentityHeader(profile: businessProfile),
+                if (!AuthSession.instance.isMechanic)
+                  BusinessIdentityHeader(profile: businessProfile),
                 _detailLine('Pelanggan', detail['customer_name']),
                 _detailLine('Telepon', detail['customer_phone']),
                 _detailLine(
