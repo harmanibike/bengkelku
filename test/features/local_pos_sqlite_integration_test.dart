@@ -1222,13 +1222,14 @@ void main() {
     final mediaFile = archive.files.firstWhere((file) => file.name.startsWith('media/product/'));
     archive.files.remove(mediaFile);
     final broken = File(p.join(testDirectory.path, 'backup_missing_media.zip'));
-    await broken.writeAsBytes(ZipEncoder().encode(archive)!);
+    await broken.writeAsBytes(ZipEncoder().encode(archive));
 
     await expectLater(
       service.restoreBackup(broken.path),
       throwsA(isA<FormatException>()),
     );
-    final unchanged = (await db.query('products',
+    final unchangedDb = await AppDatabase.instance.database;
+    final unchanged = (await unchangedDb.query('products',
       columns: ['image_path'], where: 'id = ?', whereArgs: [productId])).single;
     expect(unchanged['image_path'], photo.path);
     expect(await photo.exists(), isTrue);
