@@ -118,6 +118,11 @@ class _PurchaseReportsPageState extends State<PurchaseReportsPage> {
                       _load();
                     },
                   ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Pembayaran dihitung berdasarkan tanggal pembayaran. Sisa utang menunjukkan posisi terkini dari faktur yang dibuat pada periode ini. Nilai retur mengikuti tanggal retur.',
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
                   const SizedBox(height: 9),
                   GridView.count(
                     crossAxisCount: 2,
@@ -129,7 +134,7 @@ class _PurchaseReportsPageState extends State<PurchaseReportsPage> {
                     children: [
                       _metric('Total pembelian', _report['purchase_total'], Icons.shopping_cart_outlined, Colors.blue),
                       _metric('Pembayaran tercatat', _report['payment_amount'], Icons.payments_outlined, Colors.green),
-                      _metric('Sisa utang faktur', _report['outstanding'], Icons.account_balance_wallet_outlined, Colors.deepOrange),
+                      _metric('Sisa utang faktur saat ini', _report['outstanding'], Icons.account_balance_wallet_outlined, Colors.deepOrange),
                       _metric('Nilai retur', _report['return_amount'], Icons.assignment_return_outlined, Colors.purple),
                       _metric('Kredit retur faktur', _report['return_credit'], Icons.price_check_rounded, Colors.teal),
                       _metric('Uang retur diterima', _report['return_refund_received'], Icons.savings_outlined, Colors.green),
