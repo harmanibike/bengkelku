@@ -63,6 +63,19 @@ class DatabaseBackupService {
         });
       }
     }
+    final users = await db.query('app_users', columns: ['id', 'profile_photo_path']);
+    for (final row in users) {
+      final path = row['profile_photo_path']?.toString().trim() ?? '';
+      if (path.isNotEmpty) {
+        references.add({
+          'table': 'app_users',
+          'column': 'profile_photo_path',
+          'id': row['id'],
+          'originalPath': path,
+          'kind': 'profile',
+        });
+      }
+    }
     final services = await db.query(
       'service_orders',
       columns: ['id', 'before_photo_path', 'after_photo_path'],
@@ -96,12 +109,9 @@ class DatabaseBackupService {
     await db.rawQuery('PRAGMA wal_checkpoint(FULL)');
     await AppDatabase.instance.close();
 
-    final timestamp = _timestamp();
-    final directory = await _backupDirectory();
-    final work = Directory(p.join(directory.path, 'backup_work_$timestamp'));
-    if (await work.exists()) await work.delete(recursive: true);
-    await work.create(recursive: true);
     try {
+      final timestamp = _timestamp();
+      final directory = await _backupDirectory();
       final databasePath = await _databasePath();
       await _removeSqliteSidecars(databasePath);
       final source = File(databasePath);
@@ -117,6 +127,7 @@ class DatabaseBackupService {
       ));
 
       final manifestItems = <Map<String, Object?>>[];
+      final missingPaths = <String>[];
       var mediaIndex = 0;
       final seen = <String, String>{};
       for (final reference in references) {
@@ -131,6 +142,8 @@ class DatabaseBackupService {
             final bytes = await sourceFile.readAsBytes();
             archive.addFile(ArchiveFile(archivePath, bytes.length, bytes));
             seen[originalPath] = archivePath;
+          } else {
+            missingPaths.add(originalPath);
           }
         }
         manifestItems.add({
@@ -142,6 +155,13 @@ class DatabaseBackupService {
         });
       }
 
+      if (missingPaths.isNotEmpty) {
+        throw StateError(
+          'Backup dibatalkan: ${missingPaths.length} file foto yang tercatat tidak ditemukan. '
+          'Periksa foto produk, profil pengguna, dan dokumentasi servis sebelum mencoba lagi.',
+        );
+      }
+
       final manifest = utf8.encode(jsonEncode({
         'format': 'bengkelku_backup',
         'formatVersion': 1,
@@ -149,7 +169,7 @@ class DatabaseBackupService {
         'database': 'database/$_databaseName',
         'media': manifestItems,
         'mediaIncluded': seen.length,
-        'mediaMissing': manifestItems.where((item) => item['archivePath'] == null).length,
+        'mediaMissing': 0,
       }));
       archive.addFile(ArchiveFile(_manifestName, manifest.length, manifest));
 
@@ -165,7 +185,7 @@ class DatabaseBackupService {
       }
       return destination;
     } finally {
-      if (await work.exists()) await work.delete(recursive: true);
+      // Selalu buka kembali database, termasuk jika pembuatan ZIP gagal.
       await AppDatabase.instance.database;
     }
   }
@@ -221,6 +241,7 @@ class DatabaseBackupService {
           if (table == null || column == null || originalPath == null ||
               archivePath == null || id == null) continue;
           final allowed = (table == 'products' && column == 'image_path') ||
+              (table == 'app_users' && column == 'profile_photo_path') ||
               (table == 'service_orders' &&
                   (column == 'before_photo_path' || column == 'after_photo_path'));
           if (!allowed || archivePath.startsWith('/') ||
@@ -229,7 +250,11 @@ class DatabaseBackupService {
           }
           final entry = archive.files.firstWhere((file) => file.name == archivePath);
           final safeName = p.basename(archivePath);
-          final kind = table == 'products' ? 'products' : 'services';
+          final kind = table == 'products'
+              ? 'products'
+              : table == 'app_users'
+                  ? 'profiles'
+                  : 'services';
           final targetDirectory = Directory(p.join(restoredMedia.path, kind));
           await targetDirectory.create(recursive: true);
           final target = File(p.join(targetDirectory.path, safeName));
