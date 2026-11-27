@@ -15,6 +15,7 @@ import '../../../core/widgets/app_photo_preview.dart';
 import '../data/product_repository.dart';
 import '../data/product_import_service.dart';
 import '../../purchases/presentation/purchase_cost_settings_page.dart';
+import '../../settings/data/receipt_settings_repository.dart';
 import 'product_category_page.dart';
 import '../../sales/presentation/barcode_scanner_page.dart';
 import 'stock_movement_page.dart';
