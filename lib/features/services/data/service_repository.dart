@@ -805,9 +805,6 @@ class ServiceRepository {
           final productId = request['product_id'] as int?;
           final quantity = request['quantity'] as int? ?? 0;
           final unitPrice = approvedUnitPrice ?? (request['unit_price'] as int? ?? 0);
-          if (approvedUnitPrice == null) {
-            throw StateError('Admin/Kasir harus menentukan harga jual sparepart sebelum menyetujui.');
-          }
           if (productId == null || quantity <= 0) {
             throw StateError('Data sparepart usulan tidak valid.');
           }
