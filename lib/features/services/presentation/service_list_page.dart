@@ -68,6 +68,20 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
   void _refresh() => setState(_loadOrders);
 
+  String _formatCurrencyInput(int value) {
+    final digits = value.toString();
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digits[i]);
+    }
+    return buffer.toString();
+  }
+
+  int _parseCurrencyInput(String value) {
+    return int.tryParse(value.replaceAll('.', '').replaceAll(',', '').trim()) ?? 0;
+  }
+
   String _rupiah(Object? value) {
     final amount = value is num ? value.toInt() : 0;
     final digits = amount.toString();
@@ -756,25 +770,37 @@ class _ServiceListPageState extends State<ServiceListPage> {
                             final product = filteredProducts[index];
                             final id = product['id'] as int;
                             final isSelected = selectedId == id;
-                            final stock = product['stock'];
-                            final stockText = product['track_stock'] == 1
-                                ? 'Stok: ${stock ?? 0}'
+                            final stock = (product['stock'] as num?)?.toInt() ?? 0;
+                            final tracksStock = product['track_stock'] == 1;
+                            final outOfStock = tracksStock && stock <= 0;
+                            final stockText = tracksStock
+                                ? (outOfStock ? 'Stok habis' : 'Stok: $stock')
                                 : 'Stok tidak dilacak';
                             final sku = product['sku']?.toString() ?? '';
                             return ListTile(
                               dense: true,
+                              enabled: !outOfStock,
                               selected: isSelected,
                               selectedTileColor: Theme.of(context).colorScheme.primaryContainer,
                               leading: Icon(
-                                isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                                color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                                outOfStock
+                                    ? Icons.block
+                                    : (isSelected ? Icons.radio_button_checked : Icons.radio_button_off),
+                                color: outOfStock
+                                    ? Theme.of(context).disabledColor
+                                    : (isSelected ? Theme.of(context).colorScheme.primary : null),
                               ),
-                              title: Text(product['name']?.toString() ?? 'Sparepart'),
+                              title: Text(
+                                product['name']?.toString() ?? 'Sparepart',
+                                style: TextStyle(
+                                  color: outOfStock ? Theme.of(context).disabledColor : null,
+                                ),
+                              ),
                               subtitle: Text([
                                 if (sku.isNotEmpty) 'Kode: $sku',
                                 stockText,
                               ].join(' • ')),
-                              onTap: () => setDialogState(() => selectedId = id),
+                              onTap: outOfStock ? null : () => setDialogState(() => selectedId = id),
                             );
                           },
                         ),
@@ -829,7 +855,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
   Future<void> _reviewPartChange(int serviceId, Map<String, Object?> request) async {
     final isAdd = request['request_type'] == 'add';
-    final priceController = TextEditingController();
+    final catalogPrice = (request['unit_price'] as num?)?.toInt() ?? 0;
+    final priceController = TextEditingController(
+      text: isAdd ? _formatCurrencyInput(catalogPrice) : '',
+    );
     final noteController = TextEditingController();
     bool customerApproved = false;
     final result = await showDialog<Map<String, Object?>>(
@@ -842,7 +871,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
             if (isAdd) ...[
               const SizedBox(height: 8),
               TextField(controller: priceController, keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Harga jual per unit (Rp)', border: OutlineInputBorder())),
+                decoration: InputDecoration(
+                  labelText: 'Harga jual per unit (Rp)',
+                  helperText: 'Otomatis dari katalog: ${_rupiah(catalogPrice)}. Bisa disesuaikan.',
+                  border: const OutlineInputBorder(),
+                )),
             ],
             CheckboxListTile(contentPadding: EdgeInsets.zero, value: customerApproved,
               onChanged: (v) => setDialogState(() => customerApproved = v ?? false),
@@ -856,7 +889,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
             FilledButton(
               onPressed: customerApproved ? () => Navigator.pop(dialogContext, {
                 'approve': true, 'customer_approved': true,
-                'price': int.tryParse(priceController.text.trim()), 'note': noteController.text.trim(),
+                'price': _parseCurrencyInput(priceController.text), 'note': noteController.text.trim(),
               }) : null,
               child: const Text('Setujui & terapkan'),
             ),
@@ -949,9 +982,9 @@ class _ServiceListPageState extends State<ServiceListPage> {
                       );
                     })),
                   ],
-                  if (AuthSession.instance.isMechanic && const ['waiting', 'checking', 'in_progress'].contains(status))
+                  if ((AuthSession.instance.isMechanic || AuthSession.instance.isCashierOrAdmin) && const ['waiting', 'checking', 'in_progress'].contains(status))
                     OutlinedButton.icon(onPressed: () => Navigator.pop(dialogContext, 'part_add'),
-                      icon: const Icon(Icons.add_box_outlined), label: const Text('Usulkan tambah sparepart')),
+                      icon: const Icon(Icons.add_box_outlined), label: const Text('Tambah sparepart')),
                   if (estimateHistory.isNotEmpty) ...[
                     const Divider(),
                     const Text('Riwayat perubahan estimasi', style: TextStyle(fontWeight: FontWeight.bold)),

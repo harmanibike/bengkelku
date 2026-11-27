@@ -631,8 +631,10 @@ class ServiceRepository {
     String? mechanicNote,
   }) async {
     final session = AuthSession.instance;
-    if (!session.isMechanic || session.userId == null) {
-      throw StateError('Usulan sparepart hanya dapat dikirim melalui akun Mekanik.');
+    final canProposeAdd = session.isMechanic || session.isCashierOrAdmin;
+    if (session.userId == null || (requestType == 'add' && !canProposeAdd) ||
+        (requestType == 'cancel' && !session.isMechanic)) {
+      throw StateError('Akses tidak diizinkan untuk perubahan sparepart ini.');
     }
     if (requestType != 'add' && requestType != 'cancel') {
       throw ArgumentError('Jenis usulan tidak valid.');
@@ -645,12 +647,12 @@ class ServiceRepository {
       final orders = await txn.query(
         'service_orders',
         columns: ['id', 'service_status', 'assigned_mechanic_id'],
-        where: 'id = ? AND assigned_mechanic_id = ?',
-        whereArgs: [serviceOrderId, session.userId],
+        where: session.isMechanic ? 'id = ? AND assigned_mechanic_id = ?' : 'id = ?',
+        whereArgs: session.isMechanic ? [serviceOrderId, session.userId] : [serviceOrderId],
         limit: 1,
       );
       if (orders.isEmpty) {
-        throw StateError('Servis bukan penugasan Anda.');
+        throw StateError(session.isMechanic ? 'Servis bukan penugasan Anda.' : 'Data servis tidak ditemukan.');
       }
       final status = orders.first['service_status']?.toString();
       if (!const ['waiting', 'checking', 'in_progress'].contains(status)) {
@@ -664,7 +666,7 @@ class ServiceRepository {
       if (requestType == 'add') {
         final products = await txn.query(
           'products',
-          columns: ['id', 'name', 'is_active'],
+          columns: ['id', 'name', 'is_active', 'selling_price', 'stock', 'track_stock'],
           where: 'id = ?',
           whereArgs: [productId],
           limit: 1,
@@ -672,9 +674,19 @@ class ServiceRepository {
         if (products.isEmpty || (products.first['is_active'] as int? ?? 0) != 1) {
           throw StateError('Sparepart tidak ditemukan atau tidak aktif.');
         }
-        itemName = products.first['name']?.toString() ?? 'Sparepart';
+        final product = products.first;
+        final tracked = (product['track_stock'] as int? ?? 0) == 1;
+        final availableStock = (product['stock'] as int? ?? 0);
+        if (tracked && availableStock <= 0) {
+          throw StateError('Stok sparepart habis. Produk tidak dapat dipilih untuk servis.');
+        }
+        if (tracked && quantity > availableStock) {
+          throw StateError('Stok tidak mencukupi. Tersedia $availableStock, diminta $quantity.');
+        }
+        itemName = product['name']?.toString() ?? 'Sparepart';
         requestProductId = productId;
         requestQuantity = quantity;
+        requestUnitPrice = (product['selling_price'] as num?)?.toInt() ?? 0;
       } else {
         if (serviceOrderItemId == null) {
           throw ArgumentError('Pilih sparepart yang akan dibatalkan.');
