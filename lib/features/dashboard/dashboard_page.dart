@@ -9,6 +9,7 @@ import '../settings/presentation/account_profile_page.dart';
 import '../bicycles/presentation/bicycle_list_page.dart';
 import '../customers/presentation/customer_list_page.dart';
 import '../purchases/presentation/purchases_page.dart';
+import '../products/presentation/product_list_page.dart';
 import '../settings/presentation/settings_page.dart';
 import '../reports/data/report_repository.dart';
 import '../reports/presentation/reports_page.dart';
@@ -129,6 +130,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _openPurchases() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchasesPage()));
+  }
+
+  void _openProducts() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductListPage()));
   }
 
 
@@ -525,6 +530,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ],
       _menuTile(title: 'Servis', icon: Icons.build_rounded, colors: const [Color(0xFFE91E63), Color(0xFFF06292)], onTap: _openServices),
       if (AuthSession.instance.isAdmin) ...[
+        _menuTile(title: 'Produk', icon: Icons.inventory_2_rounded, colors: const [Color(0xFF1976D2), Color(0xFF64B5F6)], onTap: _openProducts),
         _menuTile(title: 'Harga Jasa', icon: Icons.price_change_rounded, colors: const [Color(0xFF1565C0), Color(0xFF64B5F6)], onTap: _openServicePricing),
         _menuTile(title: 'Laporan', icon: Icons.analytics_rounded, colors: const [Color(0xFF8E24AA), Color(0xFFBA68C8)], onTap: _openReports),
         _menuTile(title: 'Saldo Toko', icon: Icons.account_balance_wallet_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openSaldoToko),
