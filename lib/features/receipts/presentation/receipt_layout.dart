@@ -158,14 +158,19 @@ class ReceiptLayout extends StatelessWidget {
           ],
           separator(innerWidth),
           if (isIntake) ...[
-            labelRow('Sepeda', [
-              s(source['bicycle_brand']),
-              s(source['bicycle_model']),
-              s(source['bicycle_type']),
-            ].where((part) => part.isNotEmpty).join(' '), innerWidth),
-            labelRow('Warna', s(source['bicycle_color']), innerWidth),
-            labelRow('Ukuran frame', s(source['bicycle_frame_size']), innerWidth),
-            labelRow('No. rangka', s(source['bicycle_serial_number']), innerWidth),
+            if (s(source['bicycle_brand']) == 'Roda Lepas') ...[
+              labelRow('Objek servis', 'Roda Lepas', innerWidth),
+              labelRow('Posisi roda', s(source['bicycle_model']), innerWidth),
+            ] else ...[
+              labelRow('Sepeda', [
+                s(source['bicycle_brand']),
+                s(source['bicycle_model']),
+                s(source['bicycle_type']),
+              ].where((part) => part.isNotEmpty).join(' '), innerWidth),
+              labelRow('Warna', s(source['bicycle_color']), innerWidth),
+              labelRow('Ukuran frame', s(source['bicycle_frame_size']), innerWidth),
+              labelRow('No. rangka', s(source['bicycle_serial_number']), innerWidth),
+            ],
             labelRow('Keluhan', s(source['complaint']), innerWidth),
             if (s(source['diagnosis']).isNotEmpty) labelRow('Pemeriksaan awal', s(source['diagnosis']), innerWidth),
             amountRow('Estimasi biaya', money(source['estimated_cost']), innerWidth, bold: true),
@@ -194,7 +199,11 @@ class ReceiptLayout extends StatelessWidget {
             amountRow('Sudah dibayar', money(paid), innerWidth),
             amountRow('Sisa tagihan', money(remaining), innerWidth, bold: true),
           ] else ...[
-            labelRow('Sepeda', '${s(source['bicycle_brand'])} ${s(source['bicycle_model'])}'.trim(), innerWidth),
+            if (s(source['bicycle_brand']) == 'Roda Lepas') ...[
+              labelRow('Objek servis', 'Roda Lepas', innerWidth),
+              labelRow('Posisi roda', s(source['bicycle_model']), innerWidth),
+            ] else
+              labelRow('Sepeda', '${s(source['bicycle_brand'])} ${s(source['bicycle_model'])}'.trim(), innerWidth),
             labelRow('Keluhan', s(source['complaint']), innerWidth),
             separator(innerWidth),
             if (isFinalPayment) ...[
