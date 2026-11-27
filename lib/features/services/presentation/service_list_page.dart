@@ -829,7 +829,10 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
   Future<void> _reviewPartChange(int serviceId, Map<String, Object?> request) async {
     final isAdd = request['request_type'] == 'add';
-    final priceController = TextEditingController();
+    final catalogPrice = (request['unit_price'] as num?)?.toInt() ?? 0;
+    final priceController = TextEditingController(
+      text: isAdd ? formatCurrencyInput(catalogPrice) : '',
+    );
     final noteController = TextEditingController();
     bool customerApproved = false;
     final result = await showDialog<Map<String, Object?>>(
@@ -842,7 +845,11 @@ class _ServiceListPageState extends State<ServiceListPage> {
             if (isAdd) ...[
               const SizedBox(height: 8),
               TextField(controller: priceController, keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Harga jual per unit (Rp)', border: OutlineInputBorder())),
+                decoration: InputDecoration(
+                  labelText: 'Harga jual per unit (Rp)',
+                  helperText: 'Otomatis dari katalog: ${_rupiah(catalogPrice)}. Bisa disesuaikan.',
+                  border: const OutlineInputBorder(),
+                )),
             ],
             CheckboxListTile(contentPadding: EdgeInsets.zero, value: customerApproved,
               onChanged: (v) => setDialogState(() => customerApproved = v ?? false),
@@ -856,7 +863,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
             FilledButton(
               onPressed: customerApproved ? () => Navigator.pop(dialogContext, {
                 'approve': true, 'customer_approved': true,
-                'price': int.tryParse(priceController.text.trim()), 'note': noteController.text.trim(),
+                'price': parseCurrencyInput(priceController.text), 'note': noteController.text.trim(),
               }) : null,
               child: const Text('Setujui & terapkan'),
             ),
