@@ -16,6 +16,13 @@ class DatabaseBackupService {
   static const String _databaseName = 'bengkelku_pos.db';
   static const String _manifestName = 'manifest.json';
 
+  ArchiveFile? _findArchiveFile(Archive archive, String name) {
+    for (final file in archive.files) {
+      if (file.name == name && file.isFile) return file;
+    }
+    return null;
+  }
+
   Future<String> _databasePath() async =>
       p.join(await getDatabasesPath(), _databaseName);
 
@@ -182,18 +189,14 @@ class DatabaseBackupService {
     try {
       if (p.extension(sourcePath).toLowerCase() == '.zip') {
         final archive = ZipDecoder().decodeBytes(await source.readAsBytes());
-        final databaseEntry = archive.files.where(
-          (file) => file.name == 'database/$_databaseName' && file.isFile,
-        ).firstOrNull;
+        final databaseEntry = _findArchiveFile(archive, 'database/$_databaseName');
         if (databaseEntry == null) {
           throw const FormatException('ZIP tidak berisi database BengkelKu.');
         }
         final databaseBytes = databaseEntry.content as List<int>;
         await candidate.writeAsBytes(databaseBytes, flush: true);
 
-        final manifestEntry = archive.files.where(
-          (file) => file.name == _manifestName && file.isFile,
-        ).firstOrNull;
+        final manifestEntry = _findArchiveFile(archive, _manifestName);
         if (manifestEntry == null) {
           throw const FormatException('Manifest backup tidak ditemukan.');
         }
