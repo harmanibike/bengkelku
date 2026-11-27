@@ -68,20 +68,6 @@ class _ServiceListPageState extends State<ServiceListPage> {
 
   void _refresh() => setState(_loadOrders);
 
-  String _formatCurrencyInput(int value) {
-    final digits = value.toString();
-    final buffer = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(digits[i]);
-    }
-    return buffer.toString();
-  }
-
-  int _parseCurrencyInput(String value) {
-    return int.tryParse(value.replaceAll('.', '').replaceAll(',', '').trim()) ?? 0;
-  }
-
   String _rupiah(Object? value) {
     final amount = value is num ? value.toInt() : 0;
     final digits = amount.toString();
