@@ -54,17 +54,11 @@ class _PurchasesPageState extends State<PurchasesPage> {
 
   Future<void> _createPurchase() async {
     final suppliers = await _suppliers.getSuppliers();
-    final products = await _products.getProducts();
+    var products = await _products.getProducts();
     if (!mounted) return;
     if (suppliers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tambahkan data pemasok terlebih dahulu.')),
-      );
-      return;
-    }
-    if (products.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tambahkan produk terlebih dahulu.')),
       );
       return;
     }
@@ -82,11 +76,12 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final payment = TextEditingController(text: '0');
     final notes = TextEditingController();
     int? supplierId = suppliers.first['id'] as int;
-    int? productId = products.first['id'] as int;
-    var variants = (await _products.getProductVariants(productId)).where((item) => (item['is_active'] as int? ?? 1) == 1).toList();
-    int? variantId = variants.isEmpty ? null : variants.first['id'] as int;
+    int? productId;
+    var variants = <Map<String, Object?>>[];
+    int? variantId;
+    final productSearch = TextEditingController();
     final qty = TextEditingController(text: '1');
-    final cost = TextEditingController(text: formatCurrencyInput(variants.isEmpty ? products.first['purchase_price'] ?? 0 : variants.first['purchase_price'] ?? 0));
+    final cost = TextEditingController(text: '0');
     final items = <Map<String, Object?>>[];
     String purchaseType = 'direct';
     String paymentMethod = 'Tunai';
@@ -142,27 +137,139 @@ class _PurchasesPageState extends State<PurchasesPage> {
                     const SizedBox(height: 8),
                     const Text('Tambah barang', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
-                    DropdownButtonFormField<int>(
-                      initialValue: productId,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Produk', border: const OutlineInputBorder()),
-                      items: products.map((p) => DropdownMenuItem<int>(
-                        value: p['id'] as int,
-                        child: Text(p['name'] as String? ?? '-', overflow: TextOverflow.ellipsis),
-                      )).toList(),
-                      onChanged: (v) async {
-                        if (v == null) return;
-                        final nextVariants = await _products.getProductVariants(v);
-                        if (!context.mounted) return;
-                        setDialogState(() {
-                          productId = v;
-                          variants = nextVariants.where((item) => (item['is_active'] as int? ?? 1) == 1).toList();
-                          variantId = variants.isEmpty ? null : variants.first['id'] as int;
-                          final selected = products.firstWhere((p) => p['id'] == v);
-                          final selectedVariant = variants.isEmpty ? null : variants.first;
-                          cost.text = formatCurrencyInput(selectedVariant?['purchase_price'] ?? selected['purchase_price'] ?? 0);
-                        });
+                    TextField(
+                      controller: productSearch,
+                      decoration: const InputDecoration(
+                        labelText: 'Cari produk (nama / SKU / barcode)',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                    const SizedBox(height: 6),
+                    if (productSearch.text.trim().isNotEmpty)
+                      ...products.where((p) {
+                        final q = productSearch.text.trim().toLowerCase();
+                        return ['name', 'sku', 'barcode', 'category', 'brand']
+                            .any((key) => (p[key]?.toString().toLowerCase() ?? '').contains(q));
+                      }).take(8).map((p) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.inventory_2_outlined),
+                        title: Text(p['name']?.toString() ?? '-'),
+                        subtitle: Text([
+                          if ((p['sku']?.toString() ?? '').isNotEmpty) 'SKU ${p['sku']}',
+                          if ((p['barcode']?.toString() ?? '').isNotEmpty) 'Barcode ${p['barcode']}',
+                          'Stok ${p['stock'] ?? 0}',
+                        ].join(' • ')),
+                        selected: productId == p['id'],
+                        onTap: () async {
+                          final selectedId = p['id'] as int;
+                          final nextVariants = await _products.getProductVariants(selectedId);
+                          if (!context.mounted) return;
+                          setDialogState(() {
+                            productId = selectedId;
+                            variants = nextVariants.where((item) => (item['is_active'] as int? ?? 1) == 1).toList();
+                            variantId = variants.isEmpty ? null : variants.first['id'] as int;
+                            final selectedVariant = variants.isEmpty ? null : variants.first;
+                            cost.text = formatCurrencyInput(selectedVariant?['purchase_price'] ?? p['purchase_price'] ?? 0);
+                          });
+                        },
+                      )),
+                    if (productSearch.text.trim().isEmpty)
+                      const Text('Ketik nama, SKU, atau barcode untuk mencari barang.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    if (productSearch.text.trim().isNotEmpty &&
+                        !products.any((p) => ['name', 'sku', 'barcode', 'category', 'brand']
+                            .any((key) => (p[key]?.toString().toLowerCase() ?? '').contains(productSearch.text.trim().toLowerCase()))))
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text('Produk belum ditemukan. Buat data produk baru untuk barang ini.', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                      ),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final name = TextEditingController(text: productSearch.text.trim());
+                        final sku = TextEditingController();
+                        final barcode = TextEditingController();
+                        final category = TextEditingController();
+                        final brand = TextEditingController();
+                        final unit = TextEditingController(text: 'pcs');
+                        final purchasePrice = TextEditingController(text: cost.text);
+                        try {
+                          final created = await showDialog<bool>(
+                            context: context,
+                            builder: (createContext) => AlertDialog(
+                              title: const Text('Buat Produk Baru'),
+                              content: SizedBox(
+                                width: 440,
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      TextField(controller: name, autofocus: true, decoration: const InputDecoration(labelText: 'Nama produk *', border: OutlineInputBorder())),
+                                      const SizedBox(height: 8),
+                                      TextField(controller: sku, decoration: const InputDecoration(labelText: 'SKU (opsional)', border: OutlineInputBorder())),
+                                      const SizedBox(height: 8),
+                                      TextField(controller: barcode, decoration: const InputDecoration(labelText: 'Barcode (opsional)', border: OutlineInputBorder())),
+                                      const SizedBox(height: 8),
+                                      TextField(controller: category, decoration: const InputDecoration(labelText: 'Kategori (opsional)', border: OutlineInputBorder())),
+                                      const SizedBox(height: 8),
+                                      TextField(controller: brand, decoration: const InputDecoration(labelText: 'Merek (opsional)', border: OutlineInputBorder())),
+                                      const SizedBox(height: 8),
+                                      TextField(controller: unit, decoration: const InputDecoration(labelText: 'Satuan', border: OutlineInputBorder())),
+                                      const SizedBox(height: 8),
+                                      TextField(controller: purchasePrice, keyboardType: TextInputType.number, inputFormatters: const [CurrencyInputFormatter()], decoration: const InputDecoration(labelText: 'Harga beli satuan', border: OutlineInputBorder())),
+                                      const SizedBox(height: 6),
+                                      const Text('Stok awal otomatis 0. Stok baru bertambah saat penerimaan pembelian.', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(createContext, false), child: const Text('Batal')),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(createContext, name.text.trim().isNotEmpty),
+                                  child: const Text('Buat Produk'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (created != true || !context.mounted) return;
+                          final newId = await _products.addProduct(
+                            name: name.text.trim(),
+                            sku: sku.text,
+                            barcode: barcode.text,
+                            category: category.text,
+                            brand: brand.text,
+                            unit: unit.text,
+                            purchasePrice: parseCurrencyInput(purchasePrice.text),
+                            sellingPrice: 0,
+                            initialStock: 0,
+                            minimumStock: 0,
+                            trackStock: true,
+                          );
+                          final refreshed = await _products.getProducts();
+                          final newProduct = refreshed.firstWhere((p) => p['id'] == newId);
+                          final newVariants = await _products.getProductVariants(newId);
+                          if (!context.mounted) return;
+                          setDialogState(() {
+                            products = refreshed;
+                            productId = newId;
+                            variants = newVariants.where((item) => (item['is_active'] as int? ?? 1) == 1).toList();
+                            variantId = variants.isEmpty ? null : variants.first['id'] as int;
+                            productSearch.text = newProduct['name']?.toString() ?? name.text.trim();
+                            cost.text = formatCurrencyInput(purchasePrice.text.isEmpty ? 0 : parseCurrencyInput(purchasePrice.text));
+                            errorText = null;
+                          });
+                        } catch (error) {
+                          if (context.mounted) setDialogState(() => errorText = 'Gagal membuat produk: $error');
+                        } finally {
+                          for (final controller in [name, sku, barcode, category, brand, unit, purchasePrice]) {
+                            controller.dispose();
+                          }
+                        }
                       },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Buat Produk Baru'),
                     ),
                     if (variants.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -194,7 +301,12 @@ class _PurchasesPageState extends State<PurchasesPage> {
                         IconButton(
                           tooltip: 'Tambahkan barang',
                           onPressed: () {
-                            final product = products.firstWhere((p) => p['id'] == productId);
+                            final selectedProducts = products.where((p) => p['id'] == productId).toList();
+                            if (selectedProducts.isEmpty) {
+                              setDialogState(() => errorText = 'Cari lalu pilih produk terlebih dahulu.');
+                              return;
+                            }
+                            final product = selectedProducts.first;
                             final matches = variants.where((v) => v['id'] == variantId).toList();
                             final selectedVariant = matches.isEmpty ? null : matches.first;
                             final q = int.tryParse(qty.text) ?? 0;
@@ -367,6 +479,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
     notes.dispose();
     qty.dispose();
     cost.dispose();
+    productSearch.dispose();
   }
 
 
