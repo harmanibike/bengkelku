@@ -47,6 +47,8 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
   final _guestBicycleColorController = TextEditingController();
   final _guestBicycleSerialController = TextEditingController();
   bool _guestMode = false;
+  bool _wheelOnly = false;
+  String _wheelPosition = 'Roda depan';
   String? _selectedGuestBicycleBrand;
   String _selectedGuestBicycleType = 'Standar';
   static const List<String> _bicycleBrands = [
@@ -665,11 +667,11 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_guestMode && (_selectedCustomerId == null || _selectedBicycleId == null)) {
-      _showMessage('Pilih pelanggan dan sepeda terlebih dahulu.');
+    if (!_guestMode && (_selectedCustomerId == null || (!_wheelOnly && _selectedBicycleId == null))) {
+      _showMessage(_wheelOnly ? 'Pilih pelanggan terlebih dahulu.' : 'Pilih pelanggan dan sepeda terlebih dahulu.');
       return;
     }
-    if (_guestMode &&
+    if (_guestMode && !_wheelOnly &&
         (_selectedGuestBicycleBrand == null ||
          (_selectedGuestBicycleBrand == 'Lainnya' &&
           _guestBicycleBrandController.text.trim().isEmpty))) {
@@ -681,12 +683,12 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
     try {
       final id = await _serviceRepository.createServiceOrder(
         customerId: _guestMode ? null : _selectedCustomerId,
-        bicycleId: _guestMode ? null : _selectedBicycleId,
+        bicycleId: _guestMode || _wheelOnly ? null : _selectedBicycleId,
         guestCustomerName: _guestMode ? 'Pelanggan Umum' : null,
         guestCustomerPhone: _guestMode ? _guestPhoneController.text : null,
-        guestBicycleBrand: _guestMode ? (_selectedGuestBicycleBrand == 'Lainnya' ? _guestBicycleBrandController.text.trim() : _selectedGuestBicycleBrand) : null,
-        guestBicycleModel: _guestMode ? _guestBicycleModelController.text : null,
-        guestBicycleType: _guestMode ? _selectedGuestBicycleType : null,
+        guestBicycleBrand: _wheelOnly ? 'Roda Lepas' : _guestMode ? (_selectedGuestBicycleBrand == 'Lainnya' ? _guestBicycleBrandController.text.trim() : _selectedGuestBicycleBrand) : null,
+        guestBicycleModel: _wheelOnly ? _wheelPosition : _guestMode ? _guestBicycleModelController.text : null,
+        guestBicycleType: _wheelOnly ? 'Roda' : _guestMode ? _selectedGuestBicycleType : null,
         guestBicycleColor: _guestMode ? _guestBicycleColorController.text : null,
         guestBicycleSerialNumber: _guestMode ? _guestBicycleSerialController.text : null,
         complaint: _complaintController.text,
@@ -828,7 +830,32 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      _sectionTitle('Data pelanggan & sepeda', Icons.pedal_bike),
+                      _sectionTitle('Jenis penerimaan servis', Icons.build_circle_outlined),
+                      Wrap(spacing: 8, children: [
+                        ChoiceChip(label: const Text('Sepeda lengkap'), selected: !_wheelOnly,
+                          onSelected: (_) => setState(() => _wheelOnly = false)),
+                        ChoiceChip(label: const Text('Roda lepas'), selected: _wheelOnly,
+                          onSelected: (_) => setState(() {
+                            _wheelOnly = true;
+                            _selectedBicycleId = null;
+                          })),
+                      ]),
+                      if (_wheelOnly) ...[
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          initialValue: _wheelPosition,
+                          decoration: const InputDecoration(labelText: 'Roda yang dibawa', border: OutlineInputBorder()),
+                          items: const [
+                            DropdownMenuItem(value: 'Roda depan', child: Text('Roda depan')),
+                            DropdownMenuItem(value: 'Roda belakang', child: Text('Roda belakang')),
+                            DropdownMenuItem(value: 'Sepasang roda', child: Text('Sepasang roda')),
+                          ],
+                          onChanged: (value) => setState(() => _wheelPosition = value ?? 'Roda depan'),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text('Pelanggan hanya membawa roda. Data sepeda dan nomor rangka tidak wajib.', style: TextStyle(color: Colors.blueGrey)),
+                      ],
+                      _sectionTitle(_wheelOnly ? 'Data pelanggan' : 'Data pelanggan & sepeda', Icons.pedal_bike),
                       Wrap(
                         spacing: 8,
                         children: [
@@ -880,6 +907,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           ),
                         ),
                         const SizedBox(height: 8),
+                        if (!_wheelOnly) ...[
                         DropdownButtonFormField<String>(
                           initialValue: _selectedGuestBicycleBrand,
                           isExpanded: true,
@@ -966,6 +994,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                             border: OutlineInputBorder(),
                           ),
                         ),
+                        ],
                       ] else ...[
                       TextFormField(
                         controller: _customerSearchController,
@@ -1073,7 +1102,7 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                           ),
                         ),
                       const SizedBox(height: 8),
-                      DropdownButtonFormField<int>(
+                      if (!_wheelOnly) DropdownButtonFormField<int>(
                         initialValue: _selectedBicycleId,
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -1097,12 +1126,12 @@ class _ServiceIntakePageState extends State<ServiceIntakePage> {
                         validator: (value) =>
                             value == null ? 'Pilih sepeda' : null,
                       ),
-                      if (_selectedCustomerId != null && _loadingBicycles)
+                      if (!_wheelOnly && _selectedCustomerId != null && _loadingBicycles)
                         const Padding(
                           padding: EdgeInsets.only(top: 8),
                           child: LinearProgressIndicator(),
                         ),
-                      if (_selectedCustomerId != null &&
+                      if (!_wheelOnly && _selectedCustomerId != null &&
                           !_loadingBicycles &&
                           _bicycles.isEmpty)
                         Padding(
