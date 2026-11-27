@@ -503,12 +503,13 @@ class _DashboardPageState extends State<DashboardPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Ringkasan Hari Ini', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF263238))),
-        const SizedBox(height: 5),
+        const SizedBox(height: 2),
         LayoutBuilder(
           builder: (context, constraints) {
             final columns = constraints.maxWidth >= 560 ? 3 : 2;
             final ratio = constraints.maxWidth >= 380 ? 2.45 : 2.15;
             return GridView.count(
+          padding: EdgeInsets.zero,
           crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
