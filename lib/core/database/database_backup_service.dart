@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -8,21 +10,23 @@ import 'app_database.dart';
 import '../auth/activity_log_repository.dart';
 import '../auth/auth_session.dart';
 
+/// Backup lengkap: database SQLite dan foto produk/dokumentasi servis.
+/// File media disimpan sebagai file terpisah di dalam ZIP, bukan base64 di SQLite.
 class DatabaseBackupService {
   static const String _databaseName = 'bengkelku_pos.db';
+  static const String _manifestName = 'manifest.json';
 
-  Future<String> _databasePath() async {
-    return p.join(await getDatabasesPath(), _databaseName);
-  }
+  Future<String> _databasePath() async =>
+      p.join(await getDatabasesPath(), _databaseName);
 
   Future<Directory> _backupDirectory() async {
     final documents = await getApplicationDocumentsDirectory();
     final directory = Directory(p.join(documents.path, 'BengkelKuBackups'));
-    if (!await directory.exists()) {
-      await directory.create(recursive: true);
-    }
+    if (!await directory.exists()) await directory.create(recursive: true);
     return directory;
   }
+
+  Future<Directory> _documentsDirectory() => getApplicationDocumentsDirectory();
 
   String _timestamp() {
     final now = DateTime.now();
@@ -30,28 +34,66 @@ class DatabaseBackupService {
     return '${now.year}${two(now.month)}${two(now.day)}_${two(now.hour)}${two(now.minute)}${two(now.second)}';
   }
 
-  /// Remove SQLite sidecar files only after the database connection is closed.
-  /// Copying/replacing the main database while a stale WAL exists can cause
-  /// SQLite to replay data belonging to the previous database file.
   Future<void> _removeSqliteSidecars(String databasePath) async {
     for (final suffix in ['-wal', '-shm']) {
       final sidecar = File('$databasePath$suffix');
-      if (await sidecar.exists()) {
-        await sidecar.delete();
-      }
+      if (await sidecar.exists()) await sidecar.delete();
     }
   }
 
+  Future<List<Map<String, Object?>>> _mediaReferences(Database db) async {
+    final references = <Map<String, Object?>>[];
+    final products = await db.query('products', columns: ['id', 'image_path']);
+    for (final row in products) {
+      final path = row['image_path']?.toString().trim() ?? '';
+      if (path.isNotEmpty) {
+        references.add({
+          'table': 'products',
+          'column': 'image_path',
+          'id': row['id'],
+          'originalPath': path,
+          'kind': 'product',
+        });
+      }
+    }
+    final services = await db.query(
+      'service_orders',
+      columns: ['id', 'before_photo_path', 'after_photo_path'],
+    );
+    for (final row in services) {
+      for (final column in ['before_photo_path', 'after_photo_path']) {
+        final path = row[column]?.toString().trim() ?? '';
+        if (path.isNotEmpty) {
+          references.add({
+            'table': 'service_orders',
+            'column': column,
+            'id': row['id'],
+            'originalPath': path,
+            'kind': 'service',
+          });
+        }
+      }
+    }
+    return references;
+  }
+
   Future<File> createBackup() async {
-    AuthSession.instance.requireAdmin('Hanya Admin yang dapat membuat backup database.');
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat membuat backup.');
     final db = await AppDatabase.instance.database;
     final integrity = await db.rawQuery('PRAGMA integrity_check');
     if (integrity.isEmpty || integrity.first.values.first?.toString() != 'ok') {
       throw StateError('Database tidak lolos pemeriksaan integritas. Backup dihentikan.');
     }
+
+    final references = await _mediaReferences(db);
     await db.rawQuery('PRAGMA wal_checkpoint(FULL)');
     await AppDatabase.instance.close();
 
+    final timestamp = _timestamp();
+    final directory = await _backupDirectory();
+    final work = Directory(p.join(directory.path, 'backup_work_$timestamp'));
+    if (await work.exists()) await work.delete(recursive: true);
+    await work.create(recursive: true);
     try {
       final databasePath = await _databasePath();
       await _removeSqliteSidecars(databasePath);
@@ -59,37 +101,151 @@ class DatabaseBackupService {
       if (!await source.exists() || await source.length() == 0) {
         throw StateError('File database utama tidak ditemukan atau kosong.');
       }
-      final directory = await _backupDirectory();
-      final destination = File(p.join(directory.path, 'BengkelKu_Backup_${_timestamp()}.db'));
-      final backup = await source.copy(destination.path);
-      if (await backup.length() != await source.length()) {
-        await backup.delete();
-        throw StateError('Ukuran file backup tidak sesuai. Backup dibatalkan.');
+      final databaseBytes = await source.readAsBytes();
+      final archive = Archive();
+      archive.addFile(ArchiveFile(
+        'database/$_databaseName',
+        databaseBytes.length,
+        databaseBytes,
+      ));
+
+      final manifestItems = <Map<String, Object?>>[];
+      var mediaIndex = 0;
+      final seen = <String, String>{};
+      for (final reference in references) {
+        final originalPath = reference['originalPath']! as String;
+        String? archivePath = seen[originalPath];
+        if (archivePath == null) {
+          final sourceFile = File(originalPath);
+          if (await sourceFile.exists()) {
+            final kind = reference['kind']! as String;
+            final extension = p.extension(originalPath).toLowerCase();
+            archivePath = 'media/$kind/${mediaIndex++}${extension.isEmpty ? '.img' : extension}';
+            final bytes = await sourceFile.readAsBytes();
+            archive.addFile(ArchiveFile(archivePath, bytes.length, bytes));
+            seen[originalPath] = archivePath;
+          }
+        }
+        manifestItems.add({
+          'table': reference['table'],
+          'column': reference['column'],
+          'id': reference['id'],
+          'originalPath': originalPath,
+          'archivePath': archivePath,
+        });
       }
-      return backup;
+
+      final manifest = utf8.encode(jsonEncode({
+        'format': 'bengkelku_backup',
+        'formatVersion': 1,
+        'createdAt': DateTime.now().toIso8601String(),
+        'database': 'database/$_databaseName',
+        'media': manifestItems,
+        'mediaIncluded': seen.length,
+        'mediaMissing': manifestItems.where((item) => item['archivePath'] == null).length,
+      }));
+      archive.addFile(ArchiveFile(_manifestName, manifest.length, manifest));
+
+      final zipBytes = ZipEncoder().encode(archive);
+      if (zipBytes == null || zipBytes.isEmpty) {
+        throw StateError('Arsip ZIP gagal dibuat.');
+      }
+      final destination = File(p.join(directory.path, 'BengkelKu_Backup_$timestamp.zip'));
+      await destination.writeAsBytes(zipBytes, flush: true);
+      if (await destination.length() < databaseBytes.length) {
+        await destination.delete();
+        throw StateError('Ukuran arsip backup tidak valid.');
+      }
+      return destination;
     } finally {
+      if (await work.exists()) await work.delete(recursive: true);
       await AppDatabase.instance.database;
     }
   }
 
   Future<String> restoreBackup(String sourcePath) async {
-    AuthSession.instance.requireAdmin('Hanya Admin yang dapat memulihkan database.');
+    AuthSession.instance.requireAdmin('Hanya Admin yang dapat memulihkan backup.');
     final source = File(sourcePath);
     if (!await source.exists() || await source.length() < 100) {
       throw StateError('File backup tidak ditemukan atau ukurannya tidak valid.');
     }
-
     final directory = await _backupDirectory();
-    final candidate = File(p.join(directory.path, 'restore_candidate_${_timestamp()}.db'));
+    final timestamp = _timestamp();
+    final candidate = File(p.join(directory.path, 'restore_candidate_$timestamp.db'));
+    final restoredMedia = Directory(
+      p.join((await _documentsDirectory()).path, 'restored_media_$timestamp'),
+    );
     Database? checkDb;
     var candidateValidated = false;
+    var mediaCreated = false;
+
     try {
-      await source.copy(candidate.path);
-      checkDb = await openDatabase(
-        candidate.path,
-        readOnly: true,
-        singleInstance: false,
-      );
+      if (p.extension(sourcePath).toLowerCase() == '.zip') {
+        final archive = ZipDecoder().decodeBytes(await source.readAsBytes());
+        final databaseEntry = archive.files.where(
+          (file) => file.name == 'database/$_databaseName' && file.isFile,
+        ).firstOrNull;
+        if (databaseEntry == null) {
+          throw const FormatException('ZIP tidak berisi database BengkelKu.');
+        }
+        final databaseBytes = databaseEntry.content as List<int>;
+        await candidate.writeAsBytes(databaseBytes, flush: true);
+
+        final manifestEntry = archive.files.where(
+          (file) => file.name == _manifestName && file.isFile,
+        ).firstOrNull;
+        if (manifestEntry == null) {
+          throw const FormatException('Manifest backup tidak ditemukan.');
+        }
+        final manifest = jsonDecode(utf8.decode(manifestEntry.content as List<int>));
+        if (manifest is! Map || manifest['format'] != 'bengkelku_backup' ||
+            manifest['formatVersion'] != 1 || manifest['media'] is! List) {
+          throw const FormatException('Format manifest backup tidak didukung.');
+        }
+
+        await restoredMedia.create(recursive: true);
+        mediaCreated = true;
+        checkDb = await openDatabase(candidate.path, singleInstance: false);
+        final mediaEntries = archive.files.where((file) => file.isFile)
+            .map((file) => file.name).toSet();
+        for (final item in (manifest['media'] as List)) {
+          if (item is! Map) continue;
+          final table = item['table']?.toString();
+          final column = item['column']?.toString();
+          final originalPath = item['originalPath']?.toString();
+          final archivePath = item['archivePath']?.toString();
+          final id = item['id'];
+          if (table == null || column == null || originalPath == null ||
+              archivePath == null || id == null) continue;
+          final allowed = (table == 'products' && column == 'image_path') ||
+              (table == 'service_orders' &&
+                  (column == 'before_photo_path' || column == 'after_photo_path'));
+          if (!allowed || archivePath.startsWith('/') ||
+              archivePath.split('/').contains('..') || !mediaEntries.contains(archivePath)) {
+            continue;
+          }
+          final entry = archive.files.firstWhere((file) => file.name == archivePath);
+          final safeName = p.basename(archivePath);
+          final kind = table == 'products' ? 'products' : 'services';
+          final targetDirectory = Directory(p.join(restoredMedia.path, kind));
+          await targetDirectory.create(recursive: true);
+          final target = File(p.join(targetDirectory.path, safeName));
+          await target.writeAsBytes(entry.content as List<int>, flush: true);
+          await checkDb.update(
+            table,
+            {column: target.path},
+            where: 'id = ? AND $column = ?',
+            whereArgs: [id, originalPath],
+          );
+        }
+        await checkDb.close();
+        checkDb = null;
+      } else {
+        // Tetap mendukung backup database .db dari versi aplikasi sebelumnya.
+        await source.copy(candidate.path);
+      }
+
+      checkDb = await openDatabase(candidate.path, readOnly: true, singleInstance: false);
       final integrity = await checkDb.rawQuery('PRAGMA integrity_check');
       if (integrity.isEmpty || integrity.first.values.first?.toString() != 'ok') {
         throw const FormatException('File backup rusak atau tidak valid.');
@@ -113,8 +269,9 @@ class DatabaseBackupService {
       candidateValidated = true;
     } finally {
       await checkDb?.close();
-      if (!candidateValidated && await candidate.exists()) {
-        await candidate.delete();
+      if (!candidateValidated && await candidate.exists()) await candidate.delete();
+      if (!candidateValidated && mediaCreated && await restoredMedia.exists()) {
+        await restoredMedia.delete(recursive: true);
       }
     }
 
@@ -122,13 +279,13 @@ class DatabaseBackupService {
     final currentFile = File(databasePath);
     if (!await currentFile.exists()) {
       await candidate.delete();
+      if (mediaCreated && await restoredMedia.exists()) await restoredMedia.delete(recursive: true);
       throw StateError('Database saat ini tidak ditemukan. Pemulihan dihentikan demi keamanan.');
     }
-    final safetyCopy = File(p.join(directory.path, 'BengkelKu_Sebelum_Pemulihan_${_timestamp()}.db'));
+    final safetyCopy = File(p.join(directory.path, 'BengkelKu_Sebelum_Pemulihan_$timestamp.db'));
 
     await AppDatabase.instance.close();
     try {
-      // Remove WAL/SHM from the old database before swapping in another file.
       await _removeSqliteSidecars(databasePath);
       await currentFile.copy(safetyCopy.path);
       await candidate.copy(databasePath);
@@ -140,26 +297,22 @@ class DatabaseBackupService {
       await ActivityLogRepository.record(
         restoredDb,
         action: 'database_restored',
-        description: 'Memulihkan database dari file backup. Salinan sebelum pemulihan disimpan untuk pemulihan darurat.',
+        description: 'Memulihkan database BengkelKu dari backup. Salinan database sebelum pemulihan disimpan.',
         entityType: 'database',
       );
       await candidate.delete();
       return safetyCopy.path;
-    } catch (error) {
+    } catch (_) {
       await AppDatabase.instance.close();
-      if (await candidate.exists()) {
-        await candidate.delete();
-      }
+      if (await candidate.exists()) await candidate.delete();
       if (await safetyCopy.exists()) {
-        // The failed candidate may have created a WAL for the replacement DB.
-        // Delete it before restoring the safety copy to avoid cross-database replay.
         await _removeSqliteSidecars(databasePath);
         await safetyCopy.copy(databasePath);
         await _removeSqliteSidecars(databasePath);
       }
-      // Jika gagal sebelum salinan pengaman dibuat, file database asli
-      // tetap dipakai. Buka kembali koneksi agar aplikasi tidak tertinggal
-      // dalam keadaan database tertutup.
+      if (mediaCreated && await restoredMedia.exists()) {
+        await restoredMedia.delete(recursive: true);
+      }
       await AppDatabase.instance.database;
       rethrow;
     }
