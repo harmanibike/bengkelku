@@ -75,6 +75,35 @@ class _ReceiptSettingsPageState extends State<ReceiptSettingsPage> {
           : ListView(
               padding: const EdgeInsets.all(14),
               children: [
+                const Text('Cetak Setelah Transaksi / Pembayaran', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Cetak otomatis setelah penjualan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Aktifkan agar nota penjualan langsung dicetak setelah pembayaran berhasil.', style: TextStyle(fontSize: 11)),
+                  value: _settings.autoPrintSales,
+                  onChanged: _saving ? null : (v) => setState(() => _settings = _settings.copyWith(autoPrintSales: v)),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Cetak otomatis setelah pembayaran servis', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Cetak bukti pembayaran/pelunasan servis setelah pembayaran berhasil.', style: TextStyle(fontSize: 11)),
+                  value: _settings.autoPrintServicePayments,
+                  onChanged: _saving ? null : (v) => setState(() => _settings = _settings.copyWith(autoPrintServicePayments: v)),
+                ),
+                const SizedBox(height: 4),
+                const Text('Jumlah Salinan', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                DropdownButtonFormField<int>(
+                  value: _settings.printCopies,
+                  decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('1 salinan')),
+                    DropdownMenuItem(value: 2, child: Text('2 salinan')),
+                    DropdownMenuItem(value: 3, child: Text('3 salinan')),
+                  ],
+                  onChanged: _saving ? null : (v) { if (v != null) setState(() => _settings = _settings.copyWith(printCopies: v)); },
+                ),
+                const SizedBox(height: 16),
                 const Text('Ukuran Kertas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 SegmentedButton<int>(
