@@ -185,32 +185,24 @@ class _DashboardPageState extends State<DashboardPage> {
         bottom: false,
         child: Row(
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  width: 1.2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0756D8).withValues(alpha: 0.28),
-                    blurRadius: 9,
-                    offset: const Offset(0, 3),
+            // Gunakan ikon aplikasi secara utuh tanpa bingkai tambahan agar
+            // logo tidak tampak mengecil atau memiliki garis ganda di header.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Image.asset(
+                  'assets/branding/bike_pos_icon.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const ColoredBox(
+                    color: Color(0xFF0756D8),
+                    child: Icon(
+                      Icons.pedal_bike_rounded,
+                      color: Colors.white,
+                      size: 34,
+                    ),
                   ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Image.asset(
-                'assets/branding/bike_pos_icon.png',
-                width: 50,
-                height: 50,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const ColoredBox(
-                  color: Color(0xFF0756D8),
-                  child: Icon(Icons.pedal_bike_rounded, color: Colors.white, size: 38),
                 ),
               ),
             ),
