@@ -118,8 +118,9 @@ class _DashboardPageState extends State<DashboardPage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const BicycleListPage()));
   }
 
-  void _openServices() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ServiceListPage()));
+  Future<void> _openServices() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const ServiceListPage()));
+    await _loadPendingPartRequests();
   }
 
   void _openServicePricing() {
@@ -550,6 +551,7 @@ class _DashboardPageState extends State<DashboardPage> {
     required IconData icon,
     required List<Color> colors,
     required VoidCallback onTap,
+    int badgeCount = 0,
   }) {
     return InkWell(
       onTap: onTap,
@@ -566,7 +568,31 @@ class _DashboardPageState extends State<DashboardPage> {
                 BoxShadow(color: colors.first.withValues(alpha: 0.2), blurRadius: 9, offset: const Offset(0, 4)),
               ],
             ),
-            child: Icon(icon, color: Colors.white, size: 32),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(child: Icon(icon, color: Colors.white, size: 32)),
+                if (badgeCount > 0)
+                  Positioned(
+                    top: -8,
+                    right: -9,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD32F2F),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        badgeCount > 99 ? '99+' : badgeCount.toString(),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -594,7 +620,13 @@ class _DashboardPageState extends State<DashboardPage> {
         _menuTile(title: 'Pelanggan', icon: Icons.people_alt_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)], onTap: _openCustomers),
         _menuTile(title: 'Sepeda', icon: Icons.pedal_bike_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openBicycles),
       ],
-      _menuTile(title: 'Servis', icon: Icons.build_rounded, colors: const [Color(0xFFE91E63), Color(0xFFF06292)], onTap: _openServices),
+      _menuTile(
+        title: 'Servis',
+        icon: Icons.build_rounded,
+        colors: const [Color(0xFFE91E63), Color(0xFFF06292)],
+        onTap: _openServices,
+        badgeCount: AuthSession.instance.isCashierOrAdmin ? _pendingPartRequests : 0,
+      ),
       if (AuthSession.instance.isAdmin) ...[
         _menuTile(title: 'Produk', icon: Icons.inventory_2_rounded, colors: const [Color(0xFF1976D2), Color(0xFF64B5F6)], onTap: _openProducts),
         _menuTile(title: 'Harga Jasa', icon: Icons.price_change_rounded, colors: const [Color(0xFF1565C0), Color(0xFF64B5F6)], onTap: _openServicePricing),
@@ -662,6 +694,33 @@ class _DashboardPageState extends State<DashboardPage> {
                             ],
                             if (AuthSession.instance.isAdmin) ...[
                               _summary(snapshot),
+                              const SizedBox(height: 9),
+                            ],
+                            if (AuthSession.instance.isCashierOrAdmin && _pendingPartRequests > 0) ...[
+                              Material(
+                                color: const Color(0xFFFFF3E0),
+                                borderRadius: BorderRadius.circular(12),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: _openServices,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.notifications_active, color: Color(0xFFE65100)),
+                                        const SizedBox(width: 9),
+                                        Expanded(
+                                          child: Text(
+                                            'Ada $_pendingPartRequests pengajuan tambah sparepart servis menunggu persetujuan.',
+                                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6D3B00)),
+                                          ),
+                                        ),
+                                        const Icon(Icons.chevron_right, color: Color(0xFFE65100)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                               const SizedBox(height: 9),
                             ],
                             _menu(),
