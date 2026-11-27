@@ -194,7 +194,6 @@ class _ProductListPageState extends State<ProductListPage> {
   Future<void> _printProductBarcode({
     required String productName,
     required String barcode,
-    String sku = '',
   }) async {
     final code = barcode.trim();
     if (code.isEmpty) {
@@ -257,11 +256,6 @@ class _ProductListPageState extends State<ProductListPage> {
       ));
       for (var i = 0; i < quantity; i++) {
         final ticket = await Ticket.create(PaperSize.mm58);
-        ticket.text(
-          productName.trim().isEmpty ? 'PRODUK' : productName.trim(),
-          align: PrintAlign.center,
-          style: const PrintTextStyle(bold: true),
-        );
         ticket.barcode(
           code,
           type: BarcodeType.code128,
@@ -521,7 +515,6 @@ class _ProductListPageState extends State<ProductListPage> {
                         await _printProductBarcode(
                           productName: name.text,
                           barcode: barcode.text,
-                          sku: sku.text,
                         );
                         if (context.mounted) setDialogState(() => printingBarcode = false);
                       },
