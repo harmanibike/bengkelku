@@ -8,6 +8,8 @@ import '../data/sale_repository.dart';
 import '../../customers/data/customer_repository.dart';
 import '../../customers/data/customer_wallet_repository.dart';
 import '../../settings/data/payment_methods_repository.dart';
+import '../../settings/data/receipt_settings_repository.dart';
+import '../../receipts/presentation/receipt_share_launcher.dart';
 import 'barcode_scanner_page.dart';
 import '../../services/presentation/service_list_page.dart';
 import '../../../core/widgets/app_photo_preview.dart';
@@ -548,6 +550,11 @@ class _CashierPageState extends State<CashierPage> {
       if (!mounted) return;
       final sale = await _repository.getSaleById(id);
       if (!mounted) return;
+      final printSettings = await ReceiptSettingsRepository().getReceiptSettings();
+      if (printSettings.autoPrintSales) {
+        await ReceiptShareLauncher.sale(context, id, autoPrint: true);
+        if (!mounted) return;
+      }
       showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
