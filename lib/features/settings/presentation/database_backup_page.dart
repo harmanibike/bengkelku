@@ -47,7 +47,7 @@ class _DatabaseBackupPageState extends State<DatabaseBackupPage> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['db', 'sqlite', 'sqlite3'],
+        allowedExtensions: ['zip', 'db', 'sqlite', 'sqlite3'],
         allowMultiple: false,
       );
       if (!mounted || result == null || result.files.isEmpty) return;
@@ -82,7 +82,7 @@ class _DatabaseBackupPageState extends State<DatabaseBackupPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Database berhasil dipulihkan. Salinan data sebelum pemulihan juga disimpan.'),
+          content: const Text('Backup berhasil dipulihkan. Foto yang tersedia ikut dipulihkan; salinan database lama tetap disimpan.'),
           duration: const Duration(seconds: 6),
           action: SnackBarAction(
             label: 'Info',
@@ -134,8 +134,8 @@ class _DatabaseBackupPageState extends State<DatabaseBackupPage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Salin database BengkelKu ke file .db, lalu bagikan ke penyimpanan aman, '
-                    'flashdisk melalui OTG, atau cloud pribadi.',
+                    'Salin database beserta foto produk dan dokumentasi servis ke satu file .zip, '
+                    'lalu simpan di tempat aman, flashdisk melalui OTG, atau cloud pribadi.',
                   ),
                   const SizedBox(height: 14),
                   FilledButton.icon(
@@ -162,8 +162,8 @@ class _DatabaseBackupPageState extends State<DatabaseBackupPage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Pilih file backup BengkelKu (.db). File akan diperiksa terlebih dahulu. '
-                    'Database saat ini disalin sebagai cadangan sebelum diganti.',
+                    'Pilih backup lengkap BengkelKu (.zip). File .db dari versi lama tetap didukung, '
+                    'tetapi tidak membawa foto. Database saat ini disalin sebelum dipulihkan.',
                   ),
                   const SizedBox(height: 14),
                   OutlinedButton.icon(
