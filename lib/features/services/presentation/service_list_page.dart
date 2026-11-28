@@ -1357,14 +1357,16 @@ class _ServiceListPageState extends State<ServiceListPage> {
                       icon: const Icon(Icons.edit_note_outlined),
                       label: const Text('Ubah Biaya Modal'),
                     ),
-                  if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
+                  if (!AuthSession.instance.isMechanic &&
+                      (detail['remaining_payment'] as int? ?? 0) > 0 &&
                       status != 'cancelled')
                     OutlinedButton.icon(
                       onPressed: () => Navigator.pop(dialogContext, 'payment'),
                       icon: const Icon(Icons.payments_outlined),
                       label: const Text('Catat Pembayaran'),
                     ),
-                  if ((detail['remaining_payment'] as int? ?? 0) > 0 &&
+                  if (!AuthSession.instance.isMechanic &&
+                      (detail['remaining_payment'] as int? ?? 0) > 0 &&
                       detail['customer_id'] != null && status != 'cancelled')
                     OutlinedButton.icon(
                       onPressed: () => Navigator.pop(dialogContext, 'wallet_payment'),
