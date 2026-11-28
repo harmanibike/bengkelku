@@ -371,7 +371,6 @@ class DatabaseBackupService {
                 where: 'id = ?', whereArgs: [id], limit: 1);
             if (rows.isEmpty) continue;
             final backupPath = rows.first[column]?.toString().trim() ?? '';
-            final backupExists = backupPath.isNotEmpty && await File(backupPath).exists();
             final shouldUseCurrent = photoMode == RestorePhotoMode.keepCurrent
                 ? true : backupPath.isEmpty;
             if (shouldUseCurrent) {
