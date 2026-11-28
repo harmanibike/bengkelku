@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/auth/auth_session.dart';
 import '../../../core/database/database_backup_service.dart';
+import 'media_cleanup_page.dart';
 
 class DatabaseBackupPage extends StatefulWidget {
   const DatabaseBackupPage({super.key});
@@ -207,6 +208,28 @@ class _DatabaseBackupPageState extends State<DatabaseBackupPage> {
                     onPressed: _busy ? null : _restoreBackup,
                     icon: const Icon(Icons.file_download_outlined),
                     label: const Text('Pilih File Backup'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.photo_library_outlined, size: 32),
+                  const SizedBox(height: 8),
+                  const Text('Pemeriksaan Penyimpanan Foto', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  const Text('Pindai foto produk, foto profil, dan dokumentasi servis yang tidak lagi dipakai. Tidak ada file yang dihapus otomatis.'),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _busy ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MediaCleanupPage())),
+                    icon: const Icon(Icons.search),
+                    label: const Text('Periksa & Kelola Foto'),
                   ),
                 ],
               ),
