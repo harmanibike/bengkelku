@@ -758,7 +758,16 @@ class _DashboardPageState extends State<DashboardPage> {
                     ...orders.take(4).map((order) {
                       final code = order['service_code']?.toString() ?? 'Servis #${order['id']}';
                       final customer = order['customer_name']?.toString() ?? 'Pembeli Umum';
-                      final status = _statusLabels[order['service_status']?.toString()] ?? 'Dalam proses';
+                      final status = switch (order['service_status']?.toString()) {
+                        'waiting' => 'Menunggu',
+                        'active_queue' => 'Antrean aktif',
+                        'checking' => 'Pemeriksaan',
+                        'in_progress' => 'Dikerjakan',
+                        'completed' => 'Selesai',
+                        'delivered' => 'Diambil',
+                        'cancelled' => 'Dibatalkan',
+                        _ => 'Dalam proses',
+                      };
                       return Card(
                         margin: const EdgeInsets.only(bottom: 7), elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13),
