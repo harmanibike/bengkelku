@@ -11,7 +11,9 @@ class PurchaseReturnRepository {
     AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
-      SELECT p.id, p.invoice_number, p.purchase_date, s.name AS supplier_name
+      SELECT p.id, p.invoice_number, p.purchase_date, p.purchase_type, p.marketplace,
+        CASE WHEN p.purchase_type = 'online' THEN COALESCE(NULLIF(p.marketplace, ''), 'Toko online')
+          ELSE COALESCE(s.name, 'Pemasok') END AS supplier_name
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
       WHERE p.status = 'active' AND EXISTS (SELECT 1 FROM purchase_items pi WHERE pi.purchase_id = p.id)
@@ -43,7 +45,9 @@ class PurchaseReturnRepository {
     AuthSession.instance.requireAdmin('Fitur ini hanya dapat diakses Admin.');
     final db = await _db;
     return db.rawQuery('''
-      SELECT pr.*, p.invoice_number, s.name AS supplier_name
+      SELECT pr.*, p.invoice_number, p.purchase_type, p.marketplace,
+        CASE WHEN p.purchase_type = 'online' THEN COALESCE(NULLIF(p.marketplace, ''), 'Toko online')
+          ELSE COALESCE(s.name, 'Pemasok') END AS supplier_name
       FROM purchase_returns pr
       JOIN purchases p ON p.id = pr.purchase_id
       LEFT JOIN suppliers s ON s.id = p.supplier_id
