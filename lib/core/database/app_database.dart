@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 47;
+  static const int currentVersion = 48;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -72,6 +72,31 @@ class AppDatabase {
       )
     ''');
     batch.execute('CREATE INDEX idx_device_pairing_attempt_limits_blocked ON device_pairing_attempt_limits(blocked_until)');
+
+    // Outbox lokal untuk perubahan yang perlu dikirim ke Server.
+    // Event disimpan dalam transaksi yang sama dengan perubahan bisnis.
+    batch.execute('''
+      CREATE TABLE sync_outbox (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT NOT NULL UNIQUE,
+        entity_type TEXT NOT NULL,
+        entity_id INTEGER NOT NULL,
+        operation TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending'
+          CHECK(status IN ('pending', 'in_flight', 'failed', 'synced')),
+        attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+        next_attempt_at TEXT,
+        lease_until TEXT,
+        last_error TEXT,
+        server_ack_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        synced_at TEXT
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_sync_outbox_ready ON sync_outbox(status, next_attempt_at, id)');
+    batch.execute('CREATE INDEX idx_sync_outbox_entity ON sync_outbox(entity_type, entity_id, created_at)');
 
     // Jejak aktivitas akun; user_id tanpa foreign key agar histori tetap utuh.
     batch.execute('''
@@ -2034,6 +2059,34 @@ class AppDatabase {
         ''');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_bicycle_ownership_history_bicycle ON bicycle_ownership_history(bicycle_id, changed_at DESC, id DESC)');
       }
+    }
+
+
+    // Reliable client outbox. Existing local transactions are not retroactively
+    // queued; only new changes made while Client mode is active are enqueued.
+    if (oldVersion < 48) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sync_outbox (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_id TEXT NOT NULL UNIQUE,
+          entity_type TEXT NOT NULL,
+          entity_id INTEGER NOT NULL,
+          operation TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending', 'in_flight', 'failed', 'synced')),
+          attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
+          next_attempt_at TEXT,
+          lease_until TEXT,
+          last_error TEXT,
+          server_ack_id TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          synced_at TEXT
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_outbox_ready ON sync_outbox(status, next_attempt_at, id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_outbox_entity ON sync_outbox(entity_type, entity_id, created_at)');
     }
 
 
