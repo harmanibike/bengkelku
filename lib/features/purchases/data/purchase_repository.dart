@@ -14,9 +14,9 @@ class PurchaseRepository {
     return db.rawQuery('''
       SELECT p.*, s.name AS supplier_name
       FROM purchases p LEFT JOIN suppliers s ON s.id = p.supplier_id
-      WHERE ? = '' OR p.invoice_number LIKE ? OR s.name LIKE ? OR COALESCE(p.order_number, '') LIKE ? OR COALESCE(p.tracking_number, '') LIKE ?
+      WHERE ? = '' OR p.invoice_number LIKE ? OR s.name LIKE ? OR COALESCE(p.marketplace, '') LIKE ? OR COALESCE(p.order_number, '') LIKE ? OR COALESCE(p.tracking_number, '') LIKE ?
       ORDER BY p.purchase_date DESC, p.id DESC
-    ''', [term, '%$term%', '%$term%', '%$term%', '%$term%']);
+    ''', [term, '%$term%', '%$term%', '%$term%', '%$term%', '%$term%']);
   }
 
   Future<List<Map<String, Object?>>> getPurchaseItems(int purchaseId) async {
@@ -38,7 +38,7 @@ class PurchaseRepository {
 
   Future<int> createPurchase({
     required String invoiceNumber,
-    required int supplierId,
+    int? supplierId,
     required List<Map<String, Object?>> items,
     int discount = 0,
     String purchaseType = 'direct',
@@ -64,6 +64,9 @@ class PurchaseRepository {
     if (!const ['direct', 'online'].contains(purchaseType)) throw ArgumentError('Jenis pembelian tidak valid.');
     if (discount < 0 || initialPayment < 0 || fees.any((fee) => fee < 0)) {
       throw ArgumentError('Diskon, biaya tambahan, dan pembayaran tidak boleh negatif.');
+    }
+    if (purchaseType == 'direct' && supplierId == null) {
+      throw ArgumentError('Pemasok wajib dipilih untuk pembelian langsung.');
     }
     if (purchaseType == 'online' && (marketplace?.trim().isEmpty ?? true)) {
       throw ArgumentError('Nama marketplace/toko online wajib diisi untuk pembelian online.');
@@ -97,8 +100,9 @@ class PurchaseRepository {
     if (initialPayment > total) throw ArgumentError('Pembayaran awal melebihi total faktur.');
     final db = await _db;
     return db.transaction((txn) async {
-      final supplier = await txn.query('suppliers', columns: ['id', 'name'], where: 'id = ?', whereArgs: [supplierId], limit: 1);
-      if (supplier.isEmpty) throw StateError('Pemasok tidak ditemukan.');
+      final supplier = supplierId == null ? <Map<String, Object?>>[] : await txn.query(
+        'suppliers', columns: ['id', 'name'], where: 'id = ?', whereArgs: [supplierId], limit: 1);
+      if (supplierId != null && supplier.isEmpty) throw StateError('Pemasok tidak ditemukan.');
       final lineCosts = _allocatePurchaseLineCosts(
         normalized.map((item) => item['subtotal'] as int).toList(),
         discount: discount,
@@ -151,11 +155,13 @@ class PurchaseRepository {
       }
       if (initialPayment > 0) {
         final paymentAt = DateTime.now().toIso8601String();
-        await txn.insert('supplier_payments', {
-          'supplier_id': supplierId, 'purchase_id': purchaseId, 'amount': initialPayment,
-          'payment_date': paymentAt, 'payment_method': _nullable(paymentMethod),
-          'notes': 'Pembayaran awal faktur $invoice',
-        });
+        if (supplierId != null) {
+          await txn.insert('supplier_payments', {
+            'supplier_id': supplierId, 'purchase_id': purchaseId, 'amount': initialPayment,
+            'payment_date': paymentAt, 'payment_method': _nullable(paymentMethod),
+            'notes': 'Pembayaran awal faktur $invoice',
+          });
+        }
         await txn.insert('cash_transactions', {
           'transaction_type': 'expense', 'category': 'Pembayaran pembelian',
           'description': 'Pembayaran awal faktur $invoice', 'amount': initialPayment,
@@ -165,7 +171,7 @@ class PurchaseRepository {
       }
       await ActivityLogRepository.record(txn,
         action: 'purchase_created',
-        description: 'Mencatat pembelian faktur $invoice dari ${supplier.first['name']} senilai Rp$total.',
+        description: 'Mencatat pembelian faktur $invoice ${supplier.isNotEmpty ? 'dari ${supplier.first['name']}' : 'melalui ${_nullable(marketplace) ?? 'toko online'}'} senilai Rp$total.',
         entityType: 'purchase', entityId: purchaseId);
       return purchaseId;
     });
