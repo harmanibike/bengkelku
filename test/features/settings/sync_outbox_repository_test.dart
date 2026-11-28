@@ -141,8 +141,8 @@ void main() {
   test('rejects invalid claim limits and malformed event identifiers',
       () async {
     final repository = createRepository();
-    expect(
-      () => repository.claimPending(limit: 0),
+    await expectLater(
+      repository.claimPending(limit: 0),
       throwsArgumentError,
     );
 
