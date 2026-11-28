@@ -315,7 +315,7 @@ class DatabaseBackupService {
               archiveParts[2].isEmpty ||
               archiveParts[2] == '.' ||
               archiveParts[2] == '..' ||
-              archivePath.contains(r'\\') ||
+              archivePath.codeUnits.contains(92) ||
               !mediaEntries.contains(archivePath)) {
             throw FormatException('File media backup tidak valid atau hilang: $archivePath');
           }
