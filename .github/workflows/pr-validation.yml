@@ -45,7 +45,7 @@ jobs:
         run: flutter pub get
 
       - name: Check changed Dart test formatting
-        run: dart format --output=none --set-exit-if-changed test/features/local_pos_sqlite_integration_test.dart
+        run: diff -u test/features/local_pos_sqlite_integration_test.dart <(dart format --output=show test/features/local_pos_sqlite_integration_test.dart)
 
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
