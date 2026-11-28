@@ -69,34 +69,57 @@ class _DatabaseBackupPageState extends State<DatabaseBackupPage> {
       if (path == null || path.isEmpty) {
         throw StateError('Lokasi file backup tidak dapat dibaca.');
       }
+      final selectedMode = await showDialog<RestorePhotoMode>(
+        context: context,
+        builder: (dialogContext) {
+          var selected = RestorePhotoMode.merge;
+          return StatefulBuilder(builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Atur pemulihan foto'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('Pilih bagaimana foto backup dan foto di HP digabungkan.'),
+              RadioListTile<RestorePhotoMode>(
+                contentPadding: EdgeInsets.zero, value: RestorePhotoMode.merge,
+                groupValue: selected, onChanged: (v) => setDialogState(() => selected = v!),
+                title: const Text('Gabungkan foto'),
+                subtitle: const Text('Foto backup menggantikan foto pada record yang sama. Jika backup tidak punya foto, foto HP dipertahankan.')),
+              RadioListTile<RestorePhotoMode>(
+                contentPadding: EdgeInsets.zero, value: RestorePhotoMode.keepCurrent,
+                groupValue: selected, onChanged: (v) => setDialogState(() => selected = v!),
+                title: const Text('Pertahankan foto HP'),
+                subtitle: const Text('Foto HP yang masih ada tidak ditimpa. Foto backup hanya mengisi foto yang kosong.')),
+              RadioListTile<RestorePhotoMode>(
+                contentPadding: EdgeInsets.zero, value: RestorePhotoMode.backupOnly,
+                groupValue: selected, onChanged: (v) => setDialogState(() => selected = v!),
+                title: const Text('Gunakan foto backup saja'),
+                subtitle: const Text('Foto yang tidak ada di backup akan kosong pada data hasil pemulihan.')),
+              const Text('Data transaksi dan database tetap mengikuti file backup. Foto HP hanya dipasangkan ke record dengan ID yang sama.'),
+            ]),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, selected), child: const Text('Lanjutkan')),
+            ],
+          ));
+        },
+      );
+      if (selectedMode == null || !mounted) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Pulihkan database?'),
-          content: const Text(
-            'Pemulihan akan mengganti data aplikasi saat ini dengan isi file backup. '
-            'Pastikan file backup benar. BengkelKu akan menyimpan salinan database saat ini '
-            'sebelum pemulihan agar dapat dipulihkan kembali jika diperlukan.',
-          ),
+          title: const Text('Konfirmasi pemulihan'),
+          content: const Text('Database saat ini akan diganti dengan isi backup. Salinan pengaman dibuat terlebih dahulu. File foto lama tidak langsung dihapus.'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Batal'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Pulihkan'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Pulihkan')),
           ],
         ),
       );
       if (confirmed != true || !mounted) return;
       setState(() => _busy = true);
-      final safetyPath = await _service.restoreBackup(path);
+      final safetyPath = await _service.restoreBackup(path, photoMode: selectedMode);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Backup berhasil dipulihkan. Foto yang tersedia ikut dipulihkan; salinan database lama tetap disimpan.'),
+          content: const Text('Backup berhasil dipulihkan sesuai pilihan foto. Foto lama belum dihapus; salinan database lama tetap disimpan.'),
           duration: const Duration(seconds: 6),
           action: SnackBarAction(
             label: 'Info',
