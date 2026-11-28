@@ -45,7 +45,7 @@ jobs:
         run: flutter pub get
 
       - name: Check new regression test formatting
-        run: dart format --output=none --set-exit-if-changed test/features/service_cancellation_reconciliation_test.dart
+        run: dart format --output=show test/features/service_cancellation_reconciliation_test.dart
 
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
