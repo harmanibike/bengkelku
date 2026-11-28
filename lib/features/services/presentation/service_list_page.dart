@@ -1219,7 +1219,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                   ],
                   if ((detail['notes']?.toString() ?? '').isNotEmpty)
                     _detailLine('Catatan', detail['notes']),
-                  if (!AuthSession.instance.isMechanic) ...[
+                  ...[
                   const Divider(),
                   const Text('Dokumentasi Servis',
                       style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1573,7 +1573,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daftar Servis'),
+        title: Text(AuthSession.instance.isMechanic ? 'Pekerjaan Saya' : 'Daftar Servis'),
         actions: [
           IconButton(
             onPressed: _refresh,
@@ -1656,10 +1656,12 @@ class _ServiceListPageState extends State<ServiceListPage> {
                         children: [
                           Icon(Icons.build_circle_outlined, size: 60),
                           SizedBox(height: 8),
-                          Text('Belum ada data servis',
+                          Text(AuthSession.instance.isMechanic ? 'Belum ada pekerjaan ditugaskan' : 'Belum ada data servis',
                               style: TextStyle(fontWeight: FontWeight.bold)),
                           SizedBox(height: 5),
-                          Text('Tekan tombol + untuk mencatat sepeda yang masuk.',
+                          Text(AuthSession.instance.isMechanic
+                              ? 'Pekerjaan yang ditugaskan kepada Anda akan muncul di sini.'
+                              : 'Tekan tombol + untuk mencatat sepeda yang masuk.',
                               textAlign: TextAlign.center),
                         ],
                       ),
