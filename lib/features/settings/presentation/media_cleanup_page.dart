@@ -29,9 +29,7 @@ class _MediaCleanupPageState extends State<MediaCleanupPage> {
       if (!mounted) return;
       setState(() {
         _report = report;
-        _selected
-          ..clear()
-          ..addAll(report.orphans.map((item) => item.path));
+        _selected.clear();
       });
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -100,7 +98,7 @@ class _MediaCleanupPageState extends State<MediaCleanupPage> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Pemeriksaan hanya mencakup folder foto milik aplikasi: product_images, service_photos, dan file profil berpola profile_ di Documents. Foto di luar lokasi tersebut tidak disentuh.',
+            'Pemeriksaan hanya mencakup folder foto milik aplikasi: product_images, service_photos, restored_media_*, dan file profil berpola profile_ di Documents. Foto di luar lokasi tersebut tidak disentuh.',
           ),
           const SizedBox(height: 12),
           if (_busy) const LinearProgressIndicator(),
