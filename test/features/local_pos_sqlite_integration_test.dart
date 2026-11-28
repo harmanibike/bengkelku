@@ -2679,7 +2679,6 @@ void main() {
     expect(summary['service_gross_profit_amount'], 90000);
   });
 
-
   test('service cancellation keeps cash and wallet payment reconciliation balanced', () async {
     final db = await AppDatabase.instance.database;
     final (customerId, bicycleId) = await createRegisteredCustomerAndBicycle(db);
