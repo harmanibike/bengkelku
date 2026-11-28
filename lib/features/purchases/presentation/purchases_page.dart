@@ -468,7 +468,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
           marketplaceFee: parseCurrencyInput(marketplaceFee.text),
           transferFee: parseCurrencyInput(transferFee.text),
           otherFee: parseCurrencyInput(otherFee.text),
-          initialPayment: int.parse(payment.text),
+          initialPayment: parseCurrencyInput(payment.text),
           paymentMethod: paymentMethod,
           notes: notes.text,
         );
