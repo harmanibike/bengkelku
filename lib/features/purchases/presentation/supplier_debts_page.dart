@@ -13,17 +13,20 @@ class SupplierDebtsPage extends StatefulWidget {
 class _SupplierDebtsPageState extends State<SupplierDebtsPage> {
   final _repository = SupplierRepository();
   late Future<List<Map<String, Object?>>> _future;
+  late Future<List<Map<String, Object?>>> _onlineFuture;
 
   @override
   void initState() {
     super.initState();
     _future = _repository.getSuppliersWithDebt();
+    _onlineFuture = _repository.getOnlinePurchaseDebts();
   }
 
   Future<void> _refresh() async {
     final next = _repository.getSuppliersWithDebt();
-    setState(() => _future = next);
-    await next;
+    final onlineNext = _repository.getOnlinePurchaseDebts();
+    setState(() { _future = next; _onlineFuture = onlineNext; });
+    await Future.wait([next, onlineNext]);
   }
 
   String _money(Object? value) {
@@ -87,7 +90,7 @@ class _SupplierDebtsPageState extends State<SupplierDebtsPage> {
                   child: Text('Daftar Utang per Pemasok', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                 ),
                 if (rows.isEmpty)
-                  const Card(child: Padding(padding: EdgeInsets.all(14), child: Text('Tidak ada utang pemasok. Semua faktur sudah lunas.', style: TextStyle(fontSize: 12))))
+                  const Card(child: Padding(padding: EdgeInsets.all(14), child: Text('Tidak ada utang pemasok. Semua faktur pemasok sudah lunas.', style: TextStyle(fontSize: 12))))
                 else
                   ...rows.map((row) => Card(
                     margin: const EdgeInsets.only(bottom: 6),
