@@ -297,11 +297,11 @@ class DatabaseBackupService {
             throw const FormatException('Entri media pada manifest tidak lengkap.');
           }
           final expectedKind = table == 'products'
-              ? 'products'
+              ? 'product'
               : table == 'app_users'
-                  ? 'profiles'
+                  ? 'profile'
                   : table == 'service_orders'
-                      ? 'services'
+                      ? 'service'
                       : null;
           final archiveParts = archivePath.split('/');
           final allowed = (table == 'products' && column == 'image_path') ||
