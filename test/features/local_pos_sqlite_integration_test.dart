@@ -2678,3 +2678,4 @@ void main() {
     expect(summary['service_direct_cost_amount'], 10000);
     expect(summary['service_gross_profit_amount'], 90000);
   });
+}
