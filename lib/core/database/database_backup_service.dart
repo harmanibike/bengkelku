@@ -127,7 +127,7 @@ class DatabaseBackupService {
       ));
 
       final manifestItems = <Map<String, Object?>>[];
-      final missingPaths = <String>[];
+      final missingReferences = <Map<String, Object?>>[];
       var mediaIndex = 0;
       final seen = <String, String>{};
       for (final reference in references) {
@@ -143,7 +143,7 @@ class DatabaseBackupService {
             archive.addFile(ArchiveFile(archivePath, bytes.length, bytes));
             seen[originalPath] = archivePath;
           } else {
-            missingPaths.add(originalPath);
+            missingReferences.add(reference);
           }
         }
         manifestItems.add({
@@ -155,10 +155,23 @@ class DatabaseBackupService {
         });
       }
 
-      if (missingPaths.isNotEmpty) {
+      if (missingReferences.isNotEmpty) {
+        final first = missingReferences.first;
+        final table = first['table'];
+        final column = first['column'];
+        final id = first['id'];
+        final path = first['originalPath'];
+        final kindLabel = switch (table) {
+          'products' => 'Foto produk',
+          'app_users' => 'Foto profil pengguna',
+          _ => 'Foto dokumentasi servis',
+        };
+        final remaining = missingReferences.length - 1;
         throw StateError(
-          'Backup dibatalkan: ${missingPaths.length} file foto yang tercatat tidak ditemukan. '
-          'Periksa foto produk, profil pengguna, dan dokumentasi servis sebelum mencoba lagi.',
+          'Backup dibatalkan. $kindLabel tidak ditemukan '
+          '(ID: $id, kolom: $column): $path'
+          '${remaining > 0 ? '. Masih ada $remaining file foto lain yang hilang' : ''}. '
+          'Periksa data tersebut terlebih dahulu agar backup tidak kehilangan foto.',
         );
       }
 
