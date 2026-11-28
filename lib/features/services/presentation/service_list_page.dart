@@ -118,6 +118,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
     final id = order['id'] as int;
     final current = order['service_status']?.toString() ?? 'waiting';
     String selected = current;
+    final noteController = TextEditingController();
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -125,28 +126,43 @@ class _ServiceListPageState extends State<ServiceListPage> {
         title: const Text('Ubah Status Servis'),
         content: SizedBox(
           width: MediaQuery.sizeOf(dialogContext).width * 0.82,
-          child: DropdownButtonFormField<String>(
-          initialValue: current,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Status pengerjaan',
-            border: OutlineInputBorder(),
-          ),
-          items: _statusLabels.entries
-              .where((entry) =>
-                  (!AuthSession.instance.isMechanic || const ['checking', 'in_progress', 'completed'].contains(entry.key)) &&
-                  (entry.key == current ||
-                  (ServiceRepository.allowedStatusTransitions[current] ??
-                          const <String>[])
-                      .contains(entry.key)))
-              .map((entry) => DropdownMenuItem(
-                    value: entry.key,
-                    child: Text(entry.value),
-                  ))
-              .toList(),
-          onChanged: (value) {
-            if (value != null) selected = value;
-          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: current,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Status pengerjaan',
+                  border: OutlineInputBorder(),
+                ),
+                items: _statusLabels.entries
+                    .where((entry) =>
+                        (!AuthSession.instance.isMechanic || const ['checking', 'in_progress', 'completed'].contains(entry.key)) &&
+                        (entry.key == current ||
+                        (ServiceRepository.allowedStatusTransitions[current] ??
+                                const <String>[])
+                            .contains(entry.key)))
+                    .map((entry) => DropdownMenuItem(
+                          value: entry.key,
+                          child: Text(entry.value),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) selected = value;
+                },
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: noteController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Catatan pekerjaan (opsional)',
+                  hintText: 'Contoh: rantai sudah dibersihkan dan disetel',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -161,11 +177,14 @@ class _ServiceListPageState extends State<ServiceListPage> {
         ],
       ),
     );
+    final statusNote = noteController.text.trim();
+    noteController.dispose();
     if (result == null || !mounted) return;
     try {
       await _repository.updateServiceStatus(
         id: id,
         status: result,
+        note: statusNote.isEmpty ? null : statusNote,
         actingMechanicId: AuthSession.instance.isMechanic ? AuthSession.instance.userId : null,
       );
       if (!mounted) return;
