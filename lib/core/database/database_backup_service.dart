@@ -10,6 +10,8 @@ import 'app_database.dart';
 import '../auth/activity_log_repository.dart';
 import '../auth/auth_session.dart';
 
+enum RestorePhotoMode { merge, keepCurrent, backupOnly }
+
 /// Backup lengkap: database SQLite dan foto produk/dokumentasi servis.
 /// File media disimpan sebagai file terpisah di dalam ZIP, bukan base64 di SQLite.
 class DatabaseBackupService {
@@ -219,9 +221,15 @@ class DatabaseBackupService {
     }
   }
 
-  Future<String> restoreBackup(String sourcePath) async {
+  Future<String> restoreBackup(String sourcePath, {RestorePhotoMode photoMode = RestorePhotoMode.merge}) async {
     AuthSession.instance.requireAdmin('Hanya Admin yang dapat memulihkan backup.');
     final source = File(sourcePath);
+    final currentDb = await AppDatabase.instance.database;
+    final currentPhotoPaths = <String, String>{};
+    for (final item in await _mediaReferences(currentDb)) {
+      final key = '${item['table']}|${item['id']}|${item['column']}';
+      currentPhotoPaths[key] = item['originalPath']! as String;
+    }
     if (!await source.exists() || await source.length() < 100) {
       throw StateError('File backup tidak ditemukan atau ukurannya tidak valid.');
     }
@@ -295,18 +303,52 @@ class DatabaseBackupService {
           await targetDirectory.create(recursive: true);
           final target = File(p.join(targetDirectory.path, safeName));
           await target.writeAsBytes(entry.content as List<int>, flush: true);
-          await checkDb.update(
-            table,
-            {column: target.path},
-            where: 'id = ? AND $column = ?',
-            whereArgs: [id, originalPath],
-          );
+          final key = '$table|$id|$column';
+          final currentPath = currentPhotoPaths[key];
+          final currentExists = currentPath != null && await File(currentPath).exists();
+          if (photoMode != RestorePhotoMode.keepCurrent || !currentExists) {
+            await checkDb.update(table, {column: target.path},
+                where: 'id = ? AND $column = ?', whereArgs: [id, originalPath]);
+          }
+        }
+        if (photoMode != RestorePhotoMode.backupOnly) {
+          for (final entry in currentPhotoPaths.entries) {
+            final parts = entry.key.split('|');
+            if (parts.length != 3 || !await File(entry.value).exists()) continue;
+            final table = parts[0], id = parts[1], column = parts[2];
+            final rows = await checkDb.query(table, columns: [column],
+                where: 'id = ?', whereArgs: [id], limit: 1);
+            if (rows.isEmpty) continue;
+            final backupPath = rows.first[column]?.toString().trim() ?? '';
+            final backupExists = backupPath.isNotEmpty && await File(backupPath).exists();
+            final shouldUseCurrent = photoMode == RestorePhotoMode.keepCurrent
+                ? !backupExists : backupPath.isEmpty;
+            if (shouldUseCurrent) {
+              await checkDb.update(table, {column: entry.value}, where: 'id = ?', whereArgs: [id]);
+            }
+          }
         }
         await checkDb.close();
         checkDb = null;
       } else {
-        // Tetap mendukung backup database .db dari versi aplikasi sebelumnya.
         await source.copy(candidate.path);
+        if (photoMode != RestorePhotoMode.backupOnly) {
+          checkDb = await openDatabase(candidate.path, singleInstance: false);
+          for (final entry in currentPhotoPaths.entries) {
+            final parts = entry.key.split('|');
+            if (parts.length != 3 || !await File(entry.value).exists()) continue;
+            final table = parts[0], id = parts[1], column = parts[2];
+            final rows = await checkDb.query(table, columns: [column],
+                where: 'id = ?', whereArgs: [id], limit: 1);
+            if (rows.isEmpty) continue;
+            final existing = rows.first[column]?.toString().trim() ?? '';
+            if (existing.isEmpty || photoMode == RestorePhotoMode.keepCurrent) {
+              await checkDb.update(table, {column: entry.value}, where: 'id = ?', whereArgs: [id]);
+            }
+          }
+          await checkDb.close();
+          checkDb = null;
+        }
       }
 
       checkDb = await openDatabase(candidate.path, readOnly: true, singleInstance: false);
