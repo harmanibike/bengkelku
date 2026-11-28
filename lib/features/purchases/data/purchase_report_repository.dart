@@ -41,7 +41,11 @@ class PurchaseReportRepository {
       WHERE p.status = 'active' AND p.purchase_date >= ? AND p.purchase_date < ?
     ''', [from, until]);
     final suppliers = await db.rawQuery('''
-      SELECT s.id AS supplier_id, s.name AS supplier_name,
+      SELECT p.purchase_type,
+        s.id AS supplier_id,
+        CASE WHEN p.purchase_type = 'online'
+          THEN COALESCE(NULLIF(p.marketplace, ''), 'Toko online')
+          ELSE COALESCE(s.name, 'Pemasok tidak diketahui') END AS supplier_name,
         COUNT(p.id) AS invoice_count, COALESCE(SUM(p.total), 0) AS total_amount,
         COALESCE(SUM(p.paid), 0) AS paid_amount,
         COALESCE(SUM(p.return_credit), 0) AS return_credit,
@@ -49,13 +53,17 @@ class PurchaseReportRepository {
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
       WHERE p.status = 'active' AND p.purchase_date >= ? AND p.purchase_date < ?
-      GROUP BY s.id, s.name
+      GROUP BY p.purchase_type, p.supplier_id, supplier_name
       ORDER BY total_amount DESC
       LIMIT 20
     ''', [from, until]);
     final latest = await db.rawQuery('''
       SELECT p.id, p.invoice_number, p.purchase_date, p.total, p.paid, p.return_credit,
-        MAX(p.total - p.paid - p.return_credit, 0) AS outstanding, s.name AS supplier_name
+        p.purchase_type, p.marketplace,
+        MAX(p.total - p.paid - p.return_credit, 0) AS outstanding,
+        CASE WHEN p.purchase_type = 'online'
+          THEN COALESCE(NULLIF(p.marketplace, ''), 'Toko online')
+          ELSE COALESCE(s.name, 'Pemasok tidak diketahui') END AS supplier_name
       FROM purchases p
       LEFT JOIN suppliers s ON s.id = p.supplier_id
       WHERE p.status = 'active' AND p.purchase_date >= ? AND p.purchase_date < ?
