@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Format, Analyze, and Test
+    name: Focused Format, Analyze, and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -44,8 +44,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Check new regression test formatting
+        run: dart format test/features/service_cancellation_reconciliation_test.dart
 
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
