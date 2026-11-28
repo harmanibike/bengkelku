@@ -99,6 +99,54 @@ class DatabaseBackupService {
     return references;
   }
 
+  Future<bool> _hasColumn(Database db, String table, String column) async {
+    final tables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+      [table],
+    );
+    if (tables.isEmpty) return false;
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    return columns.any((item) => item['name'] == column);
+  }
+
+  Future<void> _applyCurrentMediaFallback(
+    Database db,
+    Map<String, String> currentPhotoPaths,
+    RestorePhotoMode photoMode, {
+    required bool backupHasMedia,
+  }) async {
+    if (photoMode == RestorePhotoMode.backupOnly) return;
+    for (final entry in currentPhotoPaths.entries) {
+      if (!await File(entry.value).exists()) continue;
+      final parts = entry.key.split('|');
+      if (parts.length != 3) continue;
+      final table = parts[0], id = parts[1], column = parts[2];
+      if (!await _hasColumn(db, table, column)) continue;
+      final rows = await db.query(
+        table,
+        columns: [column],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isEmpty) continue;
+      final backupPath = rows.first[column]?.toString().trim() ?? '';
+      final backupPhotoExists =
+          backupPath.isNotEmpty && await File(backupPath).exists();
+      final shouldUseCurrent = photoMode == RestorePhotoMode.keepCurrent ||
+          !backupHasMedia ||
+          !backupPhotoExists;
+      if (shouldUseCurrent) {
+        await db.update(
+          table,
+          {column: entry.value},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+      }
+    }
+  }
+
   Future<void> _clearMediaReferences(Database db) async {
     const columnsByTable = <String, List<String>>{
       'products': ['image_path'],
@@ -367,6 +415,7 @@ class DatabaseBackupService {
             final parts = entry.key.split('|');
             if (parts.length != 3 || !await File(entry.value).exists()) continue;
             final table = parts[0], id = parts[1], column = parts[2];
+            if (!await _hasColumn(checkDb, table, column)) continue;
             final rows = await checkDb.query(table, columns: [column],
                 where: 'id = ?', whereArgs: [id], limit: 1);
             if (rows.isEmpty) continue;
@@ -394,6 +443,7 @@ class DatabaseBackupService {
             final parts = entry.key.split('|');
             if (parts.length != 3 || !await File(entry.value).exists()) continue;
             final table = parts[0], id = parts[1], column = parts[2];
+            if (!await _hasColumn(checkDb, table, column)) continue;
             await checkDb.update(table, {column: entry.value},
                 where: 'id = ?', whereArgs: [id]);
           }
@@ -447,6 +497,12 @@ class DatabaseBackupService {
       await currentFile.copy(safetyCopy.path);
       await candidate.copy(databasePath);
       final restoredDb = await AppDatabase.instance.database;
+      await _applyCurrentMediaFallback(
+        restoredDb,
+        currentPhotoPaths,
+        photoMode,
+        backupHasMedia: p.extension(sourcePath).toLowerCase() == '.zip',
+      );
       final integrity = await restoredDb.rawQuery('PRAGMA integrity_check');
       if (integrity.isEmpty || integrity.first.values.first?.toString() != 'ok') {
         throw StateError('Database hasil pemulihan gagal pemeriksaan integritas.');
