@@ -89,6 +89,26 @@ class SupplierRepository {
     ''');
   }
 
+  /// Tagihan pembelian online dipisahkan dari utang pemasok.
+  /// Nama toko/marketplace menjadi pihak yang ditampilkan.
+  Future<List<Map<String, Object?>>> getOnlinePurchaseDebts() async {
+    AuthSession.instance.requireAdmin('Fitur pembelian hanya dapat diakses Admin.');
+    final db = await _db;
+    return db.rawQuery('''
+      SELECT COALESCE(NULLIF(marketplace, ''), 'Toko online') AS store_name,
+        COUNT(*) AS invoice_count,
+        COALESCE(SUM(total), 0) AS total_amount,
+        COALESCE(SUM(paid), 0) AS paid_amount,
+        COALESCE(SUM(return_credit), 0) AS return_credit,
+        COALESCE(SUM(MAX(total - paid - return_credit, 0)), 0) AS remaining_amount
+      FROM purchases
+      WHERE purchase_type = 'online' AND status = 'active'
+        AND total > paid + return_credit
+      GROUP BY COALESCE(NULLIF(marketplace, ''), 'Toko online')
+      ORDER BY remaining_amount DESC, store_name COLLATE NOCASE ASC
+    ''');
+  }
+
   Future<List<Map<String, Object?>>> getPurchaseHistory(int supplierId) async {
     AuthSession.instance.requireAdmin('Data pemasok dan pembelian hanya dapat diakses Admin.');
 
