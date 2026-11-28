@@ -222,7 +222,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Bayar dari saldo pelanggan'),
         content: TextField(controller: controller, keyboardType: TextInputType.number,
-          inputFormatters: const [CurrencyInputFormatter()],
+          inputFormatters: [CurrencyInputFormatter()],
           decoration: InputDecoration(labelText: 'Nominal digunakan (Rp)', helperText: 'Saldo: ${_rupiah(balance)} • Sisa tagihan: ${_rupiah(remaining)}', border: const OutlineInputBorder())),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
