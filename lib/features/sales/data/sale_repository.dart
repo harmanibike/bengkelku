@@ -6,6 +6,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/auth/activity_log_repository.dart';
 import '../../../core/auth/auth_session.dart';
 import '../../../core/notifications/stock_reminder_notification_service.dart';
+import '../../settings/data/sync_outbox_repository.dart';
 
 class SaleRepository {
   Future<Database> get _db => AppDatabase.instance.database;
@@ -338,6 +339,45 @@ class SaleRepository {
           customerId: customerId,
           eligibleAmount: total,
           description: 'Poin dari penjualan $invoice',
+        );
+      }
+
+      // Only Client mode creates outbound events. The sale and its snapshot
+      // are committed atomically so a process crash cannot lose the sync job.
+      final deviceModeRows = await txn.query(
+        'app_settings',
+        columns: ['setting_value'],
+        where: 'setting_key = ?',
+        whereArgs: ['device_mode'],
+        limit: 1,
+      );
+      if (deviceModeRows.firstOrNull?['setting_value'] == 'client') {
+        final saleRows = await txn.query(
+          'sales',
+          where: 'id = ?',
+          whereArgs: [saleId],
+          limit: 1,
+        );
+        final saleItems = await txn.query(
+          'sale_items',
+          where: 'sale_id = ?',
+          whereArgs: [saleId],
+          orderBy: 'id ASC',
+        );
+        if (saleRows.isEmpty) {
+          throw StateError('Snapshot penjualan untuk sinkronisasi tidak ditemukan.');
+        }
+        await SyncOutboxRepository().enqueue(
+          txn,
+          eventId: 'sale:$invoice',
+          entityType: 'sale',
+          entityId: saleId,
+          operation: 'create',
+          payload: {
+            'schema_version': 1,
+            'sale': saleRows.single,
+            'items': saleItems,
+          },
         );
       }
       return saleId;
