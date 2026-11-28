@@ -34,8 +34,22 @@ class _DatabaseBackupPageState extends State<DatabaseBackupPage> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal membuat atau membagikan backup: $error')),
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Backup belum berhasil'),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              'Gagal membuat atau membagikan backup.\\n\\n$error',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
