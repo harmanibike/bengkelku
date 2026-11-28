@@ -7,7 +7,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String _databaseName = 'bengkelku_pos.db';
-  static const int currentVersion = 46;
+  static const int currentVersion = 47;
   static const int _databaseVersion = currentVersion;
 
   Database? _database;
@@ -906,6 +906,22 @@ class AppDatabase {
     ''');
 
 
+    batch.execute('''
+      CREATE TABLE service_inspection_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        service_order_id INTEGER NOT NULL,
+        check_key TEXT NOT NULL,
+        label TEXT NOT NULL,
+        is_checked INTEGER NOT NULL DEFAULT 0,
+        note TEXT,
+        checked_by_user_id INTEGER,
+        checked_at TEXT,
+        UNIQUE(service_order_id, check_key),
+        FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE CASCADE
+      )
+    ''');
+    batch.execute('CREATE INDEX idx_service_inspection_order ON service_inspection_items(service_order_id, id)');
+
     await batch.commit(noResult: true);
     await db.execute('''
       CREATE TABLE business_story_history (
@@ -972,6 +988,26 @@ class AppDatabase {
     int oldVersion,
     int newVersion,
   ) async {
+
+    // Checklist pemeriksaan per nota servis; migrasi aditif, nota lama tetap utuh.
+    if (oldVersion < 47) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS service_inspection_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          service_order_id INTEGER NOT NULL,
+          check_key TEXT NOT NULL,
+          label TEXT NOT NULL,
+          is_checked INTEGER NOT NULL DEFAULT 0,
+          note TEXT,
+          checked_by_user_id INTEGER,
+          checked_at TEXT,
+          UNIQUE(service_order_id, check_key),
+          FOREIGN KEY (service_order_id) REFERENCES service_orders(id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_service_inspection_order ON service_inspection_items(service_order_id, id)');
+    }
+
 
     // Metadata pembelian online dan biaya perolehan barang. Migrasi aditif agar faktur lama tetap utuh.
     if (oldVersion < 44) {
