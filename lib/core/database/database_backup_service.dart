@@ -99,6 +99,28 @@ class DatabaseBackupService {
     return references;
   }
 
+  Future<void> _clearMediaReferences(Database db) async {
+    const columnsByTable = <String, List<String>>{
+      'products': ['image_path'],
+      'app_users': ['profile_photo_path'],
+      'service_orders': ['before_photo_path', 'after_photo_path'],
+    };
+    for (final entry in columnsByTable.entries) {
+      final tables = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+        [entry.key],
+      );
+      if (tables.isEmpty) continue;
+      final columns = await db.rawQuery('PRAGMA table_info(${entry.key})');
+      final names = columns.map((column) => column['name']).toSet();
+      for (final column in entry.value) {
+        if (names.contains(column)) {
+          await db.update(entry.key, {column: null});
+        }
+      }
+    }
+  }
+
   Future<File> createBackup() async {
     AuthSession.instance.requireAdmin('Hanya Admin yang dapat membuat backup.');
     final db = await AppDatabase.instance.database;
@@ -361,24 +383,24 @@ class DatabaseBackupService {
         checkDb = null;
       } else {
         await source.copy(candidate.path);
+        // File .db tidak membawa media. Bersihkan semua referensi foto dari
+        // database backup agar path lama dari perangkat lain tidak dianggap
+        // sebagai foto backup yang valid.
+        checkDb = await openDatabase(candidate.path, singleInstance: false);
+        await _clearMediaReferences(checkDb);
         if (photoMode != RestorePhotoMode.backupOnly) {
-          checkDb = await openDatabase(candidate.path, singleInstance: false);
+          // Karena file .db tidak memiliki foto, mode merge dan keepCurrent
+          // sama-sama hanya dapat mempertahankan foto lokal yang masih ada.
           for (final entry in currentPhotoPaths.entries) {
             final parts = entry.key.split('|');
             if (parts.length != 3 || !await File(entry.value).exists()) continue;
             final table = parts[0], id = parts[1], column = parts[2];
-            final rows = await checkDb.query(table, columns: [column],
-                where: 'id = ?', whereArgs: [id], limit: 1);
-            if (rows.isEmpty) continue;
-            final existing = rows.first[column]?.toString().trim() ?? '';
-            final backupPhotoExists = existing.isNotEmpty && await File(existing).exists();
-            if (!backupPhotoExists || photoMode == RestorePhotoMode.keepCurrent) {
-              await checkDb.update(table, {column: entry.value}, where: 'id = ?', whereArgs: [id]);
-            }
+            await checkDb.update(table, {column: entry.value},
+                where: 'id = ?', whereArgs: [id]);
           }
-          await checkDb.close();
-          checkDb = null;
         }
+        await checkDb.close();
+        checkDb = null;
       }
 
       checkDb = await openDatabase(candidate.path, readOnly: true, singleInstance: false);
