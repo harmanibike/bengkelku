@@ -296,22 +296,15 @@ class DatabaseBackupService {
               archivePath == null || id == null) {
             throw const FormatException('Entri media pada manifest tidak lengkap.');
           }
-          final expectedKind = table == 'products'
-              ? 'product'
-              : table == 'app_users'
-                  ? 'profile'
-                  : table == 'service_orders'
-                      ? 'service'
-                      : null;
           final archiveParts = archivePath.split('/');
           final allowed = (table == 'products' && column == 'image_path') ||
               (table == 'app_users' && column == 'profile_photo_path') ||
               (table == 'service_orders' &&
                   (column == 'before_photo_path' || column == 'after_photo_path'));
-          if (!allowed || expectedKind == null ||
+          if (!allowed ||
               archiveParts.length != 3 ||
               archiveParts[0] != 'media' ||
-              archiveParts[1] != expectedKind ||
+              !['product', 'profile', 'service'].contains(archiveParts[1]) ||
               archiveParts[2].isEmpty ||
               archiveParts[2] == '.' ||
               archiveParts[2] == '..' ||
