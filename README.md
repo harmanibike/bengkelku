@@ -12,6 +12,23 @@ Audit ini adalah pemeriksaan statis terhadap struktur repository, halaman, repos
 
 **Tes otomatis yang ditemukan di repository:** formatter mata uang, generator dokumen nota, transisi status servis, pemeriksaan koneksi client-server, dan widget dasar. Cakupan tes repository/transaksi database masih terbatas; audit fisik pada HP, printer, kamera, dan skenario backup/restore tetap diperlukan.
 
+## Kebijakan kompatibilitas perangkat Android
+
+Keputusan pengguna: aplikasi **tidak dikhususkan untuk merek, model, atau terminal kasir tertentu**. Targetnya adalah sebanyak mungkin perangkat Android yang dapat didukung secara teknis oleh Flutter dan seluruh plugin yang digunakan.
+
+Ketentuan wajib:
+- Mendukung berbagai merek dan model HP Android serta tablet; tata letak harus responsif terhadap ukuran layar dan orientasi yang didukung.
+- Tidak menjadikan satu perangkat sebagai acuan utama atau syarat kompatibilitas.
+- Tetapkan `minSdk` berdasarkan persyaratan plugin dan fitur yang benar-benar digunakan. Jangan menjanjikan dukungan untuk versi Android yang tidak memenuhi persyaratan teknis.
+- Uji pada beberapa versi Android dan kelas perangkat yang berbeda, termasuk ukuran layar kecil/besar.
+- Kamera, barcode scanner, Bluetooth, USB, jaringan, dan printer harus memeriksa kemampuan serta izin runtime perangkat. Fitur yang tidak didukung harus memberi pesan yang jelas dan tidak boleh membuat aplikasi inti crash.
+- Printer thermal harus menggunakan jalur koneksi yang kompatibel dengan perangkat/printer; jangan mengunci aplikasi pada satu merek atau protokol printer.
+- Fungsi kasir, servis, inventaris, dan database lokal harus tetap dapat digunakan offline tanpa ketergantungan pada perangkat keras opsional.
+- Setiap perubahan kompatibilitas wajib melewati format, analisis, tes otomatis, build APK, dan pengujian pada perangkat fisik yang tersedia.
+- Jangan mengubah desain, ukuran, tipografi, atau tata letak nota thermal 58 mm yang sudah disetujui tanpa permintaan eksplisit pengguna.
+
+**Catatan verifikasi:** klaim kompatibilitas harus berdasarkan `minSdk`, persyaratan plugin, hasil build, dan matriks uji perangkat. Build APK yang berhasil bukan bukti bahwa semua merek/model Android telah diuji.
+
 ## Keterangan status
 
 - [x] Implementasi/fondasi fitur sudah tersedia di kode aplikasi.
@@ -96,7 +113,7 @@ Audit ini adalah pemeriksaan statis terhadap struktur repository, halaman, repos
 - [x] Riwayat penjualan menampilkan status pembayaran dan sisa tagihan.
 - [x] Pembatalan transaksi dengan pemulihan stok dan pembalikan penerimaan kas yang tercatat.
 - [x] Pilihan metode pembayaran tunai, transfer bank, QRIS, kartu debit, dan kartu kredit; metode aktif dapat diatur dan pilihan dicatat pada transaksi kasir.
-- [x] Scan barcode produk menggunakan kamera Android dari halaman Kasir; hasil scan otomatis mencari dan menambahkan produk yang cocok ke keranjang. Integrasi scanner SUNMI tidak termasuk.
+- [x] Scan barcode produk menggunakan kamera Android dari halaman Kasir; hasil scan otomatis mencari dan menambahkan produk yang cocok ke keranjang. Pemindaian barcode menggunakan kamera Android yang tersedia; dukungan scanner eksternal mengikuti kemampuan perangkat dan koneksi yang didukung.
 - [ ] Integrasi/verifikasi pembayaran digital otomatis, harga grosir, diskon, pajak, dan pembayaran campuran.
 - [x] Retur penjualan dengan pembalikan stok, pengembalian dana, penyesuaian piutang, dan jejak audit.
 - [x] Buat pratinjau nota penjualan dalam PDF dan foto PNG, termasuk rincian item, pembayaran, retur, dan sisa tagihan; bagikan melalui menu berbagi Android.
