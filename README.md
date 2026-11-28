@@ -29,6 +29,30 @@ Ketentuan wajib:
 
 **Catatan verifikasi:** klaim kompatibilitas harus berdasarkan `minSdk`, persyaratan plugin, hasil build, dan matriks uji perangkat. Build APK yang berhasil bukan bukti bahwa semua merek/model Android telah diuji.
 
+### Batas minimum dan matriks uji perangkat
+
+Hasil pemeriksaan APK release pada build CI `46155922329`:
+- `minSdk = 24` (Android 7.0 Nougat).
+- `targetSdk = 36`.
+- Batas ini adalah batas teknis APK saat ini, bukan jaminan semua fitur perangkat tersedia pada setiap model.
+
+Matriks pengujian fisik yang harus diisi sebelum menyatakan kompatibilitas luas telah tervalidasi:
+
+| Kelompok Android | API level | Status uji fisik |
+|---|---:|---|
+| Android 7.0–7.1 | 24–25 | [ ] Belum diverifikasi |
+| Android 8–9 | 26–28 | [ ] Belum diverifikasi |
+| Android 10–11 | 29–30 | [ ] Belum diverifikasi |
+| Android 12–12L | 31–32 | [ ] Belum diverifikasi |
+| Android 13 | 33 | [ ] Belum diverifikasi |
+| Android 14 | 34 | [ ] Belum diverifikasi |
+| Android 15 | 35 | [ ] Belum diverifikasi |
+| Android 16 | 36 | [ ] Belum diverifikasi |
+
+Untuk setiap perangkat, catat merek/model, versi Android/API, ukuran layar, hasil instalasi/pembaruan, izin kamera dan notifikasi, transaksi offline, persistensi setelah aplikasi ditutup/dibuka, backup/restore, scan barcode (jika kamera tersedia), serta koneksi dan tes cetak printer yang didukung perangkat. Uji HP layar kecil, HP layar besar, dan tablet.
+
+Fitur perangkat keras yang tidak tersedia boleh ditandai tidak didukung pada perangkat tersebut; aplikasi inti offline tidak boleh ikut gagal. Status matriks hanya boleh diubah setelah pengujian fisik benar-benar dilakukan dan hasilnya dicatat.
+
 ## Keterangan status
 
 - [x] Implementasi/fondasi fitur sudah tersedia di kode aplikasi.
