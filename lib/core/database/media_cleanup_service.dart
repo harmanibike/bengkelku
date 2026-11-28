@@ -35,18 +35,33 @@ class MediaCleanupService {
 
   Future<Set<String>> _referencedPaths(Database db) async {
     final paths = <String>{};
-    Future<void> add(String table, String column) async {
-      final rows = await db.query(table, columns: [column]);
-      for (final row in rows) {
-        final value = row[column]?.toString().trim() ?? '';
-        if (value.isNotEmpty) paths.add(p.normalize(p.absolute(value)));
+    final tables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+    );
+
+    // Temukan seluruh kolom path foto/gambar dari skema aktif, bukan hanya
+    // daftar tabel yang diketahui saat fitur ini pertama dibuat.
+    for (final tableRow in tables) {
+      final table = tableRow['name']?.toString();
+      if (table == null || table.isEmpty) continue;
+      final columns = await db.rawQuery('PRAGMA table_info("$table")');
+      for (final column in columns) {
+        final name = column['name']?.toString() ?? '';
+        final normalizedName = name.toLowerCase();
+        final isMediaPath = normalizedName.endsWith('_path') &&
+            (normalizedName.contains('photo') ||
+                normalizedName.contains('image'));
+        if (!isMediaPath) continue;
+
+        final rows = await db.query(table, columns: [name]);
+        for (final row in rows) {
+          final value = row[name]?.toString().trim() ?? '';
+          if (value.isNotEmpty) {
+            paths.add(p.normalize(p.absolute(value)));
+          }
+        }
       }
     }
-
-    await add('products', 'image_path');
-    await add('app_users', 'profile_photo_path');
-    await add('service_orders', 'before_photo_path');
-    await add('service_orders', 'after_photo_path');
     return paths;
   }
 
