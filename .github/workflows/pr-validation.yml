@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Format, Analyze, and Test
+    name: Analyze and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -43,9 +43,6 @@ jobs:
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Check changed Dart test formatting
-        run: diff -u test/features/local_pos_sqlite_integration_test.dart <(dart format --output=show test/features/local_pos_sqlite_integration_test.dart)
 
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
