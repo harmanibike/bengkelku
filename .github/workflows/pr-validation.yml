@@ -44,9 +44,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # The existing project has formatter drift across legacy files under the
-      # latest stable Dart SDK. Keep PR validation focused on analysis and tests;
-      # avoid mass-formatting unrelated application files in a regression-test PR.
+      - name: Check changed Dart test formatting
+        run: dart format --output=none --set-exit-if-changed test/features/local_pos_sqlite_integration_test.dart
 
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
