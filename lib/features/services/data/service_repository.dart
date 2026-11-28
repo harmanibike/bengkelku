@@ -1840,6 +1840,99 @@ class ServiceRepository {
     );
   }
 
+
+  static const List<Map<String, String>> serviceInspectionDefaults = [
+    {'key': 'frame_fork', 'label': 'Rangka dan garpu depan'},
+    {'key': 'brakes', 'label': 'Rem depan dan belakang'},
+    {'key': 'gears', 'label': 'Operan gigi dan transmisi'},
+    {'key': 'wheels_tires', 'label': 'Roda, velg, dan ban'},
+    {'key': 'chain_crank', 'label': 'Rantai, crank, dan pedal'},
+    {'key': 'handlebar_headset', 'label': 'Setang dan headset'},
+    {'key': 'saddle', 'label': 'Sadel dan seatpost'},
+    {'key': 'accessories', 'label': 'Lampu dan aksesori'},
+    {'key': 'road_test', 'label': 'Uji jalan dan keselamatan'},
+  ];
+
+  Future<List<Map<String, Object?>>> getServiceInspectionChecklist(
+    int serviceOrderId,
+  ) async {
+    _requireSignedIn();
+    final db = await _db;
+    final session = AuthSession.instance;
+    final order = await db.query(
+      'service_orders',
+      columns: ['id', 'assigned_mechanic_id'],
+      where: 'id = ?',
+      whereArgs: [serviceOrderId],
+      limit: 1,
+    );
+    if (order.isEmpty) throw StateError('Nota servis tidak ditemukan.');
+    if (session.isMechanic && order.first['assigned_mechanic_id'] != session.userId) {
+      throw StateError('Checklist hanya dapat dilihat pada servis yang ditugaskan kepada Anda.');
+    }
+    await db.transaction((txn) async {
+      for (final item in serviceInspectionDefaults) {
+        await txn.insert(
+          'service_inspection_items',
+          {
+            'service_order_id': serviceOrderId,
+            'check_key': item['key'],
+            'label': item['label'],
+          },
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    });
+    return db.query(
+      'service_inspection_items',
+      where: 'service_order_id = ?',
+      whereArgs: [serviceOrderId],
+      orderBy: 'id ASC',
+    );
+  }
+
+  Future<void> updateServiceInspectionItem({
+    required int serviceOrderId,
+    required String checkKey,
+    required bool checked,
+    String? note,
+  }) async {
+    _requireSignedIn();
+    final db = await _db;
+    final session = AuthSession.instance;
+    final allowed = serviceInspectionDefaults.any((item) => item['key'] == checkKey);
+    if (!allowed) throw ArgumentError('Komponen pemeriksaan tidak valid.');
+    final order = await db.query(
+      'service_orders',
+      columns: ['id', 'assigned_mechanic_id'],
+      where: 'id = ?',
+      whereArgs: [serviceOrderId],
+      limit: 1,
+    );
+    if (order.isEmpty) throw StateError('Nota servis tidak ditemukan.');
+    if (session.isMechanic) {
+      if (order.first['assigned_mechanic_id'] != session.userId) {
+        throw StateError('Anda hanya dapat mengubah checklist servis yang ditugaskan kepada Anda.');
+      }
+    } else {
+      session.requireCashierOrAdmin('Akses checklist servis ditolak.');
+    }
+    final item = serviceInspectionDefaults.firstWhere((entry) => entry['key'] == checkKey);
+    await db.insert(
+      'service_inspection_items',
+      {
+        'service_order_id': serviceOrderId,
+        'check_key': checkKey,
+        'label': item['label'],
+        'is_checked': checked ? 1 : 0,
+        'note': _nullableText(note),
+        'checked_by_user_id': session.userId,
+        'checked_at': checked ? DateTime.now().toIso8601String() : null,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
   String? _nullableText(String? value) {
     final text = value?.trim();
     return text == null || text.isEmpty ? null : text;
