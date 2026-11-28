@@ -342,7 +342,8 @@ class DatabaseBackupService {
                 where: 'id = ?', whereArgs: [id], limit: 1);
             if (rows.isEmpty) continue;
             final existing = rows.first[column]?.toString().trim() ?? '';
-            if (existing.isEmpty || photoMode == RestorePhotoMode.keepCurrent) {
+            final backupPhotoExists = existing.isNotEmpty && await File(existing).exists();
+            if (!backupPhotoExists || photoMode == RestorePhotoMode.keepCurrent) {
               await checkDb.update(table, {column: entry.value}, where: 'id = ?', whereArgs: [id]);
             }
           }
