@@ -351,7 +351,8 @@ class SaleRepository {
         whereArgs: ['device_mode'],
         limit: 1,
       );
-      if (deviceModeRows.firstOrNull?['setting_value'] == 'client') {
+      if (deviceModeRows.isNotEmpty &&
+          deviceModeRows.first['setting_value'] == 'client') {
         final saleRows = await txn.query(
           'sales',
           where: 'id = ?',
