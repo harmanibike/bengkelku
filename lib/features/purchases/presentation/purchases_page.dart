@@ -56,12 +56,6 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final suppliers = await _suppliers.getSuppliers();
     var products = await _products.getProducts();
     if (!mounted) return;
-    if (suppliers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tambahkan data pemasok terlebih dahulu.')),
-      );
-      return;
-    }
     final invoice = TextEditingController(text: 'PB-${DateTime.now().millisecondsSinceEpoch}');
     final discount = TextEditingController(text: '0');
     final shipping = TextEditingController(text: '0');
@@ -75,7 +69,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
     final trackingNumber = TextEditingController();
     final payment = TextEditingController(text: '0');
     final notes = TextEditingController();
-    int? supplierId = suppliers.first['id'] as int;
+    int? supplierId = suppliers.isEmpty ? null : suppliers.first['id'] as int;
     int? productId;
     var variants = <Map<String, Object?>>[];
     int? variantId;
@@ -124,17 +118,23 @@ class _PurchasesPageState extends State<PurchasesPage> {
                     ],
                     TextField(controller: invoice, decoration: const InputDecoration(labelText: 'Nomor faktur *', border: const OutlineInputBorder())),
                     const SizedBox(height: 8),
-                    DropdownButtonFormField<int>(
-                      initialValue: supplierId,
-                      isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Pemasok *', border: const OutlineInputBorder()),
-                      items: suppliers.map((s) => DropdownMenuItem<int>(
-                        value: s['id'] as int,
-                        child: Text(s['name'] as String? ?? '-'),
-                      )).toList(),
-                      onChanged: (v) => setDialogState(() => supplierId = v),
-                    ),
-                    const SizedBox(height: 8),
+                    if (purchaseType == 'direct') ...[
+                      if (suppliers.isNotEmpty)
+                        DropdownButtonFormField<int>(
+                          initialValue: supplierId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(labelText: 'Pemasok *', border: OutlineInputBorder()),
+                          items: suppliers.map((s) => DropdownMenuItem<int>(
+                            value: s['id'] as int,
+                            child: Text(s['name'] as String? ?? '-'),
+                          )).toList(),
+                          onChanged: (v) => setDialogState(() => supplierId = v),
+                        )
+                      else
+                        const Text('Tambahkan data pemasok untuk pembelian langsung.',
+                          style: TextStyle(fontSize: 12, color: Colors.orange)),
+                      const SizedBox(height: 8),
+                    ],
                     const Text('Tambah barang', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
                     TextField(
@@ -434,7 +434,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
                 onPressed: () {
                   final d = discount.text.trim().isEmpty ? -1 : parseCurrencyInput(discount.text);
                   final paid = payment.text.trim().isEmpty ? -1 : parseCurrencyInput(payment.text);
-                  if (invoice.text.trim().isEmpty || supplierId == null || items.isEmpty ||
+                  if (invoice.text.trim().isEmpty || items.isEmpty ||
+                      (purchaseType == 'direct' && supplierId == null) ||
                       (purchaseType == 'online' && marketplace.text.trim().isEmpty) ||
                       d < 0 || paid < 0 || d > totalItems || paid > totalItems - d + totalFees) {
                     setDialogState(() => errorText = 'Periksa faktur, barang, diskon, dan pembayaran.');
@@ -454,7 +455,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
       try {
         await _purchases.createPurchase(
           invoiceNumber: invoice.text,
-          supplierId: supplierId!,
+          supplierId: purchaseType == 'direct' ? supplierId : null,
           items: items,
           discount: parseCurrencyInput(discount.text),
           purchaseType: purchaseType,
@@ -693,7 +694,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Pemasok: ${row['supplier_name'] ?? '-'}'),
+                if (row['purchase_type'] != 'online') Text('Pemasok: ${row['supplier_name'] ?? '-'}'),
                 Text('Jenis: ${row['purchase_type'] == 'online' ? 'Online' : 'Langsung'}'),
                 if (row['purchase_type'] == 'online') ...[
                   Text('Marketplace: ${row['marketplace'] ?? '-'}'),
