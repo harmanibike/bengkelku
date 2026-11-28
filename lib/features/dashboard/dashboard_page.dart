@@ -34,6 +34,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   final ReportRepository _reportRepository = ReportRepository();
   late Future<Map<String, Object?>> _summaryFuture;
+  late Future<List<Map<String, Object?>>> _mechanicOrdersFuture;
   final ServiceRepository _serviceRepository = ServiceRepository();
   Timer? _pendingRequestTimer;
   int _pendingPartRequests = 0;
@@ -42,6 +43,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     super.initState();
     _summaryFuture = _loadTodaySummary();
+    _mechanicOrdersFuture = _loadMechanicOrders();
     StockReminderNotificationService.instance.syncStockReminder();
     _loadPendingPartRequests();
     if (AuthSession.instance.isCashierOrAdmin) {
@@ -51,6 +53,9 @@ class _DashboardPageState extends State<DashboardPage> {
       );
     }
   }
+
+  Future<List<Map<String, Object?>>> _loadMechanicOrders() =>
+      _serviceRepository.getServiceOrders(assignedMechanicId: AuthSession.instance.userId);
 
   Future<Map<String, Object?>> _loadTodaySummary() {
     final now = DateTime.now();
@@ -63,7 +68,10 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> _refresh() async {
     final future = _loadTodaySummary();
-    setState(() => _summaryFuture = future);
+    setState(() {
+      _summaryFuture = future;
+      if (AuthSession.instance.isMechanic) _mechanicOrdersFuture = _loadMechanicOrders();
+    });
     await future;
     await _loadPendingPartRequests();
     await StockReminderNotificationService.instance.syncStockReminder();
@@ -645,8 +653,133 @@ class _DashboardPageState extends State<DashboardPage> {
     ]);
   }
 
+
+  Widget _mechanicStat(String label, int count, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFE8ECF2))),
+      child: Row(children: [
+        CircleAvatar(radius: 20, backgroundColor: color.withValues(alpha: 0.12),
+          child: Icon(icon, color: color, size: 22)),
+        const SizedBox(width: 9),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$count', style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Color(0xFF263238))),
+          Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF607080))),
+        ])),
+      ]),
+    );
+  }
+
+  Widget _mechanicDashboard() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F5F8),
+      body: Column(children: [
+        _header(),
+        Expanded(child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: FutureBuilder<List<Map<String, Object?>>>(
+            future: _mechanicOrdersFuture,
+            builder: (context, snapshot) {
+              final orders = snapshot.data ?? const <Map<String, Object?>>[];
+              final waiting = orders.where((o) => const ['waiting', 'active_queue'].contains(o['service_status'])).length;
+              final working = orders.where((o) => const ['checking', 'in_progress'].contains(o['service_status'])).length;
+              final completed = orders.where((o) => o['service_status'] == 'completed').length;
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+                children: [
+                  _shopCard(),
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    const Expanded(child: Text('Aktivitas Servis Saya',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF263238)))),
+                    IconButton(tooltip: 'Muat ulang', onPressed: _refresh, icon: const Icon(Icons.refresh_rounded)),
+                  ]),
+                  if (snapshot.hasError)
+                    const Text('Data servis belum dapat dimuat. Tarik layar untuk mencoba lagi.',
+                      style: TextStyle(fontSize: 12, color: Colors.red)),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    const LinearProgressIndicator(minHeight: 2),
+                  GridView.count(
+                    crossAxisCount: MediaQuery.sizeOf(context).width >= 560 ? 3 : 2,
+                    shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 2.05,
+                    children: [
+                      _mechanicStat('Antrean / menunggu', waiting, Icons.hourglass_top_rounded, const Color(0xFFEF8C22)),
+                      _mechanicStat('Sedang dikerjakan', working, Icons.build_circle_outlined, const Color(0xFF1976D2)),
+                      _mechanicStat('Selesai diperbaiki', completed, Icons.check_circle_outline, const Color(0xFF2E9B62)),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const Text('Menu Mekanik', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF263238))),
+                  const SizedBox(height: 10),
+                  GridView.count(
+                    crossAxisCount: MediaQuery.sizeOf(context).width >= 560 ? 4 : 3,
+                    shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 1.08,
+                    children: [
+                      _menuTile(title: 'Antrean Servis', icon: Icons.view_list_rounded, colors: const [Color(0xFF1976D2), Color(0xFF64B5F6)], onTap: _openServices),
+                      _menuTile(title: 'Pekerjaan Saya', icon: Icons.handyman_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openServices),
+                      _menuTile(title: 'Foto Servis', icon: Icons.photo_camera_outlined, colors: const [Color(0xFF8E24AA), Color(0xFFBA68C8)], onTap: _openServices),
+                      _menuTile(title: 'Pemeriksaan', icon: Icons.fact_check_outlined, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: _openServices),
+                      _menuTile(title: 'Riwayat', icon: Icons.history_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openServices),
+                      _menuTile(title: 'Profil', icon: Icons.person_outline_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)],
+                        onTap: () async {
+                          await Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountProfilePage()));
+                          if (mounted) setState(() {});
+                        }),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(children: [
+                    const Expanded(child: Text('Pekerjaan Terbaru', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF263238)))),
+                    TextButton(onPressed: _openServices, child: const Text('Lihat semua')),
+                  ]),
+                  if (orders.isEmpty && snapshot.connectionState != ConnectionState.waiting)
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                      child: const Column(children: [
+                        Icon(Icons.task_alt_rounded, size: 34, color: Color(0xFF90A4AE)),
+                        SizedBox(height: 7),
+                        Text('Belum ada pekerjaan servis yang ditugaskan.', textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: Color(0xFF607080))),
+                      ]),
+                    )
+                  else
+                    ...orders.take(4).map((order) {
+                      final code = order['service_code']?.toString() ?? 'Servis #${order['id']}';
+                      final customer = order['customer_name']?.toString() ?? 'Pembeli Umum';
+                      final status = _statusLabels[order['service_status']?.toString()] ?? 'Dalam proses';
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 7), elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13),
+                          side: const BorderSide(color: Color(0xFFE8ECF2))),
+                        child: ListTile(
+                          dense: true,
+                          leading: const CircleAvatar(backgroundColor: Color(0xFFE8F1FB),
+                            child: Icon(Icons.pedal_bike_rounded, color: Color(0xFF1976D2))),
+                          title: Text(code, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          subtitle: Text('$customer • $status', maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 10)),
+                          trailing: const Icon(Icons.chevron_right_rounded),
+                          onTap: _openServices,
+                        ),
+                      );
+                    }),
+                ],
+              );
+            },
+          ),
+        )),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (AuthSession.instance.isMechanic) return _mechanicDashboard();
     return Scaffold(
       backgroundColor: const Color(0xFFF4F5F8),
       body: Column(
