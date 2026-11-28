@@ -131,6 +131,13 @@ class _DashboardPageState extends State<DashboardPage> {
     await _loadPendingPartRequests();
   }
 
+  Future<void> _openMechanicServices({String? status}) async {
+    await Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ServiceListPage(initialStatus: status),
+    ));
+    if (mounted) await _refresh();
+  }
+
   void _openServicePricing() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ServicePricingPage()));
   }
@@ -719,11 +726,11 @@ class _DashboardPageState extends State<DashboardPage> {
                     shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 1.08,
                     children: [
-                      _menuTile(title: 'Antrean Servis', icon: Icons.view_list_rounded, colors: const [Color(0xFF1976D2), Color(0xFF64B5F6)], onTap: _openServices),
-                      _menuTile(title: 'Pekerjaan Saya', icon: Icons.handyman_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: _openServices),
-                      _menuTile(title: 'Foto Servis', icon: Icons.photo_camera_outlined, colors: const [Color(0xFF8E24AA), Color(0xFFBA68C8)], onTap: _openServices),
-                      _menuTile(title: 'Pemeriksaan', icon: Icons.fact_check_outlined, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: _openServices),
-                      _menuTile(title: 'Riwayat', icon: Icons.history_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: _openServices),
+                      _menuTile(title: 'Antrean Servis', icon: Icons.view_list_rounded, colors: const [Color(0xFF1976D2), Color(0xFF64B5F6)], onTap: () => _openMechanicServices(status: 'waiting')),
+                      _menuTile(title: 'Pekerjaan Saya', icon: Icons.handyman_rounded, colors: const [Color(0xFF00897B), Color(0xFF4DB6AC)], onTap: () => _openMechanicServices(status: 'in_progress')),
+                      _menuTile(title: 'Foto Servis', icon: Icons.photo_camera_outlined, colors: const [Color(0xFF8E24AA), Color(0xFFBA68C8)], onTap: () => _openMechanicServices()),
+                      _menuTile(title: 'Pemeriksaan', icon: Icons.fact_check_outlined, colors: const [Color(0xFFEF6C00), Color(0xFFFFB74D)], onTap: () => _openMechanicServices(status: 'checking')),
+                      _menuTile(title: 'Riwayat', icon: Icons.history_rounded, colors: const [Color(0xFF546E7A), Color(0xFF90A4AE)], onTap: () => _openMechanicServices(status: 'completed')),
                       _menuTile(title: 'Profil', icon: Icons.person_outline_rounded, colors: const [Color(0xFF3949AB), Color(0xFF7986CB)],
                         onTap: () async {
                           await Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountProfilePage()));
