@@ -240,7 +240,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
             Text('Belum diselesaikan: ${_money(pending)}',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
             const SizedBox(height: 10),
-            TextField(
+            if (row['purchase_type'] != 'online') TextField(
               controller: creditController,
               keyboardType: TextInputType.number,
               inputFormatters: const [CurrencyInputFormatter()],
@@ -250,6 +250,8 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                 isDense: true,
               ),
             ),
+            if (row['purchase_type'] == 'online')
+              const Text('Pembelian online: penyelesaian retur dilakukan melalui pengembalian uang, bukan kredit pemasok.', style: TextStyle(fontSize: 10, color: Colors.grey)),
             const SizedBox(height: 8),
             TextField(
               controller: refundController,
@@ -293,7 +295,8 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
             onPressed: () {
               final credit = parseCurrencyInput(creditController.text);
               final refund = parseCurrencyInput(refundController.text);
-              if (credit >= 0 && refund >= 0 && credit + refund > 0 && credit + refund <= pending) {
+              if ((row['purchase_type'] == 'online' && credit == 0 && refund > 0 && refund <= pending) ||
+                  (row['purchase_type'] != 'online' && credit >= 0 && refund >= 0 && credit + refund > 0 && credit + refund <= pending)) {
                 Navigator.pop(dialogContext, {'credit': credit, 'refund': refund, 'method': refundPaymentMethod});
               }
             },
@@ -541,7 +544,7 @@ class _PurchaseReturnsPageState extends State<PurchaseReturnsPage> {
                         ),
                         if (row['status']?.toString() == 'cancelled')
                           Text('DIBATALKAN • ${row['cancel_reason'] ?? '-'}', style: const TextStyle(fontSize: 10, color: Colors.red)),
-                        if (row['status']?.toString() != 'cancelled' && ((row['total_amount'] as num?)?.toInt() ?? 0) -
+                        if (row['purchase_type'] != 'online' && row['status']?.toString() != 'cancelled' && ((row['total_amount'] as num?)?.toInt() ?? 0) -
                             ((row['credit_applied'] as num?)?.toInt() ?? 0) -
                             ((row['refund_received'] as num?)?.toInt() ?? 0) > 0)
                           Align(
