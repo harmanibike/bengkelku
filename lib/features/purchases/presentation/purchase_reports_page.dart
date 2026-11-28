@@ -172,7 +172,7 @@ class _PurchaseReportsPageState extends State<PurchaseReportsPage> {
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(2, 15, 2, 7),
-                    child: Text('Pembelian per Pemasok', style: Theme.of(context).textTheme.titleMedium),
+                    child: Text('Pembelian per Pemasok / Toko Online', style: Theme.of(context).textTheme.titleMedium),
                   ),
                   if (suppliers.isEmpty)
                     const Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Belum ada pembelian pada periode ini.', style: TextStyle(fontSize: 12))))
@@ -205,7 +205,7 @@ class _PurchaseReportsPageState extends State<PurchaseReportsPage> {
                           dense: true,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 1),
                           title: Text(row['invoice_number'] as String? ?? '-', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                          subtitle: Text('${row['supplier_name'] ?? 'Pemasok'} • ${_date(row['purchase_date'])}', style: const TextStyle(fontSize: 10)),
+                          subtitle: Text('${row['purchase_type'] == 'online' ? 'Toko online' : 'Pemasok'}: ${row['supplier_name'] ?? '-'} • ${_date(row['purchase_date'])}', style: const TextStyle(fontSize: 10)),
                           trailing: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
