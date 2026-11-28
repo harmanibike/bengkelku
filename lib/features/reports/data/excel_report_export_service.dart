@@ -80,12 +80,19 @@ class ExcelReportExportService {
       SELECT received_at,source_type,source_id,recipient_name,amount,payment_method,status,handed_over_at FROM tip_transactions WHERE datetime(received_at)>=datetime(?) AND datetime(received_at)<datetime(?) ORDER BY received_at,id
     ''',[from,until]), ['received_at','source_type','source_id','recipient_name','amount','payment_method','status','handed_over_at']);
     final archive = Archive();
-    archive.addFile(ArchiveFile('[Content_Types].xml', 0, utf8.encode(_contentTypes(sheets.length))));
-    archive.addFile(ArchiveFile('_rels/.rels', 0, utf8.encode(_rootRels)));
-    archive.addFile(ArchiveFile('xl/workbook.xml', 0, utf8.encode(_workbook(sheets.keys.toList()))));
-    archive.addFile(ArchiveFile('xl/_rels/workbook.xml.rels', 0, utf8.encode(_workbookRels(sheets.length))));
+    void addXml(String path, String content) {
+      final data = utf8.encode(content);
+      archive.addFile(ArchiveFile(path, data.length, data));
+    }
+    addXml('[Content_Types].xml', _contentTypes(sheets.length));
+    addXml('_rels/.rels', _rootRels);
+    addXml('xl/workbook.xml', _workbook(sheets.keys.toList()));
+    addXml('xl/_rels/workbook.xml.rels', _workbookRels(sheets.length));
     var index = 1;
-    for (final entry in sheets.entries) { archive.addFile(ArchiveFile('xl/worksheets/sheet'+index.toString()+'.xml', 0, utf8.encode(_worksheet(entry.value)))); index++; }
+    for (final entry in sheets.entries) {
+      addXml('xl/worksheets/sheet'+index.toString()+'.xml', _worksheet(entry.value));
+      index++;
+    }
     final bytes = ZipEncoder().encode(archive);
     if (bytes.isEmpty) throw StateError('Workbook Excel gagal dibuat.');
     final dir = await getTemporaryDirectory();
