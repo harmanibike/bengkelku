@@ -1120,13 +1120,13 @@ class _ServiceListPageState extends State<ServiceListPage> {
                         child: Row(children: [
                           Expanded(child: Text('${item['item_name']} • Qty ${item['quantity']}', style: const TextStyle(fontSize: 13))),
                           if (!AuthSession.instance.isMechanic) Text(_rupiah(item['subtotal']), style: const TextStyle(fontSize: 12)),
-                          if (AuthSession.instance.isMechanic && itemId != null && const ['waiting', 'checking', 'in_progress'].contains(status))
+                          if (AuthSession.instance.isMechanic && itemId != null && ['waiting', 'checking', 'in_progress'].contains(status))
                             TextButton(onPressed: () => Navigator.pop(dialogContext, 'part_cancel:$itemId'), child: const Text('Usulkan batal')),
                         ]),
                       );
                     })),
                   ],
-                  if ((AuthSession.instance.isMechanic || AuthSession.instance.isCashierOrAdmin) && const ['waiting', 'checking', 'in_progress'].contains(status))
+                  if ((AuthSession.instance.isMechanic || AuthSession.instance.isCashierOrAdmin) && ['waiting', 'checking', 'in_progress'].contains(status))
                     OutlinedButton.icon(onPressed: () => Navigator.pop(dialogContext, 'part_add'),
                       icon: const Icon(Icons.add_box_outlined), label: const Text('Tambah sparepart')),
                   if (estimateHistory.isNotEmpty) ...[
@@ -1345,7 +1345,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                       ),
                     ),
                   if (AuthSession.instance.isCashierOrAdmin &&
-                      const ['waiting', 'checking', 'in_progress'].contains(status))
+                      ['waiting', 'checking', 'in_progress'].contains(status))
                     OutlinedButton.icon(
                       onPressed: () => Navigator.pop(dialogContext, 'estimate'),
                       icon: const Icon(Icons.edit_note_outlined),
@@ -1566,7 +1566,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
                     itemBuilder: (_) => [
                       const PopupMenuItem(value: 'detail', child: Text('Lihat detail')),
                       const PopupMenuItem(value: 'status', child: Text('Ubah status')),
-                      if (AuthSession.instance.isAdmin && const ['waiting', 'checking', 'in_progress'].contains(status))
+                      if (AuthSession.instance.isAdmin && ['waiting', 'checking', 'in_progress'].contains(status))
                         PopupMenuItem(value: 'priority', child: Text(isPriority ? 'Hapus prioritas' : 'Jadikan prioritas')),
                     ],
                   ),
