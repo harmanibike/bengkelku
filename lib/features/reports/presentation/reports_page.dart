@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../data/report_repository.dart';
+import '../data/excel_report_export_service.dart';
 import '../../purchases/presentation/purchase_reports_page.dart';
 import 'tip_report_page.dart';
 import 'inventory_valuation_page.dart';
@@ -16,6 +17,7 @@ class _ReportsPageState extends State<ReportsPage> {
   final ReportRepository _repository = ReportRepository();
   String _period = 'today';
   bool _loading = true;
+  bool _exporting = false;
   Map<String, Object?> _summary = {};
   Map<String, int> _stockValuation = {};
 
@@ -68,6 +70,35 @@ class _ReportsPageState extends State<ReportsPage> {
     }
   }
 
+  Future<void> _exportExcel() async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    final now = DateTime.now();
+    late DateTime start;
+    late DateTime end;
+    if (_period == 'today') {
+      start = DateTime(now.year, now.month, now.day);
+      end = start.add(const Duration(days: 1));
+    } else if (_period == 'month') {
+      start = DateTime(now.year, now.month);
+      end = DateTime(now.year, now.month + 1);
+    } else {
+      start = DateTime(2000);
+      end = now.add(const Duration(days: 1));
+    }
+    try {
+      await ExcelReportExportService().exportAndShare(start: start, end: end);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal mengekspor Excel: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
   Widget _metric(String title, String value, IconData icon, Color color) {
     return Card(
       child: Padding(
@@ -98,6 +129,18 @@ class _ReportsPageState extends State<ReportsPage> {
               child: ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.file_download_outlined, color: Colors.green),
+                      title: const Text('Ekspor Laporan Excel'),
+                      subtitle: const Text('Ringkasan, penjualan, pembelian, servis, kas, stok, piutang, utang, retur, dan tip'),
+                      trailing: _exporting
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.share_outlined),
+                      onTap: _exporting ? null : _exportExcel,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   const Text('Jenis Laporan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Card(
