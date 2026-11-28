@@ -15,9 +15,10 @@ import '../../receipts/presentation/receipt_share_launcher.dart';
 import '../../settings/data/receipt_settings_repository.dart';
 
 class ServiceListPage extends StatefulWidget {
-  const ServiceListPage({super.key, this.showOutstandingOnly = false});
+  const ServiceListPage({super.key, this.showOutstandingOnly = false, this.initialStatus});
 
   final bool showOutstandingOnly;
+  final String? initialStatus;
 
   @override
   State<ServiceListPage> createState() => _ServiceListPageState();
@@ -45,6 +46,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
   void initState() {
     super.initState();
     _showOutstandingOnly = widget.showOutstandingOnly;
+    _statusFilter = widget.initialStatus;
     _loadOrders();
   }
 
