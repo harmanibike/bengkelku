@@ -1058,6 +1058,44 @@ class _ServiceListPageState extends State<ServiceListPage> {
     }
   }
 
+
+  Future<void> _editInspectionNote(int serviceOrderId, String checkKey, String currentNote) async {
+    final controller = TextEditingController(text: currentNote);
+    final note = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Catatan pemeriksaan'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Contoh: kampas rem mulai menipis',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text), child: const Text('Simpan')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (note == null || !mounted) return;
+    try {
+      final rows = await _repository.getServiceInspectionChecklist(serviceOrderId);
+      final current = rows.firstWhere((row) => row['check_key'] == checkKey);
+      await _repository.updateServiceInspectionItem(
+        serviceOrderId: serviceOrderId,
+        checkKey: checkKey,
+        checked: (current['is_checked'] as num? ?? 0) == 1,
+        note: note,
+      );
+      if (mounted) await _showDetail({'id': serviceOrderId});
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyimpan catatan: $error')));
+    }
+  }
+
   Future<void> _showDetail(Map<String, Object?> order) async {
     try {
   final id = order['id'] as int;
@@ -1066,6 +1104,7 @@ class _ServiceListPageState extends State<ServiceListPage> {
   
       final status = detail['service_status']?.toString() ?? 'waiting';
       final statusHistory = await _repository.getServiceStatusHistory(id);
+      final inspectionChecklist = await _repository.getServiceInspectionChecklist(id);
       final directCostHistory = AuthSession.instance.isAdmin
           ? await _repository.getServiceDirectCostHistory(id)
           : <Map<String, Object?>>[];
@@ -1242,6 +1281,43 @@ class _ServiceListPageState extends State<ServiceListPage> {
                     _detailLine('Catatan', detail['notes']),
                   ...[
                   const Divider(),
+
+                  const Divider(),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Checklist Pemeriksaan Sepeda',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      Text(
+                        '${inspectionChecklist.where((item) => (item['is_checked'] as num? ?? 0) == 1).length}/${inspectionChecklist.length}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ...inspectionChecklist.map((item) => CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: (item['is_checked'] as num? ?? 0) == 1,
+                    title: Text(item['label']?.toString() ?? ''),
+                    subtitle: (item['note']?.toString().trim().isNotEmpty ?? false)
+                        ? Text(item['note'].toString())
+                        : Text((item['checked_at']?.toString().isNotEmpty ?? false)
+                            ? 'Diperiksa: ${_dateLabel(item['checked_at'])}'
+                            : 'Belum diperiksa'),
+                    secondary: IconButton(
+                      tooltip: 'Catatan pemeriksaan',
+                      icon: const Icon(Icons.edit_note_outlined),
+                      onPressed: () => Navigator.pop(dialogContext, 'inspection_note:${item['check_key']}'),
+                    ),
+                    onChanged: (checked) => Navigator.pop(
+                      dialogContext,
+                      'inspection:${item['check_key']}:${checked == true ? '1' : '0'}',
+                    ),
+                  )),
+                  const SizedBox(height: 8),
                   const Text('Dokumentasi Servis',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
@@ -1392,7 +1468,25 @@ class _ServiceListPageState extends State<ServiceListPage> {
       );
   
       if (!mounted) return;
-      if (action?.startsWith('part_cancel:') == true) {
+      if (action?.startsWith('inspection:') == true) {
+        final parts = action!.split(':');
+        if (parts.length == 3) {
+          try {
+            await _repository.updateServiceInspectionItem(
+              serviceOrderId: id,
+              checkKey: parts[1],
+              checked: parts[2] == '1',
+            );
+            if (mounted) await _showDetail({'id': id});
+          } catch (error) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memperbarui checklist: $error')));
+          }
+        }
+      } else if (action?.startsWith('inspection_note:') == true) {
+        final key = action!.substring('inspection_note:'.length);
+        final item = inspectionChecklist.firstWhere((row) => row['check_key'] == key);
+        await _editInspectionNote(id, key, item['note']?.toString() ?? '');
+      } else if (action?.startsWith('part_cancel:') == true) {
         final itemId = int.tryParse(action!.split(':').last);
         if (itemId != null) await _proposePartChange(id, cancelItemId: itemId);
       } else if (action == 'part_add') {
