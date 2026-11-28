@@ -175,8 +175,8 @@ class SyncOutboxRepository {
       throw StateError('Event tidak sedang diproses atau tidak ditemukan.');
     }
     final attempts = rows.single['attempt_count'] as int? ?? 1;
-    final exponent = (attempts - 1).clamp(0, 10);
-    final delaySeconds = (5 * (1 << exponent)).clamp(5, 3600);
+    final exponent = (attempts - 1).clamp(0, 10).toInt();
+    final delaySeconds = (5 * (1 << exponent)).clamp(5, 3600).toInt();
     final now = _clock().toUtc();
     final nextAttempt = now.add(Duration(seconds: delaySeconds));
     final normalizedError = error.trim();
