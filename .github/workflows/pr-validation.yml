@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Format, Analyze, and Test
+    name: Focused Format, Analyze, and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -44,8 +44,8 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Format purchase entry file
-        run: dart format lib/features/purchases/presentation/purchases_page.dart
+      - name: Format changed files
+        run: dart format lib/features/purchases/presentation/purchases_page.dart test/features/service_cancellation_reconciliation_test.dart
 
       - name: Analyze Flutter project
         run: flutter analyze --no-fatal-infos
