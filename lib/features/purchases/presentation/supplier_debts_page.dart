@@ -118,6 +118,58 @@ class _SupplierDebtsPageState extends State<SupplierDebtsPage> {
                       ),
                     ),
                   )),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(2, 16, 2, 7),
+                  child: Text('Tagihan Toko Online', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                ),
+                FutureBuilder<List<Map<String, Object?>>>(
+                  future: _onlineFuture,
+                  builder: (context, onlineSnapshot) {
+                    if (onlineSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator()));
+                    }
+                    if (onlineSnapshot.hasError) {
+                      return Card(child: Padding(padding: EdgeInsets.all(12), child: Text('Gagal memuat tagihan toko online: ${onlineSnapshot.error}', style: const TextStyle(fontSize: 11))));
+                    }
+                    final onlineRows = onlineSnapshot.data ?? [];
+                    if (onlineRows.isEmpty) {
+                      return const Card(child: Padding(padding: EdgeInsets.all(14), child: Text('Tidak ada tagihan pembelian online yang belum lunas.', style: TextStyle(fontSize: 12))));
+                    }
+                    final onlineTotal = onlineRows.fold<int>(0, (sum, row) => sum + ((row['remaining_amount'] as num?)?.toInt() ?? 0));
+                    return Column(
+                      children: [
+                        Card(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          child: Padding(
+                            padding: const EdgeInsets.all(11),
+                            child: Row(children: [
+                              const Expanded(child: Text('Total tagihan toko online', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
+                              Text(_money(onlineTotal), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
+                            ]),
+                          ),
+                        ),
+                        ...onlineRows.map((row) => Card(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+                            leading: const CircleAvatar(radius: 18, child: Icon(Icons.storefront_outlined, size: 19)),
+                            title: Text(row['store_name']?.toString() ?? 'Toko online', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            subtitle: Text('${row['invoice_count']} faktur • Dibayar ${_money(row['paid_amount'])}', style: const TextStyle(fontSize: 10)),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(_money(row['remaining_amount']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE65100))),
+                                const Text('Sisa tagihan', style: TextStyle(fontSize: 9, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                        )),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           );
