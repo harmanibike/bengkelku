@@ -262,14 +262,31 @@ class DatabaseBackupService {
             manifest['formatVersion'] != 1 || manifest['media'] is! List) {
           throw const FormatException('Format manifest backup tidak didukung.');
         }
+        if (manifest['mediaMissing'] != 0 ||
+            manifest['mediaIncluded'] is! int ||
+            (manifest['mediaIncluded'] as int) < 0) {
+          throw const FormatException(
+            'Manifest menunjukkan media tidak lengkap atau jumlah media tidak valid.',
+          );
+        }
+
+        final archiveFileNames = archive.files
+            .where((file) => file.isFile)
+            .map((file) => file.name)
+            .toList();
+        if (archiveFileNames.toSet().length != archiveFileNames.length) {
+          throw const FormatException('Arsip ZIP memiliki nama file duplikat.');
+        }
 
         await restoredMedia.create(recursive: true);
         mediaCreated = true;
         checkDb = await openDatabase(candidate.path, singleInstance: false);
-        final mediaEntries = archive.files.where((file) => file.isFile)
-            .map((file) => file.name).toSet();
+        final mediaEntries = archiveFileNames.toSet();
+        final restoredArchivePaths = <String>{};
         for (final item in (manifest['media'] as List)) {
-          if (item is! Map) continue;
+          if (item is! Map) {
+            throw const FormatException('Entri media pada manifest tidak valid.');
+          }
           final table = item['table']?.toString();
           final column = item['column']?.toString();
           final originalPath = item['originalPath']?.toString();
@@ -279,13 +296,26 @@ class DatabaseBackupService {
               archivePath == null || id == null) {
             throw const FormatException('Entri media pada manifest tidak lengkap.');
           }
+          final expectedKind = table == 'products'
+              ? 'products'
+              : table == 'app_users'
+                  ? 'profiles'
+                  : table == 'service_orders'
+                      ? 'services'
+                      : null;
+          final archiveParts = archivePath.split('/');
           final allowed = (table == 'products' && column == 'image_path') ||
               (table == 'app_users' && column == 'profile_photo_path') ||
               (table == 'service_orders' &&
                   (column == 'before_photo_path' || column == 'after_photo_path'));
-          if (!allowed || archivePath.startsWith('/') ||
-              archivePath.split('/').contains('..') ||
-              !archivePath.startsWith('media/') ||
+          if (!allowed || expectedKind == null ||
+              archiveParts.length != 3 ||
+              archiveParts[0] != 'media' ||
+              archiveParts[1] != expectedKind ||
+              archiveParts[2].isEmpty ||
+              archiveParts[2] == '.' ||
+              archiveParts[2] == '..' ||
+              archivePath.contains(r'\\') ||
               !mediaEntries.contains(archivePath)) {
             throw FormatException('File media backup tidak valid atau hilang: $archivePath');
           }
@@ -303,6 +333,7 @@ class DatabaseBackupService {
           await targetDirectory.create(recursive: true);
           final target = File(p.join(targetDirectory.path, safeName));
           await target.writeAsBytes(entry.content as List<int>, flush: true);
+          restoredArchivePaths.add(archivePath);
           final key = '$table|$id|$column';
           final currentPath = currentPhotoPaths[key];
           final currentExists = currentPath != null && await File(currentPath).exists();
@@ -310,6 +341,11 @@ class DatabaseBackupService {
             await checkDb.update(table, {column: target.path},
                 where: 'id = ? AND $column = ?', whereArgs: [id, originalPath]);
           }
+        }
+        if (restoredArchivePaths.length != manifest['mediaIncluded']) {
+          throw const FormatException(
+            'Jumlah file media dalam ZIP tidak sesuai dengan manifest.',
+          );
         }
         if (photoMode != RestorePhotoMode.backupOnly) {
           for (final entry in currentPhotoPaths.entries) {
