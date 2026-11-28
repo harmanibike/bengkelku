@@ -63,6 +63,13 @@ class MediaCleanupService {
     await collect(Directory(p.join(documents.path, 'product_images')));
     await collect(Directory(p.join(documents.path, 'service_photos')));
 
+    // Folder media hasil restore dibuat unik per proses pemulihan.
+    await for (final entity in documents.list(followLinks: false)) {
+      if (entity is Directory && p.basename(entity.path).startsWith('restored_media_')) {
+        await collect(entity);
+      }
+    }
+
     // Foto profil disimpan langsung di root Documents dengan pola nama khusus.
     await for (final entity in documents.list(followLinks: false)) {
       if (entity is File && p.basename(entity.path).startsWith('profile_')) {
@@ -111,8 +118,11 @@ class MediaCleanupService {
       final basename = p.basename(path);
       final isProduct = p.isWithin(productRoot, path);
       final isService = p.isWithin(serviceRoot, path);
-      final isProfile = p.dirname(path) == root && basename.startsWith('profile_');
-      if (!isProduct && !isService && !isProfile) continue;
+      final parent = p.dirname(path);
+      final isRestoredMedia = p.isWithin(root, path) &&
+          p.basename(parent).startsWith('restored_media_');
+      final isProfile = parent == root && basename.startsWith('profile_');
+      if (!isProduct && !isService && !isProfile && !isRestoredMedia) continue;
       if (references.contains(path)) continue;
 
       final file = File(path);
