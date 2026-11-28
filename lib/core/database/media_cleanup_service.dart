@@ -119,8 +119,11 @@ class MediaCleanupService {
       final isProduct = p.isWithin(productRoot, path);
       final isService = p.isWithin(serviceRoot, path);
       final parent = p.dirname(path);
-      final isRestoredMedia = p.isWithin(root, path) &&
-          p.basename(parent).startsWith('restored_media_');
+      final relativeParts = p.isWithin(root, path)
+          ? p.relative(path, from: root).split(p.separator)
+          : const <String>[];
+      final isRestoredMedia = relativeParts.isNotEmpty &&
+          relativeParts.first.startsWith('restored_media_');
       final isProfile = parent == root && basename.startsWith('profile_');
       if (!isProduct && !isService && !isProfile && !isRestoredMedia) continue;
       if (references.contains(path)) continue;
