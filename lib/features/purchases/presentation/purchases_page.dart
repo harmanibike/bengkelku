@@ -942,7 +942,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
               controller: _search,
               onChanged: (_) => _reload(),
               decoration: InputDecoration(
-                hintText: 'Cari faktur atau pemasok',
+                hintText: 'Cari faktur, pemasok, atau nama toko',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 isDense: true,
               ),
@@ -985,7 +985,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
                           title: Text(row['invoice_number'] as String? ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                           subtitle: Padding(
                             padding: const EdgeInsets.only(top: 3),
-                            child: Text('${row['purchase_type'] == 'online' ? 'Online' : 'Langsung'} • ${row['supplier_name'] ?? 'Pemasok'} • Barang: ${row['receiving_status'] == 'received' ? 'Diterima' : row['receiving_status'] == 'partial' ? 'Sebagian' : 'Belum diterima'} • Dibayar ${_money(paid)} • Sisa ${_money(remaining)}',
+                            child: Text('${row['purchase_type'] == 'online' ? 'Online • ${row['marketplace'] ?? 'Toko online'}' : 'Langsung • ${row['supplier_name'] ?? 'Pemasok'}'} • Barang: ${row['receiving_status'] == 'received' ? 'Diterima' : row['receiving_status'] == 'partial' ? 'Sebagian' : 'Belum diterima'} • Dibayar ${_money(paid)} • Sisa ${_money(remaining)}',
                               maxLines: 2, style: const TextStyle(fontSize: 11)),
                           ),
                           trailing: Column(
