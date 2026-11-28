@@ -1765,17 +1765,17 @@ class _ServiceListPageState extends State<ServiceListPage> {
                 }
                 final orders = snapshot.data ?? [];
                 if (orders.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Padding(
-                      padding: EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(24),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.build_circle_outlined, size: 60),
-                          SizedBox(height: 8),
+                          const Icon(Icons.build_circle_outlined, size: 60),
+                          const SizedBox(height: 8),
                           Text(AuthSession.instance.isMechanic ? 'Belum ada pekerjaan ditugaskan' : 'Belum ada data servis',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          SizedBox(height: 5),
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 5),
                           Text(AuthSession.instance.isMechanic
                               ? 'Pekerjaan yang ditugaskan kepada Anda akan muncul di sini.'
                               : 'Tekan tombol + untuk mencatat sepeda yang masuk.',
